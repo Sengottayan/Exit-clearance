@@ -48,6 +48,25 @@ export interface TimelineEvent {
   isPending?: boolean;
 }
 
+export type CommentVisibility = 'all' | 'internal';
+
+export interface CaseComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorRole: Role;
+  message: string;
+  timestamp: string;
+  visibility: CommentVisibility;
+}
+
+export interface CaseAttachment {
+  id: string;
+  name: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
 export interface ExitInterview {
   overallRating: number; // 1-5
   managementRating: number;
@@ -80,7 +99,12 @@ export interface ExitCase {
     resignationLetter?: string;
     relievingLetter?: string;
     experienceCertificate?: string;
+    attachments?: CaseAttachment[];
   };
+  comments?: CaseComment[];
+  escalated?: boolean;
+  cancelReason?: string;
+  tags?: string[];
 }
 
 export interface Department {

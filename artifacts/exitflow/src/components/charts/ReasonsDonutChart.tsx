@@ -1,14 +1,12 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useTheme } from 'next-themes';
 
-const data = [
-  { name: 'Better Opportunity', value: 35 },
-  { name: 'Compensation', value: 25 },
-  { name: 'Higher Studies', value: 15 },
-  { name: 'Relocation', value: 10 },
-  { name: 'Personal Reasons', value: 10 },
-  { name: 'Other', value: 5 },
-];
+interface ChartPoint {
+  name: string;
+  value: number;
+}
+
+const FALLBACK: ChartPoint[] = [{ name: 'No data', value: 1 }];
 
 const COLORS = [
   'hsl(var(--chart-1))', 
@@ -19,7 +17,7 @@ const COLORS = [
   'hsl(var(--muted-foreground))'
 ];
 
-export function ReasonsDonutChart() {
+export function ReasonsDonutChart({ data = FALLBACK }: { data?: ChartPoint[] }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 

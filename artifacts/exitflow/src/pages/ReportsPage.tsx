@@ -9,11 +9,19 @@ import { ReasonsDonutChart } from "@/components/charts/ReasonsDonutChart";
 import { TurnaroundBarChart } from "@/components/charts/TurnaroundBarChart";
 import { SLAPerformanceChart } from "@/components/charts/SLAPerformanceChart";
 import { Download, Calendar } from "lucide-react";
+import { useExitStore } from "@/store/exitStore";
+import { computeExitTrend, computeExitReasons, computeTurnaround, computeSLAPerformance } from "@/lib/analytics";
 
 export default function ReportsPage() {
   const { isHR, isAdmin } = useAuth();
+  const cases = useExitStore((s) => s.cases);
 
   if (!isHR && !isAdmin) return <Redirect to="/dashboard" />;
+
+  const exitTrend = computeExitTrend(cases);
+  const exitReasons = computeExitReasons(cases);
+  const turnaround = computeTurnaround(cases);
+  const slaPerformance = computeSLAPerformance(cases);
 
   return (
     <div className="animate-in fade-in duration-500 space-y-6 pb-12">
@@ -47,7 +55,7 @@ export default function ReportsPage() {
             <CardTitle>Exit Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ExitTrendChart />
+            <ExitTrendChart data={exitTrend} />
           </CardContent>
         </Card>
 
@@ -56,7 +64,7 @@ export default function ReportsPage() {
             <CardTitle>Exit Reasons</CardTitle>
           </CardHeader>
           <CardContent>
-            <ReasonsDonutChart />
+            <ReasonsDonutChart data={exitReasons.length > 0 ? exitReasons : undefined} />
           </CardContent>
         </Card>
 
@@ -65,7 +73,7 @@ export default function ReportsPage() {
             <CardTitle>Average Turnaround Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <TurnaroundBarChart />
+            <TurnaroundBarChart data={turnaround} />
           </CardContent>
         </Card>
 
@@ -74,7 +82,7 @@ export default function ReportsPage() {
             <CardTitle>SLA Performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <SLAPerformanceChart />
+            <SLAPerformanceChart data={slaPerformance} />
           </CardContent>
         </Card>
       </div>

@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link } from "wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Building2, Users, ArrowRightLeft } from "lucide-react";
+import { Building2, Users, ArrowRightLeft, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SettingsPage() {
@@ -41,6 +41,21 @@ export default function SettingsPage() {
           <CardContent>
             <Link href="/settings/workflows">
               <Button variant="outline" className="w-full">Edit Workflows</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:border-primary/50 transition-colors">
+          <CardHeader>
+            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center mb-2">
+              <ListChecks className="w-5 h-5 text-primary" />
+            </div>
+            <CardTitle>Checklist Templates</CardTitle>
+            <CardDescription>Edit per-department clearance checklist items.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/settings/checklists">
+              <Button variant="outline" className="w-full">Edit Checklists</Button>
             </Link>
           </CardContent>
         </Card>

@@ -2,7 +2,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link } from "wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DEPARTMENTS, MOCK_USERS } from "@/lib/constants";
+import { MOCK_USERS } from "@/lib/constants";
+import { useSettingsStore } from "@/store/settingsStore";
+import { Department } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,32 +15,41 @@ import { toast } from "sonner";
 
 export default function SettingsDepartmentsPage() {
   const { isAdmin } = useAuth();
-  const [activeDept, setActiveDept] = useState(DEPARTMENTS[0]);
+  const departments = useSettingsStore((s) => s.departments);
+  const updateDepartment = useSettingsStore((s) => s.updateDepartment);
+  const [activeDept, setActiveDept] = useState<Department>(departments[0]);
   const [formData, setFormData] = useState({
     slaHours: activeDept.slaHours.toString(),
     assignee: activeDept.defaultAssignee,
-    mandatory: activeDept.isMandatory
+    mandatory: activeDept.isMandatory,
   });
 
   if (!isAdmin) return <Redirect to="/dashboard" />;
 
-  const handleDeptSelect = (dept: any) => {
+  const handleDeptSelect = (dept: Department) => {
     setActiveDept(dept);
     setFormData({
       slaHours: dept.slaHours.toString(),
       assignee: dept.defaultAssignee,
-      mandatory: dept.isMandatory
+      mandatory: dept.isMandatory,
     });
   };
 
   const handleSave = () => {
+    updateDepartment(activeDept.id, {
+      slaHours: parseInt(formData.slaHours, 10) || activeDept.slaHours,
+      defaultAssignee: formData.assignee,
+      isMandatory: formData.mandatory,
+    });
+    const updated = useSettingsStore.getState().departments.find((d) => d.id === activeDept.id)!;
+    setActiveDept(updated);
     toast.success(`${activeDept.label} configuration saved successfully`);
   };
 
   return (
     <div className="animate-in fade-in duration-500 pb-12">
-      <PageHeader 
-        title="Department Configurations" 
+      <PageHeader
+        title="Department Configurations"
         breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Departments" }]}
       />
 
@@ -49,11 +60,11 @@ export default function SettingsDepartmentsPage() {
               <CardTitle className="text-base">Departments</CardTitle>
             </CardHeader>
             <CardContent className="p-0 divide-y">
-              {DEPARTMENTS.map(dept => (
+              {departments.map((dept) => (
                 <button
                   key={dept.id}
                   onClick={() => handleDeptSelect(dept)}
-                  className={`w-full flex items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors ${activeDept.id === dept.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
+                  className={`w-full flex items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors ${activeDept.id === dept.id ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
                 >
                   <div>
                     <p className="font-medium text-sm">{dept.label}</p>
@@ -80,10 +91,10 @@ export default function SettingsDepartmentsPage() {
               <div className="space-y-2 max-w-sm">
                 <Label>SLA Target (Hours)</Label>
                 <div className="flex items-center gap-2">
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     value={formData.slaHours}
-                    onChange={(e) => setFormData({...formData, slaHours: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
                   />
                   <span className="text-sm text-muted-foreground">hours</span>
                 </div>
@@ -91,13 +102,15 @@ export default function SettingsDepartmentsPage() {
 
               <div className="space-y-2 max-w-sm">
                 <Label>Default Assignee / Approver Group</Label>
-                <Select value={formData.assignee} onValueChange={(val) => setFormData({...formData, assignee: val})}>
+                <Select value={formData.assignee} onValueChange={(val) => setFormData({ ...formData, assignee: val })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MOCK_USERS.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+                    {MOCK_USERS.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name} ({u.role})
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -106,17 +119,21 @@ export default function SettingsDepartmentsPage() {
               <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
                 <div className="space-y-0.5">
                   <Label>Mandatory Clearance</Label>
-                  <p className="text-xs text-muted-foreground">If enabled, the final relieving letter cannot be issued until this department approves.</p>
+                  <p className="text-xs text-muted-foreground">
+                    If enabled, the final relieving letter cannot be issued until this department approves.
+                  </p>
                 </div>
-                <Switch 
+                <Switch
                   checked={formData.mandatory}
-                  onCheckedChange={(val) => setFormData({...formData, mandatory: val})}
-                  disabled={['manager', 'hr', 'it'].includes(activeDept.id)} // Some core depts can't be made optional
+                  onCheckedChange={(val) => setFormData({ ...formData, mandatory: val })}
+                  disabled={["manager", "hr", "it"].includes(activeDept.id)}
                 />
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <Link href="/settings"><Button variant="ghost">Cancel</Button></Link>
+                <Link href="/settings">
+                  <Button variant="ghost">Cancel</Button>
+                </Link>
                 <Button onClick={handleSave}>Save Changes</Button>
               </div>
             </CardContent>

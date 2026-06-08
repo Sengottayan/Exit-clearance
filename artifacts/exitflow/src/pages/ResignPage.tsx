@@ -5,6 +5,7 @@ import { Link, Redirect, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useExitStore } from "@/store/exitStore";
 import { EXIT_REASONS } from "@/lib/constants";
+import { getManagerForEmployee } from "@/lib/workflow";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,20 +63,21 @@ export default function ResignPage() {
     // Since we don't have a real backend, we construct the object here
     // In reality, this would just be an API call
     if (user) {
+      const manager = getManagerForEmployee(user.dept);
       addCase({
         employeeId: user.employeeId,
         employeeName: user.name,
         employeeEmail: user.email,
         employeeRole: user.role,
         employeeDept: user.dept,
-        managerId: "u2", // Hardcoded manager for demo
-        managerName: "Rahul Mehta",
+        managerId: manager.id,
+        managerName: manager.name,
         status: "pending_manager",
         resignationDate: new Date().toISOString(),
         lastWorkingDay: data.lastWorkingDay.toISOString(),
         noticePeriodDays: noticeDays,
         exitReason: data.reason,
-        tasks: [], // Store will handle seed/creation ideally, or we inject here. For now, empty or basic
+        tasks: [],
         timeline: [
           {
             id: `evt-${Date.now()}`,

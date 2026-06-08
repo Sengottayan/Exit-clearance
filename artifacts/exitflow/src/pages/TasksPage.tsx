@@ -10,6 +10,7 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ClipboardCheck } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { resolveTaskStatus } from "@/lib/workflow";
 
 export default function TasksPage() {
   const { user, isDeptApprover, isAdmin } = useAuth();
@@ -30,9 +31,16 @@ export default function TasksPage() {
     }];
   });
 
-  const pending = myTasks.filter(t => ['pending', 'in_progress', 'overdue'].includes(t.status) && t.caseStatus === 'in_clearance');
-  const inProgress = myTasks.filter(t => t.status === 'in_progress');
-  const completed = myTasks.filter(t => ['approved', 'rejected'].includes(t.status));
+  const withResolvedStatus = myTasks.map(t => ({ ...t, displayStatus: resolveTaskStatus(t) }));
+
+  const sortByUrgency = (tasks: typeof withResolvedStatus) =>
+    [...tasks].sort((a, b) => new Date(a.slaDueAt).getTime() - new Date(b.slaDueAt).getTime());
+
+  const pending = sortByUrgency(
+    withResolvedStatus.filter(t => ['pending', 'in_progress', 'overdue'].includes(t.displayStatus) && t.caseStatus === 'in_clearance')
+  );
+  const inProgress = sortByUrgency(withResolvedStatus.filter(t => t.displayStatus === 'in_progress'));
+  const completed = withResolvedStatus.filter(t => ['approved', 'rejected'].includes(t.displayStatus));
 
   const TaskCard = ({ task }: { task: any }) => {
     const checkedCount = task.checklist.filter((i: any) => i.checked).length;
@@ -49,14 +57,14 @@ export default function TasksPage() {
                 <p className="text-xs text-muted-foreground">{task.employeeRole} · {task.employeeDept}</p>
               </div>
             </div>
-            {task.status !== 'approved' && task.status !== 'rejected' && (
+            {!['approved', 'rejected'].includes(task.displayStatus) && (
               <SLARiskChip dueAt={task.slaDueAt} />
             )}
           </div>
           
           <div className="space-y-3 mb-6 flex-1">
             <div className="flex justify-between items-center">
-              <StatusBadge status={task.status} />
+              <StatusBadge status={task.displayStatus} />
               <span className="text-xs text-muted-foreground font-mono">{task.caseId}</span>
             </div>
             
@@ -81,9 +89,9 @@ export default function TasksPage() {
           </div>
 
           <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
-            <Button className="w-full" variant={task.status === 'approved' ? "outline" : "default"}>
-              {task.status === 'approved' ? 'View Details' : 'Continue Clearance'} 
-              {!['approved','rejected'].includes(task.status) && <ArrowRight className="w-4 h-4 ml-2" />}
+            <Button className="w-full" variant={task.displayStatus === 'approved' ? "outline" : "default"}>
+              {task.displayStatus === 'approved' ? 'View Details' : 'Continue Clearance'} 
+              {!['approved','rejected'].includes(task.displayStatus) && <ArrowRight className="w-4 h-4 ml-2" />}
             </Button>
           </Link>
         </CardContent>

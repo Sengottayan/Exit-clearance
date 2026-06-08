@@ -6,6 +6,8 @@ import * as Icons from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
+import { NotificationBell } from "@/components/shared/NotificationBell";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const logout = useAuthStore(state => state.logout);
 
@@ -26,13 +28,17 @@ export function Sidebar() {
 
   return (
     <div className="hidden md:flex flex-col w-[260px] bg-sidebar border-r border-sidebar-border h-[100dvh] text-sidebar-foreground sticky top-0 shadow-xl shadow-black/5 z-20">
-      <div className="h-16 flex items-center px-6 mb-2 border-b border-sidebar-border/50">
+      <div className="h-16 flex items-center justify-between px-6 mb-2 border-b border-sidebar-border/50">
         <Link href="/dashboard" className="flex items-center gap-2.5 text-sidebar-primary-foreground group">
           <div className="w-7 h-7 rounded bg-sidebar-primary flex items-center justify-center shadow-sm group-hover:bg-white transition-colors">
             <Icons.Box className="w-4 h-4 text-sidebar group-hover:text-primary transition-colors" />
           </div>
           <span className="font-bold tracking-tight text-lg">ExitFlow</span>
         </Link>
+        <div className="flex items-center gap-0.5">
+          <NotificationBell className="text-sidebar-foreground/70 hover:text-white hover:bg-sidebar-accent/50" />
+          <ThemeToggle className="text-sidebar-foreground/70 hover:text-white hover:bg-sidebar-accent/50" />
+        </div>
       </div>
 
       <div className="px-4 py-3">
@@ -45,7 +51,7 @@ export function Sidebar() {
             const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href));
             return (
               <Link 
-                key={item.href} 
+                key={`${item.href}-${item.label}`} 
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 group relative",
@@ -92,9 +98,13 @@ export function Sidebar() {
               <Icons.User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Icons.Settings className="mr-2 h-4 w-4" />
-              <span>Preferences</span>
+            <DropdownMenuItem onClick={() => setLocation("/preferences")}>
+              <Icons.Bell className="mr-2 h-4 w-4" />
+              <span>Notification Preferences</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-xs text-muted-foreground pointer-events-none">
+              <Icons.Command className="mr-2 h-4 w-4" />
+              <span>⌘K Quick search</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">

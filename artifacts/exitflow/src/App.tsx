@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -19,6 +20,8 @@ import SettingsPage from "@/pages/SettingsPage";
 import SettingsDepartmentsPage from "@/pages/SettingsDepartmentsPage";
 import SettingsWorkflowsPage from "@/pages/SettingsWorkflowsPage";
 import SettingsUsersPage from "@/pages/SettingsUsersPage";
+import SettingsChecklistsPage from "@/pages/SettingsChecklistsPage";
+import PreferencesPage from "@/pages/PreferencesPage";
 
 import { AppShell } from "@/components/layout/AppShell";
 
@@ -69,6 +72,12 @@ function Router() {
       <Route path="/settings/users">
         <AppShell><SettingsUsersPage /></AppShell>
       </Route>
+      <Route path="/settings/checklists">
+        <AppShell><SettingsChecklistsPage /></AppShell>
+      </Route>
+      <Route path="/preferences">
+        <AppShell><PreferencesPage /></AppShell>
+      </Route>
 
       <Route component={NotFound} />
     </Switch>
@@ -77,14 +86,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster position="top-right" />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster position="top-right" />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

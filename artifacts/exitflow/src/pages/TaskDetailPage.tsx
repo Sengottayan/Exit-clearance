@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { SLARiskChip } from "@/components/shared/SLARiskChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { resolveTaskStatus } from "@/lib/workflow";
 
 export default function TaskDetailPage() {
   const { taskId } = useParams();
@@ -21,6 +22,7 @@ export default function TaskDetailPage() {
   const store = useExitStore();
   
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
@@ -41,7 +43,8 @@ export default function TaskDetailPage() {
   }
 
   const isLocked = exitCase.status === 'pending_manager' && deptId !== 'manager';
-  const isCompleted = task.status === 'approved' || task.status === 'rejected';
+  const displayStatus = resolveTaskStatus(task);
+  const isCompleted = displayStatus === 'approved' || displayStatus === 'rejected';
   const canEdit = !isLocked && !isCompleted;
 
   const allMandatoryChecked = task.checklist.every(item => !item.isMandatory || item.checked);
@@ -59,13 +62,18 @@ export default function TaskDetailPage() {
     toast.success("Draft saved successfully");
   };
 
-  const handleApprove = () => {
+  const handleApproveClick = () => {
     if (!allMandatoryChecked) {
       setShowErrors(true);
       toast.error("Please complete all mandatory checklist items.");
       return;
     }
+    setApproveOpen(true);
+  };
+
+  const handleApproveConfirm = () => {
     store.approveTask(caseId, deptId);
+    setApproveOpen(false);
     toast.success("Clearance approved successfully");
     setLocation("/tasks");
   };
@@ -106,7 +114,7 @@ export default function TaskDetailPage() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <StatusBadge status={task.status} />
+            <StatusBadge status={displayStatus} />
             {!isCompleted && <SLARiskChip dueAt={task.slaDueAt} />}
           </div>
         </CardContent>
@@ -150,21 +158,21 @@ export default function TaskDetailPage() {
             <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
             <div className="flex gap-3">
               <Button variant="destructive" onClick={() => setRejectOpen(true)}>Reject</Button>
-              <Button onClick={handleApprove}>Approve Clearance</Button>
+              <Button onClick={handleApproveClick}>Approve Clearance</Button>
             </div>
           </div>
         </div>
       )}
 
       <ConfirmDialog
-        open={rejectOpen}
-        onOpenChange={setRejectOpen}
-        title="Reject Clearance"
-        description="Please provide a reason for rejecting this clearance. HR will be notified to follow up with the employee."
-        confirmLabel="Reject"
-        variant="destructive"
-        onConfirm={handleRejectConfirm}
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        title="Approve Clearance"
+        description={`Confirm that all checklist items for ${exitCase.employeeName}'s ${task.deptLabel} clearance are complete.`}
+        confirmLabel="Approve Clearance"
+        onConfirm={handleApproveConfirm}
       />
+
       {rejectOpen && (
         <div className="fixed z-[100] inset-0 flex items-center justify-center pointer-events-none">
           {/* Inject text area into the dialog via a hack or we just build a custom dialog here. Let's use a standard Dialog for rejection input instead of ConfirmDialog to have an input field. */}

@@ -17,6 +17,7 @@ export function ManagerDashboard() {
   const pendingApprovals = teamCases.filter(c => c.status === 'pending_manager');
   const myClearanceTasks = cases.flatMap(c => c.tasks.filter(t => t.deptId === 'manager' && c.status !== 'pending_manager').map(t => ({...t, caseId: c.id, employeeName: c.employeeName})));
   const pendingClearances = myClearanceTasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'overdue');
+  const hasNoActivity = teamCases.length === 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-8">
@@ -24,6 +25,21 @@ export function ManagerDashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Manager Dashboard</h1>
         <p className="text-muted-foreground font-medium mt-1">{user?.dept} Department</p>
       </div>
+
+      {hasNoActivity && (
+        <Card className="border-dashed bg-muted/20 border-2 shadow-none">
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+            <Users className="w-12 h-12 text-muted-foreground opacity-40 mb-4" />
+            <h3 className="text-lg font-semibold">No Team Exits</h3>
+            <p className="text-muted-foreground mt-2 max-w-sm text-sm">
+              None of your direct reports have an active exit process. Resignation requests will appear here for your approval.
+            </p>
+            <Link href="/cases">
+              <Button variant="outline" className="mt-6">View Team Exits</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {(pendingApprovals.length > 0 || pendingClearances.length > 0) && (
         <Card className="border border-amber-200 dark:border-amber-500/30 bg-gradient-to-r from-amber-50 to-amber-50/30 dark:from-amber-500/10 dark:to-transparent shadow-sm">
@@ -51,6 +67,46 @@ export function ManagerDashboard() {
                   <Button size="sm" variant="outline" className="w-full sm:w-auto border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-500/50 dark:text-amber-300 h-9 px-6 rounded-full font-semibold">Complete Clearance</Button>
                 </Link>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {teamCases.length > 0 && (
+        <Card className="shadow-sm">
+          <CardHeader className="border-b bg-muted/20 pb-4">
+            <CardTitle className="text-lg font-bold">Exit Pipeline</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { key: 'pending_manager', label: 'Pending Approval', cases: teamCases.filter(c => c.status === 'pending_manager'), color: 'border-amber-200 bg-amber-50/50 dark:bg-amber-500/5' },
+                { key: 'in_clearance', label: 'In Clearance', cases: teamCases.filter(c => c.status === 'in_clearance'), color: 'border-blue-200 bg-blue-50/50 dark:bg-blue-500/5' },
+                { key: 'completed', label: 'Completed', cases: teamCases.filter(c => c.status === 'completed'), color: 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-500/5' },
+              ].map((col) => (
+                <div key={col.key} className={`rounded-xl border p-4 min-h-[140px] ${col.color}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{col.label}</p>
+                    <Badge variant="secondary" className="font-mono">{col.cases.length}</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {col.cases.slice(0, 3).map((c) => (
+                      <Link key={c.id} href={`/cases/${c.id}`}>
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-background/80 hover:bg-background border border-border/50 transition-colors cursor-pointer">
+                          <UserAvatar name={c.employeeName} className="w-7 h-7" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{c.employeeName}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">{c.id}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                    {col.cases.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">No cases</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

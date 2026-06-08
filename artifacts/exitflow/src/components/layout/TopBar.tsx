@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/authStore";
+import { NotificationBell } from "@/components/shared/NotificationBell";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 export function TopBar() {
   const { user } = useAuth();
@@ -29,9 +31,8 @@ export function TopBar() {
       </Link>
 
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
-          <Icons.Bell className="w-5 h-5" />
-        </Button>
+        <NotificationBell />
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full ml-1">

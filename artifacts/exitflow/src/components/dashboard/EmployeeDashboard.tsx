@@ -9,6 +9,11 @@ import { differenceInDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { FileText, CheckCircle2, Circle, AlertCircle, Clock, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import { ExternalLink } from "lucide-react";
+import { FileSignature } from "lucide-react";
+import { ProgressRing } from "@/components/shared/ProgressRing";
+import { resolveTaskStatus } from "@/lib/workflow";
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
@@ -31,6 +36,12 @@ export function EmployeeDashboard() {
             <p className="text-muted-foreground mt-2 max-w-sm text-sm">
               You do not have an active resignation or exit process. Your employment status is active.
             </p>
+            <Link href="/resign">
+              <Button className="mt-6" size="lg">
+                <FileSignature className="w-4 h-4 mr-2" />
+                Start Resignation Process
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -39,6 +50,9 @@ export function EmployeeDashboard() {
 
   const lwd = new Date(myCase.lastWorkingDay);
   const daysRemaining = differenceInDays(lwd, new Date());
+  const approvedCount = myCase.tasks.filter((t) => resolveTaskStatus(t) === 'approved').length;
+  const clearanceProgress = myCase.tasks.length > 0 ? (approvedCount / myCase.tasks.length) * 100 : 0;
+  const nextPendingTask = myCase.tasks.find((t) => !['approved', 'rejected'].includes(resolveTaskStatus(t)));
   
   const getDeptIcon = (status: string) => {
     switch(status) {
@@ -52,9 +66,17 @@ export function EmployeeDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
-        <p className="text-muted-foreground font-medium mt-1">{user?.dept} Department</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
+          <p className="text-muted-foreground font-medium mt-1">{user?.dept} Department</p>
+        </div>
+        <Link href={`/cases/${myCase.id}`}>
+          <Button variant="outline" size="sm">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            View Full Details
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -72,16 +94,35 @@ export function EmployeeDashboard() {
                   <h2 className="text-2xl font-bold tracking-tight">Exit Process Active</h2>
                 </div>
                 
-                <div className="bg-secondary/50 rounded-xl p-4 border border-border/50 flex flex-col items-end min-w-[180px]">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Last Working Day</p>
-                  <p className="text-2xl font-bold text-foreground mb-2">{formatDate(myCase.lastWorkingDay)}</p>
-                  {daysRemaining >= 0 && (
-                    <Badge variant="secondary" className={daysRemaining < 7 ? 'bg-red-100 text-red-800' : daysRemaining < 20 ? 'bg-amber-100 text-amber-800' : 'bg-primary/10 text-primary'}>
-                      {daysRemaining} days remaining
-                    </Badge>
-                  )}
+                <div className="flex items-center gap-6">
+                  <ProgressRing
+                    value={clearanceProgress}
+                    label="Clearance"
+                    sublabel={`${approvedCount}/${myCase.tasks.length}`}
+                    size={100}
+                    strokeWidth={7}
+                  />
+                  <div className="bg-secondary/50 rounded-xl p-4 border border-border/50 flex flex-col items-end min-w-[160px]">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Last Working Day</p>
+                    <p className="text-2xl font-bold text-foreground mb-2">{formatDate(myCase.lastWorkingDay)}</p>
+                    {daysRemaining >= 0 && (
+                      <Badge variant="secondary" className={daysRemaining < 7 ? 'bg-red-100 text-red-800' : daysRemaining < 20 ? 'bg-amber-100 text-amber-800' : 'bg-primary/10 text-primary'}>
+                        {daysRemaining} days remaining
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {nextPendingTask && myCase.status === 'in_clearance' && (
+                <div className="mb-8 p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">Next Step</p>
+                    <p className="text-sm font-medium">Waiting on <strong>{nextPendingTask.deptLabel}</strong> clearance</p>
+                  </div>
+                  <SLARiskChip dueAt={nextPendingTask.slaDueAt} />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
@@ -112,23 +153,25 @@ export function EmployeeDashboard() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-border/40">
-                {myCase.tasks.map((task) => (
+                {myCase.tasks.map((task) => {
+                  const displayStatus = resolveTaskStatus(task);
+                  return (
                   <div key={task.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 hover:bg-muted/10 transition-colors gap-4">
                     <div className="flex items-center gap-4">
-                      {getDeptIcon(task.status)}
+                      {getDeptIcon(displayStatus)}
                       <div>
                         <p className="font-semibold text-sm leading-none mb-1.5">{task.deptLabel}</p>
                         <p className="text-xs text-muted-foreground font-medium">Assigned to: <span className="text-foreground/80">{task.assigneeName}</span></p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 sm:ml-auto pl-12 sm:pl-0">
-                      {(task.status === 'pending' || task.status === 'in_progress') && (
+                      {(['pending', 'in_progress', 'overdue'] as const).includes(displayStatus as 'pending' | 'in_progress' | 'overdue') && (
                         <SLARiskChip dueAt={task.slaDueAt} className="hidden sm:inline-flex" />
                       )}
-                      <StatusBadge status={task.status} className="shadow-none" />
+                      <StatusBadge status={displayStatus} className="shadow-none" />
                     </div>
                   </div>
-                ))}
+                );})}
               </div>
             </CardContent>
           </Card>

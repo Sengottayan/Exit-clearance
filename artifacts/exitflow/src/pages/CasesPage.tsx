@@ -8,31 +8,44 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { resolveTaskStatus } from "@/lib/workflow";
 
 export default function CasesPage() {
-  const { user, isHR, isAdmin } = useAuth();
+  const { user, isHR, isAdmin, isManager, isEmployee } = useAuth();
   const cases = useExitStore(state => state.cases);
   const [filter, setFilter] = useState('all');
 
-  if (!isHR && !isAdmin) return <Redirect to="/dashboard" />;
+  if (isEmployee) {
+    const myCase = cases.find(c => c.employeeId === user?.employeeId);
+    if (myCase) return <Redirect to={`/cases/${myCase.id}`} />;
+    return <Redirect to="/resign" />;
+  }
 
-  let filteredCases = cases;
-  if (filter === 'pending') filteredCases = cases.filter(c => c.status === 'pending_manager');
-  if (filter === 'clearance') filteredCases = cases.filter(c => c.status === 'in_clearance');
-  if (filter === 'overdue') filteredCases = cases.filter(c => c.tasks.some(t => t.status === 'overdue'));
-  if (filter === 'completed') filteredCases = cases.filter(c => c.status === 'completed');
+  if (!isHR && !isAdmin && !isManager) return <Redirect to="/dashboard" />;
+
+  const isManagerOnly = isManager && !isHR && !isAdmin;
+  const baseCases = isManagerOnly ? cases.filter(c => c.managerId === user?.id) : cases;
+
+  let filteredCases = baseCases;
+  if (filter === 'pending') filteredCases = baseCases.filter(c => c.status === 'pending_manager');
+  if (filter === 'clearance') filteredCases = baseCases.filter(c => c.status === 'in_clearance');
+  if (filter === 'overdue') filteredCases = baseCases.filter(c => c.tasks.some(t => resolveTaskStatus(t) === 'overdue'));
+  if (filter === 'completed') filteredCases = baseCases.filter(c => c.status === 'completed');
 
   return (
     <div className="animate-in fade-in duration-500">
       <PageHeader 
-        title="Exit Cases" 
+        title={isManagerOnly ? "Team Exits" : "Exit Cases"}
+        description={isManagerOnly ? "View and manage exit processes for your direct reports." : undefined}
         action={
-          <Link href="/cases/new">
-            <Button>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              New Case
-            </Button>
-          </Link>
+          !isManagerOnly ? (
+            <Link href="/cases/new">
+              <Button>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                New Case
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 

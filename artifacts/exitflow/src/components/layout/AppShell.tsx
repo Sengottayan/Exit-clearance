@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
+import { CommandPalette } from "@/components/shared/CommandPalette";
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect } from "wouter";
 
@@ -33,6 +34,7 @@ export function AppShell({ children, requireAuth = true }: AppShellProps) {
         </main>
         <BottomNav />
       </div>
+      <CommandPalette />
     </div>
   );
 }

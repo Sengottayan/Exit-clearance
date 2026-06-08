@@ -1,22 +1,18 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useTheme } from 'next-themes';
 
-const data = [
-  { name: 'Jan', exits: 2 },
-  { name: 'Feb', exits: 3 },
-  { name: 'Mar', exits: 5 },
-  { name: 'Apr', exits: 4 },
-  { name: 'May', exits: 7 },
-  { name: 'Jun', exits: 6 },
-  { name: 'Jul', exits: 8 },
-  { name: 'Aug', exits: 5 },
-  { name: 'Sep', exits: 9 },
-  { name: 'Oct', exits: 11 },
-  { name: 'Nov', exits: 8 },
-  { name: 'Dec', exits: 12 },
+interface ChartPoint {
+  name: string;
+  exits: number;
+}
+
+const FALLBACK: ChartPoint[] = [
+  { name: 'Jan', exits: 0 },
+  { name: 'Feb', exits: 0 },
+  { name: 'Mar', exits: 0 },
 ];
 
-export function ExitTrendChart() {
+export function ExitTrendChart({ data = FALLBACK }: { data?: ChartPoint[] }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   

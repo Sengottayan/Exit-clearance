@@ -1,16 +1,14 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useTheme } from 'next-themes';
 
-const data = [
-  { name: 'Manager', days: 1.5 },
-  { name: 'HR', days: 2.1 },
-  { name: 'IT', days: 0.8 },
-  { name: 'Finance', days: 3.2 },
-  { name: 'Admin', days: 1.1 },
-  { name: 'InfoSec', days: 0.5 },
-];
+interface ChartPoint {
+  name: string;
+  days: number;
+}
 
-export function TurnaroundBarChart() {
+const FALLBACK: ChartPoint[] = [{ name: 'No data', days: 0 }];
+
+export function TurnaroundBarChart({ data = FALLBACK }: { data?: ChartPoint[] }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 

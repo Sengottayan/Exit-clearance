@@ -1,16 +1,15 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from 'next-themes';
 
-const data = [
-  { name: 'Aug', onTime: 40, overdue: 5 },
-  { name: 'Sep', onTime: 45, overdue: 8 },
-  { name: 'Oct', onTime: 38, overdue: 12 },
-  { name: 'Nov', onTime: 52, overdue: 3 },
-  { name: 'Dec', onTime: 48, overdue: 6 },
-  { name: 'Jan', onTime: 55, overdue: 2 },
-];
+interface ChartPoint {
+  name: string;
+  onTime: number;
+  overdue: number;
+}
 
-export function SLAPerformanceChart() {
+const FALLBACK: ChartPoint[] = [{ name: 'N/A', onTime: 0, overdue: 0 }];
+
+export function SLAPerformanceChart({ data = FALLBACK }: { data?: ChartPoint[] }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 

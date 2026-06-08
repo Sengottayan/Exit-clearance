@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { CalendarIcon, Search, Lock, User, Briefcase, FileText, CheckCircle2 } from "lucide-react";
 import { MOCK_USERS, DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
+import { buildClearanceTasks, getManagerForEmployee } from "@/lib/workflow";
+import { useSettingsStore } from "@/store/settingsStore";
+import { Badge } from "@/components/ui/badge";
 import { useExitStore } from "@/store/exitStore";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/UserAvatar";
@@ -23,8 +26,11 @@ export default function NewCasePage() {
   const { isHR, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const addCase = useExitStore(state => state.addCase);
-  
+  const workflowTemplates = useSettingsStore((s) => s.workflowTemplates);
+  const defaultTemplateId = useSettingsStore((s) => s.workflow.defaultTemplateId);
+
   const [step, setStep] = useState(1);
+  const [workflowTemplateId, setWorkflowTemplateId] = useState(defaultTemplateId);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [search, setSearch] = useState("");
   
@@ -32,9 +38,14 @@ export default function NewCasePage() {
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   
-  const [selectedDepts, setSelectedDepts] = useState<string[]>(
-    DEPARTMENTS.filter(d => d.isMandatory).map(d => d.id)
-  );
+  const activeTemplate = workflowTemplates.find((t) => t.id === workflowTemplateId) ?? workflowTemplates[0];
+  const [selectedDepts, setSelectedDepts] = useState<string[]>(activeTemplate?.deptIds ?? []);
+
+  const applyTemplate = (templateId: string) => {
+    setWorkflowTemplateId(templateId);
+    const template = workflowTemplates.find((t) => t.id === templateId);
+    if (template) setSelectedDepts([...template.deptIds]);
+  };
 
   if (!isHR && !isAdmin) return <Link href="/dashboard" />;
 
@@ -53,33 +64,22 @@ export default function NewCasePage() {
   const handleCreate = () => {
     if (!selectedUser || !lwd || !reason) return;
 
+    const manager = getManagerForEmployee(selectedUser.dept);
     addCase({
       employeeId: selectedUser.employeeId,
       employeeName: selectedUser.name,
       employeeEmail: selectedUser.email,
       employeeRole: selectedUser.role,
       employeeDept: selectedUser.dept,
-      managerId: 'u2', // Mock
-      managerName: 'Rahul Mehta',
+      managerId: manager.id,
+      managerName: manager.name,
       status: 'pending_manager',
       resignationDate: new Date().toISOString(),
       lastWorkingDay: lwd.toISOString(),
       noticePeriodDays: noticeDays,
       exitReason: reason,
-      tasks: selectedDepts.map(deptId => {
-        const d = DEPARTMENTS.find(dep => dep.id === deptId)!;
-        return {
-          id: `t-${deptId}-${Date.now()}`,
-          deptId: d.id,
-          deptLabel: d.label,
-          assigneeId: d.defaultAssignee,
-          assigneeName: d.label,
-          status: 'pending',
-          slaHours: d.slaHours,
-          slaDueAt: new Date().toISOString(), // Will be updated on manager approval
-          checklist: [], // Would normally copy from templates
-        };
-      }),
+      tasks: buildClearanceTasks(selectedDepts, undefined, activeTemplate?.slaMultiplier ?? 1),
+      tags: [activeTemplate?.name ?? 'Standard Exit'],
       timeline: [
         {
           id: `evt-${Date.now()}`,
@@ -230,9 +230,30 @@ export default function NewCasePage() {
           <>
             <CardHeader>
               <CardTitle>Required Clearances</CardTitle>
-              <CardDescription>Select which departments need to provide clearance for this exit.</CardDescription>
+              <CardDescription>Choose a workflow template or customize departments for this exit.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-0 divide-y border rounded-md">
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {workflowTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => applyTemplate(template.id)}
+                    className={cn(
+                      "p-4 rounded-lg border text-left transition-colors",
+                      workflowTemplateId === template.id
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "hover:border-primary/30 hover:bg-muted/30",
+                    )}
+                  >
+                    <p className="font-medium text-sm">{template.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{template.description}</p>
+                    <p className="text-[10px] text-muted-foreground mt-2">{template.deptIds.length} departments</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-0 divide-y border rounded-md">
               {DEPARTMENTS.map(dept => {
                 const isSelected = selectedDepts.includes(dept.id);
                 return (
@@ -258,6 +279,7 @@ export default function NewCasePage() {
                   </div>
                 );
               })}
+              </div>
             </CardContent>
           </>
         )}
@@ -325,9 +347,4 @@ export default function NewCasePage() {
       </Card>
     </div>
   );
-}
-
-// Temporary Badge component for this file
-function Badge({ children, variant, className }: any) {
-  return <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground", className)}>{children}</span>;
 }
