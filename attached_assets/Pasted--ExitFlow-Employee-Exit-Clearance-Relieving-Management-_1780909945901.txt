@@ -1,0 +1,1322 @@
+# ExitFlow — Employee Exit Clearance & Relieving Management System
+## Complete Bolt AI Build Specification (v2)
+
+---
+
+## WHAT YOU ARE BUILDING
+
+**ExitFlow** is a production-grade internal HR platform for IT companies to manage the complete employee exit lifecycle — from resignation to issuing the final relieving letter. It is a single Next.js application with a public landing page, a unified login, and role-based routing that takes each user directly into their relevant workspace after authentication.
+
+This is NOT a collection of separate portals stitched together. It is ONE application that adapts its navigation, dashboard, and available actions based on who is logged in. Think of how Linear or Notion handles different user roles — one URL, one product, different experiences.
+
+---
+
+## CORE PRINCIPLES (READ BEFORE BUILDING ANYTHING)
+
+1. **Single entry point**: The app lives at `/`. Public homepage → login → role-based redirect. No separate `/employee`, `/manager`, `/hr` portal URLs visible to the user. After login, everyone lands at `/dashboard` and the app renders what is appropriate for their role.
+
+2. **Role-aware, not role-separated**: The sidebar, dashboard content, available nav links, and page actions all adapt to the logged-in role. The URL structure is clean (`/dashboard`, `/cases`, `/cases/[id]`, `/tasks`, `/settings`) — not cluttered with role prefixes.
+
+3. **Mobile-first, desktop-optimised**: Design for 375px width first, then scale up. The sidebar collapses to a bottom nav bar on mobile.
+
+4. **Contextual, not exhaustive**: Every screen shows only what the current user needs right now. No overwhelming grids of options. One primary action per page, secondary actions tucked in menus.
+
+5. **Data-ink ratio**: Every pixel earns its place. No decorative banners, no empty carousels, no lorem ipsum cards. If there is no data, show a meaningful empty state with a clear next action.
+
+---
+
+## TECH STACK
+
+| Concern | Choice |
+|---|---|
+| Framework | Next.js 14, App Router, TypeScript strict |
+| Styling | Tailwind CSS v3 |
+| Components | Shadcn/UI (use `npx shadcn-ui@latest init` setup) |
+| Icons | Lucide React only — no other icon libraries |
+| Charts | Recharts (wrap in `"use client"` components) |
+| Forms | React Hook Form + Zod |
+| Global state | Zustand |
+| Date utils | date-fns |
+| Fonts | Import from Google: `DM Sans` (UI) + `DM Mono` (data/IDs) |
+| Animations | Tailwind animate + `tailwindcss-animate` plugin only |
+
+---
+
+## DESIGN SYSTEM
+
+### Design Direction
+Refined enterprise minimal. Think Stripe Dashboard meets Linear. Dark navy sidebar, crisp white main content area, precise 8px grid spacing. No gradients on components. No card shadows heavier than `shadow-sm`. Typography does the heavy lifting, not decoration.
+
+### CSS Variables — define in `app/globals.css`
+```css
+:root {
+  /* Brand */
+  --brand: #0f172a;          /* slate-900 — sidebar bg, primary buttons */
+  --brand-mid: #1e293b;      /* slate-800 — sidebar hover */
+  --accent: #6366f1;         /* indigo-500 — links, focus rings, active states */
+  --accent-light: #eef2ff;   /* indigo-50 — accent backgrounds */
+
+  /* Surfaces */
+  --bg: #f8fafc;             /* slate-50 — page background */
+  --surface: #ffffff;        /* white — cards, panels */
+  --surface-raised: #f1f5f9; /* slate-100 — input bg, table stripes */
+
+  /* Borders */
+  --border: #e2e8f0;         /* slate-200 */
+  --border-strong: #cbd5e1;  /* slate-300 */
+
+  /* Text */
+  --text-h: #0f172a;         /* slate-900 — headings */
+  --text-body: #334155;      /* slate-700 — body copy */
+  --text-muted: #64748b;     /* slate-500 — secondary labels */
+  --text-subtle: #94a3b8;    /* slate-400 — placeholders, hints */
+
+  /* Status — used ONLY for status badges and indicators */
+  --s-pending:     #f59e0b;  /* amber-400 */
+  --s-pending-bg:  #fffbeb;  /* amber-50 */
+  --s-active:      #3b82f6;  /* blue-500 */
+  --s-active-bg:   #eff6ff;  /* blue-50 */
+  --s-done:        #10b981;  /* emerald-500 */
+  --s-done-bg:     #ecfdf5;  /* emerald-50 */
+  --s-rejected:    #ef4444;  /* red-500 */
+  --s-rejected-bg: #fef2f2;  /* red-50 */
+  --s-overdue:     #dc2626;  /* red-600 */
+  --s-overdue-bg:  #fef2f2;
+}
+```
+
+### Typography Scale
+```css
+/* Page title */        .text-page    { font: 600 1.5rem/2rem 'DM Sans'; color: var(--text-h); }
+/* Section heading */   .text-section { font: 600 1.125rem/1.75rem 'DM Sans'; color: var(--text-h); }
+/* Card label */        .text-label   { font: 500 0.75rem/1rem 'DM Sans'; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+/* Body */              .text-body    { font: 400 0.875rem/1.5rem 'DM Sans'; color: var(--text-body); }
+/* Data / ID */         .text-mono    { font: 500 0.8125rem/1.25rem 'DM Mono'; color: var(--text-muted); }
+```
+
+### Spacing & Layout Grid
+- Base unit: `4px` (`space-1` in Tailwind)
+- Content max-width: `1280px`, centered with `mx-auto px-6`
+- Sidebar width: `240px` desktop, `0` mobile (bottom nav replaces it)
+- Main content left padding on desktop: `240px + 24px gap`
+- Card padding: `p-6` (24px)
+- Card border radius: `rounded-xl` (12px)
+- All gaps between cards: `gap-4` (16px)
+
+### Component Conventions
+```
+Cards:        rounded-xl border border-[var(--border)] bg-white p-6
+Tables:       rounded-xl border overflow-hidden, sticky thead, alternating row bg
+Badges:       rounded-full px-2.5 py-0.5 text-xs font-medium (no border, colored bg)
+Buttons:      primary = bg-[var(--brand)] text-white rounded-lg px-4 py-2
+              secondary = border border-[var(--border)] bg-white rounded-lg px-4 py-2
+              danger = bg-red-600 text-white rounded-lg px-4 py-2
+Inputs:       border border-[var(--border)] rounded-lg bg-[var(--surface-raised)] px-3 py-2 focus:ring-2 ring-[var(--accent)]
+Modals:       Shadcn Dialog — use for confirmations and alerts only
+Side panels:  Shadcn Sheet — use for all create/edit/detail forms
+Toasts:       Shadcn Sonner — top-right, 4s dismiss, never use alert()
+```
+
+---
+
+## APPLICATION STRUCTURE & ROUTING
+
+### URL Map (this is the complete route list — nothing else)
+
+```
+/                          Public landing page
+/login                     Login page (email + password OR demo role selector)
+/dashboard                 Role-aware home — renders differently per role
+/cases                     HR only: all exit cases list
+/cases/new                 HR only: initiate new exit case (multi-step)
+/cases/[id]                HR + Manager: case detail (tabs adapt per role)
+/tasks                     Dept approvers: my clearance task list
+/tasks/[taskId]            Dept approvers: clearance form for one task
+/resign                    Employee only: submit resignation form
+/reports                   HR + Admin: analytics dashboard
+/reports/audit             HR + Admin: audit trail
+/settings                  Admin only: dept config, workflow rules, users
+/settings/departments      Admin: department & approver config
+/settings/workflows        Admin: SLA rules & execution order
+/settings/users            Admin: user management
+```
+
+### Role → Route Access Matrix
+
+| Route | Employee | Manager | HR | Dept Approver | Admin |
+|---|---|---|---|---|---|
+| `/dashboard` | ✅ (own exit status) | ✅ (team exits) | ✅ (ops dashboard) | ✅ (task list) | ✅ (system overview) |
+| `/resign` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `/cases` | ❌ | ❌ | ✅ | ❌ | ✅ |
+| `/cases/new` | ❌ | ❌ | ✅ | ❌ | ✅ |
+| `/cases/[id]` | 🔒 own only | 🔒 team only | ✅ | ❌ | ✅ |
+| `/tasks` | ❌ | ❌ | ❌ | ✅ | ✅ |
+| `/tasks/[taskId]` | ❌ | ❌ | ❌ | 🔒 assigned | ✅ |
+| `/reports` | ❌ | ❌ | ✅ | ❌ | ✅ |
+| `/settings` | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+### Post-Login Redirect Logic
+```typescript
+// After successful login, redirect based on role:
+const ROLE_REDIRECT: Record<Role, string> = {
+  employee:      '/dashboard',   // sees own exit status
+  manager:       '/dashboard',   // sees team exit list
+  hr:            '/dashboard',   // sees ops overview
+  dept_approver: '/dashboard',   // sees their pending tasks
+  admin:         '/dashboard',   // sees system overview
+}
+// Always /dashboard — the dashboard component renders the correct view
+```
+
+### Route Protection
+Create `middleware.ts` at project root:
+- If unauthenticated → redirect to `/login`
+- If authenticated but wrong role for route → redirect to `/dashboard`
+- Public routes: `/`, `/login`
+
+---
+
+## LAYOUT ARCHITECTURE
+
+### Shell Layout (`app/(app)/layout.tsx`)
+Wraps all authenticated pages. Contains:
+1. **Sidebar** (desktop) — role-aware navigation
+2. **Top bar** (mobile) — hamburger + logo + notification bell
+3. **Main content area** — `<main>` with `pt-4 pb-12 px-6`
+4. **Bottom nav** (mobile only, ≤768px) — 4 key nav items
+
+### Sidebar Component
+```
+Width: 240px fixed left, full height, bg-[var(--brand)]
+Top section:
+  - Logo mark (small square icon) + "ExitFlow" wordmark in white
+  - Subtle divider
+
+Middle section (role-aware nav items):
+  - Nav item: icon (20px, white/60 inactive, white active) + label (14px)
+  - Active state: bg-[var(--brand-mid)] rounded-lg mx-2 text-white
+  - Inactive: text-white/60, hover: text-white bg-white/5
+
+Bottom section (pinned):
+  - Notification bell with unread count badge
+  - User avatar (initials circle) + name + role chip
+  - Sign out button (icon only with tooltip)
+```
+
+### Nav Items Per Role
+```typescript
+const NAV_CONFIG: Record<Role, NavItem[]> = {
+  employee: [
+    { icon: 'LayoutDashboard', label: 'My Exit Status',  href: '/dashboard' },
+    { icon: 'FileText',        label: 'My Documents',    href: '/dashboard#documents' },
+  ],
+  manager: [
+    { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },
+    { icon: 'Users',           label: 'Team Exits',      href: '/cases' },  // filtered to their team
+  ],
+  hr: [
+    { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },
+    { icon: 'FolderOpen',      label: 'Exit Cases',      href: '/cases' },
+    { icon: 'PlusCircle',      label: 'New Case',        href: '/cases/new' },
+    { icon: 'BarChart2',       label: 'Reports',         href: '/reports' },
+    { icon: 'ScrollText',      label: 'Audit Trail',     href: '/reports/audit' },
+  ],
+  dept_approver: [
+    { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },
+    { icon: 'ClipboardCheck',  label: 'My Tasks',        href: '/tasks' },
+  ],
+  admin: [
+    { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },
+    { icon: 'FolderOpen',      label: 'All Cases',       href: '/cases' },
+    { icon: 'BarChart2',       label: 'Reports',         href: '/reports' },
+    { icon: 'Settings',        label: 'Settings',        href: '/settings' },
+  ],
+}
+```
+
+---
+
+## PUBLIC LANDING PAGE — `/`
+
+This is the first thing any user sees before logging in. It must communicate what ExitFlow is and invite them to sign in. It is NOT a marketing page with pricing — it is a confident, minimal product page.
+
+### Layout (single page, no scroll sections needed)
+
+**Navbar** (sticky top):
+- Left: Logo mark + "ExitFlow" wordmark
+- Right: "Sign In" button (primary, takes to `/login`)
+
+**Hero Section** (centered, `min-h-screen`, vertically centered):
+- Eyebrow label: `EMPLOYEE EXIT MANAGEMENT` in label style (small, uppercase, muted, letter-spaced)
+- H1: `Exit processes that actually work.` — large (3.5rem), tight, dark
+- Subtext (one line): `Structured clearances, automated reminders, and instant relieving letters — all in one place.`
+- CTA button: `Get Started →` → goes to `/login`
+- Below CTA: small text "For IT companies · 5 roles · Full workflow automation"
+
+**Feature strip** (below hero, 4 columns):
+Each column: icon (32px, indigo) + short label + one-line description
+- `GitBranch` → Structured Workflow → "8-department clearance, fully tracked"
+- `Bell` → SLA Alerts → "Auto-escalation before deadlines are missed"
+- `FileCheck` → Auto Documents → "Relieving letters generated on final approval"
+- `Shield` → Audit Ready → "Every action logged with timestamp and actor"
+
+**No footer needed** — this is an internal tool.
+
+### Design notes for the landing page:
+- Background: `var(--bg)` (near white)
+- Hero H1: use a subtle dark-to-medium gradient on the text using `bg-clip-text` trick — very subtle, not flashy
+- Feature strip: cards with `border` and `rounded-xl` sitting on white, `shadow-sm`
+
+---
+
+## LOGIN PAGE — `/login`
+
+### Layout
+- Full screen, split layout: left panel (brand/visual) + right panel (form)
+- Left panel (40% width, desktop only): dark navy background (`var(--brand)`), centered vertically
+  - Logo + "ExitFlow" in white
+  - One-line tagline in white/60
+  - Below: 3 small bullet points showing key features (icon + text, white/70)
+- Right panel (60% width): white background, centered form
+
+### Form
+**Heading**: "Welcome back"
+**Subtext**: "Sign in to your account"
+
+**Fields**:
+- Email address (text input, placeholder: "you@company.com")
+- Password (password input)
+- "Remember me" checkbox (left) + "Forgot password?" link (right, muted)
+- "Sign In" button (full width, primary)
+
+**Divider**: `── or continue with demo ──`
+
+**Demo role selector** (below divider):
+6 compact role cards in a 2×3 grid. Each card:
+- Role icon (Lucide, 18px)
+- Role label ("HR Team", "Employee", "Manager", etc.)
+- Name underneath ("Anita Desai", "Priya Sharma", etc.)
+- Click → immediately logs in as that role, redirects to `/dashboard`
+
+**Design**: The demo section is clearly marked as "Demo" with a small amber `DEMO` badge. Cards are `border rounded-lg p-3 cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--accent-light)]` with smooth transition.
+
+### Mock Auth Logic
+```typescript
+// Mock users in store — login with email matches one of these
+const MOCK_USERS = [
+  { id: 'u1', email: 'priya@company.com',  password: 'demo', role: 'employee',      name: 'Priya Sharma',   dept: 'Engineering',   employeeId: 'EMP-1042' },
+  { id: 'u2', email: 'rahul@company.com',  password: 'demo', role: 'manager',       name: 'Rahul Mehta',    dept: 'Engineering',   employeeId: 'MGR-201'  },
+  { id: 'u3', email: 'anita@company.com',  password: 'demo', role: 'hr',            name: 'Anita Desai',    dept: 'HR',            employeeId: 'HR-001'   },
+  { id: 'u4', email: 'kiran@company.com',  password: 'demo', role: 'dept_approver', name: 'Kiran Patel',    dept: 'IT',            employeeId: 'IT-101'   },
+  { id: 'u5', email: 'sunita@company.com', password: 'demo', role: 'dept_approver', name: 'Sunita Rao',     dept: 'Finance',       employeeId: 'FIN-201'  },
+  { id: 'u6', email: 'admin@company.com',  password: 'demo', role: 'admin',         name: 'System Admin',   dept: 'IT',            employeeId: 'ADM-001'  },
+]
+```
+
+---
+
+## DASHBOARD PAGE — `/dashboard` (role-aware)
+
+This is one page file (`app/(app)/dashboard/page.tsx`) that renders different content based on the authenticated user's role. Use a `DashboardRouter` component that reads the role from the Zustand store and renders the correct dashboard view.
+
+```typescript
+// app/(app)/dashboard/page.tsx
+export default function DashboardPage() {
+  const { user } = useAuthStore()
+  
+  if (user.role === 'employee')      return <EmployeeDashboard />
+  if (user.role === 'manager')       return <ManagerDashboard />
+  if (user.role === 'hr')            return <HRDashboard />
+  if (user.role === 'dept_approver') return <DeptApproverDashboard />
+  if (user.role === 'admin')         return <AdminDashboard />
+}
+```
+
+### Page Header (shared across all dashboard views)
+```
+Left: "Good morning, [First Name] 👋" (h1 text-page)
+      "[Role label] · [Department]" (text-muted text-sm)
+Right: [role-specific primary CTA button]
+```
+
+---
+
+### DASHBOARD VIEW 1 — Employee (`<EmployeeDashboard />`)
+
+**Scenario**: Priya Sharma has an active exit case in progress.
+
+**Layout**: 2 columns (left 60%, right 40%)
+
+**Left column — top: Status Card**
+Full-width hero card with a clean, uncluttered layout:
+- Top row: Case ID chip (`CASE-2024-001`, monospace) + Status badge ("In Clearance — Active")
+- Main: "Your last working day" label + large date display ("15 Jan 2025") + days countdown chip ("14 days remaining", amber if <20 days, red if <7)
+- Sub-row: "Resignation submitted" date + "Notice period" days
+
+**Left column — middle: Clearance Progress**
+Section heading: "Department Clearances"
+Not a grid of 8 cards — render it as a clean **vertical checklist** of departments:
+Each row (one per dept):
+`[status icon] [Dept name] [assignee name, muted] [due date chip] [status badge]`
+- Approved rows: dim/muted, checkmark icon in green
+- In Progress: normal weight, blue dot
+- Pending: normal weight, gray dot
+- Overdue: red dot + "OVERDUE" chip
+Click any row → opens a Sheet panel showing that department's checklist (read-only for employee)
+
+**Left column — bottom: Documents**
+Section heading: "My Documents"
+3 document rows:
+- Resignation Letter (uploaded) — `FileText` icon + filename + "View" link
+- Relieving Letter — locked icon + "Available after all clearances" tooltip text in muted
+- Experience Certificate — same locked state
+When unlocked: "Download PDF" button appears
+
+**Right column — full height: Case Timeline**
+Section heading: "Activity"
+Vertical timeline, newest first:
+Each event: colored left-border dot + event label + timestamp + actor (muted)
+Events: "Resignation submitted", "Manager approved (Rahul Mehta)", "IT clearance started", "Admin clearance approved", etc.
+Upcoming events shown dashed with "Pending" label
+
+**No primary CTA for employee** (they cannot initiate anything after resignation is submitted)
+
+---
+
+### DASHBOARD VIEW 2 — Manager (`<ManagerDashboard />`)
+
+**Right-side CTA**: None (managers react, they don't initiate)
+
+**Layout**: Single column with clear sections
+
+**Top: Attention Banner** (shown only when action needed)
+Amber-left-bordered card:
+"You have 1 pending resignation approval and 1 clearance task awaiting your action."
+Two inline buttons: "Review Resignation →" | "Complete My Clearance →"
+
+**Section 1: My Team's Exit Cases**
+Section heading: "Team Exits" + count badge
+Clean table (not a card grid):
+
+| Employee | Role | LWD | Clearance | Status | Action |
+|---|---|---|---|---|---|
+| Arjun Nair | Sr. Developer | 15 Jan | `████░░░` 5/8 | In Clearance | View |
+| Meera Krishnan | QA Engineer | 30 Jan | `░░░░░░░░` 0/8 | Pending Approval | Approve |
+
+- Progress bar column: segmented `<div>` — green filled segments for approved, gray for remaining
+- "Approve" in the action column opens an inline confirmation panel (Sheet), not a new page
+- "View" goes to `/cases/[id]`
+
+**Section 2: My Clearance Tasks**
+Section heading: "My Clearance Checklist" + "(1 pending)" badge
+Card with checklist items for cases where manager is the clearance approver:
+Each item: checkbox + employee name + task label
+"Submit Clearance" button at bottom (disabled until all checked)
+
+---
+
+### DASHBOARD VIEW 3 — HR (`<HRDashboard />`)
+
+**Right-side CTA**: `+ New Exit Case` button → goes to `/cases/new`
+
+**Top row: 4 KPI Stat Cards**
+```
+Active Cases    |  Pending Clearances  |  Overdue Tasks  |  Completed (30 days)
+     8          |         14           |       3          |        5
+  [trend]       |   3 overdue (red)    |  [red chip]      |   [green trend]
+```
+Each card: label (uppercase, tiny) + large number + supporting context
+
+**Main table: Active Exit Cases**
+Section heading: "Active Cases"
+Filter tabs above table: `All (8)` | `Pending Approval (2)` | `In Clearance (5)` | `Overdue (3)`
+
+Table columns:
+| | Case | Employee | Dept | LWD | Progress | SLA Risk | Actions |
+- Checkbox column (for bulk actions)
+- Case ID in monospace
+- Employee: avatar circle (initials) + name + role
+- Progress: `5/8` with a 24px inline mini progress bar
+- SLA Risk: colored chip only — `On Track` / `At Risk` / `Overdue`
+- Actions: `View` link + `⋯` overflow menu (Reassign, Cancel, Download Summary)
+
+Below table: Pagination (showing 1–8 of 8)
+
+**Quick panel: Needs Attention** (right sidebar within the page, 280px, only on desktop)
+Not a separate column — this appears as a fixed panel WITHIN the main content area on desktop, taking up 280px of the right side. It contains:
+- "3 overdue clearances" — each listed as: Dept · Employee name · Overdue by X days · Nudge button
+- "2 pending manager approvals" — employee + days waiting + send reminder button
+
+---
+
+### DASHBOARD VIEW 4 — Dept Approver (`<DeptApproverDashboard />`)
+
+This is the simplest dashboard. The approver only cares about tasks assigned to them.
+
+**Right-side CTA**: None
+
+**Top stat row** (3 small stat chips, not full cards — inline):
+`Pending: 2` · `Completed today: 1` · `Overdue: 1`
+
+**Main section: "Your Pending Tasks"**
+Render as **task cards** (not a table) — 2 per row on desktop, 1 on mobile:
+
+Each task card:
+```
+┌─────────────────────────────────────┐
+│ [OVERDUE chip if applicable]        │
+│ Arjun Nair                          │
+│ Senior Developer · Engineering      │
+│                                     │
+│ IT Department Clearance             │
+│ Due: 12 Jan 2025  (was 2 days ago)  │
+│                                     │
+│ 3 of 7 items completed              │
+│ [██░░░░░] progress bar              │
+│                                     │
+│ [Continue Clearance →]              │
+└─────────────────────────────────────┘
+```
+
+Button → goes to `/tasks/[taskId]`
+
+**Completed section** (collapsed by default, "Show completed (3)" toggle):
+Simple table: Employee · Task · Completed date · Action taken
+
+---
+
+### DASHBOARD VIEW 5 — Admin (`<AdminDashboard />`)
+
+**Right-side CTA**: `System Settings →` → goes to `/settings`
+
+**Top: 4 KPI stat cards** (same as HR view but different metrics):
+Total Cases (all time) | Active Now | SLA Compliance % (last 30d) | Avg Completion Days
+
+**Two-column layout below:**
+Left (60%): "Active Cases Overview" — same table as HR dashboard
+Right (40%): "SLA by Department" — horizontal bar chart (Recharts) showing avg completion time per dept, sorted worst to best
+
+---
+
+## CASE DETAIL PAGE — `/cases/[id]`
+
+This page is used by HR (full access) and Manager (restricted access). The content of each tab adapts based on role.
+
+### Layout
+```
+Page header:
+  Breadcrumb: Cases > CASE-2024-001
+  Left: Case ID (mono) + Employee name (h1) + Status badge
+  Right: [HR only: "Issue Documents" CTA (disabled until all cleared)] + "⋯" menu
+
+Tab bar (below header):
+  Overview | Clearances | Exit Interview | Documents | Timeline
+  [HR sees all 5 tabs. Manager sees: Overview | My Clearance | Timeline]
+```
+
+### Tab: Overview
+Two-column layout:
+
+**Left: Employee Profile Card**
+- Avatar (large initials circle, 64px)
+- Name, designation, department
+- Employee ID (monospace chip)
+- Manager name
+- Joined date + tenure ("3 years, 2 months")
+- Email address
+
+**Left below: Resignation Details Card**
+- Date submitted
+- Requested LWD
+- Exit type
+- Reason category + detail text (quoted, slightly indented)
+- Resignation letter attachment (link)
+
+**Right: Clearance Summary**
+Section heading: "Clearance Overview"
+8 department rows (same vertical list style as employee dashboard)
+Plus: overall progress arc or segmented progress bar at the top
+
+**Right below: Quick Actions** (HR only)
+- Override clearance (with warning tooltip)
+- Cancel case
+- Send bulk reminder to all pending depts
+
+### Tab: Clearances
+The most important tab.
+
+**Top summary bar**: `Approved: 4 · In Progress: 2 · Pending: 1 · Overdue: 1 · Rejected: 0`
+
+**Department clearance list** — one card per department, collapsible accordion:
+
+Collapsed state (header only):
+```
+[status icon] IT Department   Kiran Patel   Due: 12 Jan   [OVERDUE chip]   [Expand ▾]
+```
+
+Expanded state:
+```
+┌─ IT Department ──────────────────────────────────────┐
+│ Assigned to: Kiran Patel · IT Admin                  │
+│ Due: 12 Jan 2025 · Started: 10 Jan 2025              │
+│                                                      │
+│ Checklist:                                           │
+│ ✅ Laptop returned (SN: LAP-2024-087)                │
+│ ✅ Email deactivated                                 │
+│ ✅ VPN revoked                                       │
+│ ⬜ Application access removal — pending              │
+│ ⬜ GitHub access removed — pending                   │
+│                                                      │
+│ Notes: "Waiting for Azure AD access list from PM"    │
+│                                                      │
+│ [HR only: Re-assign task] [Send reminder]            │
+└──────────────────────────────────────────────────────┘
+```
+
+If a task is Rejected:
+- Show rejection reason in a red-left-bordered callout box
+- "Re-open Task" button (HR only)
+
+If ALL tasks are Approved: show a green success banner at the top of the tab:
+```
+┌─ ✅ All clearances complete ─────────────────────────────────────────────────┐
+│  All 8 departments have approved. You can now issue the final documents.    │
+│                                          [Issue Relieving Letter →]         │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tab: Exit Interview (HR only)
+**Two states**:
+
+State A — Not yet done:
+- Centered card with `ClipboardList` icon
+- "Exit interview not conducted yet"
+- "Schedule & Record" button → opens Sheet with full form
+
+State B — Done:
+- Show filled-in summary: date, interviewer, ratings, feedback
+- "Edit" button
+- "Export PDF" button
+
+Exit Interview Form (in Sheet):
+- Interview Date (date picker)
+- Mode: In-person / Video call / Phone
+- Interviewer name (select from HR users)
+- Overall experience rating (1–5 star selector, custom component)
+- Reason for leaving (detailed select)
+- Would recommend company (Yes / Neutral / No — 3 button toggle)
+- Key feedback (textarea, labeled "What could we have done better?")
+- Upload interview notes (file, optional)
+- "Save Interview Record" button
+
+### Tab: Documents
+**Uploaded documents section**:
+- Resignation letter (with upload date + "View" link)
+- Upload additional documents (drag-and-drop zone)
+
+**Generated documents section** (2 document rows):
+
+Locked state (not all clearances done):
+```
+[Lock icon] Relieving Letter          
+"Available after all 8 clearances are approved"
+```
+
+Unlocked state:
+```
+[FileText icon] Relieving Letter          [Generated: 15 Jan 2025]
+                                          [Download PDF] [Resend to Employee]
+```
+
+Same for Experience Certificate.
+
+"Generate Relieving Letter" button: only enabled when all mandatory clearances are approved.
+When clicked → show a confirmation dialog → show a "Generating..." loading state (1.5s simulated) → show success state.
+
+### Tab: Timeline
+Full audit trail for this case.
+
+Filter row: `All` | `Approvals` | `Documents` | `Rejections` | `System`
+
+Timeline entries (newest first), each:
+```
+[dot color] [Actor name] · [Role badge]          [timestamp]
+            [Action description]
+            [Optional: detail chip, e.g., "IT Dept → Approved"]
+```
+
+Dot colors: green = approval, red = rejection, blue = system/auto, gray = note
+
+---
+
+## NEW CASE PAGE — `/cases/new` (HR only)
+
+Multi-step form with a visible step indicator. Use a left-side step nav on desktop, top step bar on mobile.
+
+### Step indicator (left sidebar, 200px)
+```
+● Step 1  Employee
+○ Step 2  Exit Details
+○ Step 3  Workflow
+○ Step 4  Review
+```
+Completed steps show checkmark. Current step is filled dot + bold. Future steps are empty dot + muted.
+
+### Step 1: Select Employee
+- Search input (autocomplete from mock employee list)
+- On select, auto-populate a preview card below the search:
+  ```
+  [Avatar] Arjun Nair
+           Senior Developer · Engineering
+           Reports to: Rahul Mehta · EMP-2041
+           Tenure: 3 years, 2 months
+  ```
+- "Confirm and Continue" button (disabled until employee selected)
+
+### Step 2: Exit Details
+- Exit Type (large radio button group, not a dropdown): `Resignation` | `Termination` | `Contract End` | `Retirement`
+- Resignation Date (date picker)
+- Last Working Day (date picker — auto-suggests today + notice period, editable)
+- Notice Period: auto-calculated read-only field ("30 days based on LWD")
+- Reason Category (select)
+- Reason Detail (textarea, 50–500 chars)
+- Upload resignation letter (file zone, PDF/DOC, optional)
+
+### Step 3: Configure Workflow
+Section heading: "Select Departments for Clearance"
+Subtext: "Mandatory departments are pre-selected and cannot be removed."
+
+Render as a 2-column grid of department toggle cards:
+Each card:
+```
+┌─────────────────────────────────┐
+│ [icon]  IT Department     [🔒]  │
+│ Kiran Patel · IT Admin          │
+│ SLA: 24 hours                   │
+│ [MANDATORY — cannot remove]     │
+└─────────────────────────────────┘
+```
+Non-mandatory depts have a toggle switch in the top-right instead of a lock icon.
+
+Below the grid: "SLA Override" — expandable section where each dept's SLA hours can be edited.
+
+### Step 4: Review & Confirm
+Summary of everything:
+- Employee info card
+- Exit details (type, dates, reason)
+- Selected departments list with assignees
+- Total estimated timeline: "Based on SLA configuration, this process should complete by [date]"
+
+"Initiate Exit Process" button (primary, full-width) with a subtle disclaimer below it:
+"This will notify all selected department approvers via email."
+
+On submit: show a success state on the same page (do not navigate away):
+```
+✅ Exit case CASE-2024-004 has been created.
+   All 7 department approvers have been notified.
+   
+[View Case →]  [Start Another →]
+```
+
+---
+
+## TASKS PAGE — `/tasks` (Dept Approver + Admin)
+
+### Layout
+Page header: "My Clearance Tasks" + `(2 pending)` chip
+
+Filter tabs: `Pending (2)` | `In Progress (1)` | `Completed (3)` | `All`
+
+Task cards (same as dashboard cards but full-width single column):
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ IT Department Clearance                         [OVERDUE · 2 days] │
+│                                                                    │
+│ Arjun Nair  ·  Senior Developer  ·  Engineering Dept              │
+│ Case CASE-2024-001  ·  LWD: 15 Jan 2025                           │
+│                                                                    │
+│ Progress: 3 of 7 items   [███░░░░] 43%                            │
+│                                                                    │
+│                                    [Continue Clearance →]         │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## CLEARANCE FORM PAGE — `/tasks/[taskId]` (Dept Approver)
+
+This is where approvers do their actual work. It must be focused and distraction-free.
+
+### Layout
+No sub-navigation tabs. Single focused page.
+
+**Top employee context bar** (sticky, not scrolls away):
+```
+← Back to Tasks    [Avatar] Arjun Nair · Sr. Developer    Case: CASE-2024-001    LWD: 15 Jan · 14 days
+```
+
+**Main content** (centered, max-width 680px — narrow intentionally, this is a form):
+
+Section: Department Info
+```
+IT Department Clearance
+Assigned to you  ·  Due: 12 Jan 2025  ·  [OVERDUE chip]
+```
+
+Section: Checklist
+Render each item as a large, tappable checkbox row:
+```
+┌─────────────────────────────────────────────────────┐
+│ ☑  Laptop returned and condition verified           │
+│    Asset tag: [________________] (text input)       │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ ☐  Corporate email account deactivated   [REQUIRED] │
+└─────────────────────────────────────────────────────┘
+```
+Items that need extra input (asset numbers, amounts) show an inline text field that appears when the checkbox is checked.
+Required items show a small `REQUIRED` chip.
+
+Section: Notes
+```
+Add notes for HR record (optional)
+[textarea, 4 rows]
+```
+
+**Sticky bottom action bar** (fixed to bottom of viewport, white background, border-top):
+```
+[Save Draft]          [Reject Clearance]      [✓ Approve Clearance]
+(ghost)               (outline red)           (solid green, disabled until all required items checked)
+```
+
+**Reject flow**: Clicking "Reject Clearance" opens a Dialog (not Sheet):
+- "Rejection Reason" (required textarea, min 20 chars)
+- "What must be resolved?" (multi-select chips of common reasons)
+- "Confirm Rejection" button (red)
+
+**Approve flow**: If all required items unchecked → show inline validation (highlight unchecked required items in amber). If all checked → show confirmation Dialog:
+"Are you sure you want to approve the IT Department clearance for Arjun Nair? This action cannot be undone."
+`[Cancel]  [Yes, Approve]`
+
+After approve → redirect to `/tasks` with success toast: "IT clearance for Arjun Nair approved successfully."
+
+---
+
+## RESIGN PAGE — `/resign` (Employee only)
+
+Accessible from the employee dashboard if they haven't submitted a resignation yet. If they already have an active case, this page redirects to `/dashboard`.
+
+### Layout
+Centered, max-width 560px, generous padding.
+
+**Page header**: "Submit Your Resignation"
+**Subtext**: "Once submitted, your manager will be notified and the exit process will begin."
+
+**Form**:
+- Last Working Day (date picker — must be ≥ 30 days from today, show notice period calculation dynamically below: "Notice period: 30 days ✓")
+- Reason for Leaving (select from categories)
+- Additional Details (textarea, optional, "Anything you'd like HR to know?")
+- Upload Resignation Letter (drag-and-drop, optional, PDF/DOC)
+
+**Preview section** (below form, auto-updates as user fills):
+```
+Summary
+────────────────────────
+Last Working Day:    15 Jan 2025
+Notice Period:       30 days
+Reporting Manager:   Rahul Mehta
+HR Contact:          Anita Desai
+```
+
+**Submit button**: "Submit Resignation" (primary, full-width)
+Clicking shows a final confirmation Dialog: "Once submitted, this cannot be undone. Your manager will be notified immediately." `[Go Back]  [Confirm Submission]`
+
+After confirm → redirect to `/dashboard` with a success state:
+The dashboard now shows the employee's active case instead of the "No active resignation" empty state.
+
+---
+
+## REPORTS PAGE — `/reports` (HR + Admin)
+
+### Layout
+Page header: "Reports & Analytics"
+Date range picker (top right): presets — Last 7 days | Last 30 days | Last 3 months | This year | Custom
+
+**Row 1: KPI cards (4 columns)**
+- Total Resignations (period) + trend arrow
+- Clearances Completed + trend
+- Avg Days to Complete + sparkline
+- SLA Compliance % + trend
+
+**Row 2: Two charts side by side**
+Left — "Monthly Exit Trend" (Recharts `LineChart`):
+- X: months, Y: count
+- Two lines: Resignations vs Completed
+- 6 months of seeded data
+
+Right — "Reasons Breakdown" (Recharts `PieChart` / donut):
+- Slices per reason category
+- Legend below chart
+- Seeded data: Better Opportunity 40%, Personal 20%, Compensation 18%, etc.
+
+**Row 3: Two charts side by side**
+Left — "Department Clearance Turnaround" (Recharts `BarChart` horizontal):
+- Y: department names, X: avg days
+- Color-coded: green if ≤ SLA, red if > SLA
+
+Right — "SLA Performance" (Recharts `BarChart` stacked):
+- X: months, two stacked bars per month: On Time (green) vs Late (red)
+- Percentage labels on bars
+
+**Row 4: Data tables**
+"Pending Approvals Report" — table with columns: Case ID | Employee | Dept | Pending Since | Assignee | Send Reminder
+"Asset Recovery Summary" — table: Case ID | Employee | Asset Type | Status | Expected Return Date
+
+---
+
+## AUDIT TRAIL PAGE — `/reports/audit` (HR + Admin)
+
+### Layout
+Page header: "Audit Trail"
+Right: "Export CSV" button
+
+**Filter bar** (inline, horizontal):
+- Date range (date picker)
+- Case ID (text search)
+- Actor (select user)
+- Action type (select: Approval / Rejection / Document / System / Login)
+- Clear Filters link
+
+**Audit log table**:
+| Timestamp | Case | Actor | Role | Action | Detail |
+- Timestamp: "12 Jan 2025, 14:32" in monospace
+- Case ID: chip
+- Actor: name
+- Role: small colored badge
+- Action: plain text description
+- Detail: expandable — click to show JSON-like payload in a small popover
+
+Pagination: 20 rows per page.
+
+---
+
+## SETTINGS PAGES — `/settings` (Admin only)
+
+### `/settings` — Settings home
+3 large navigation cards:
+```
+[Building icon]   Departments        Manage dept approvers, SLA, and checklist items
+[GitBranch icon]  Workflow Rules     Configure execution order and escalation policy
+[Users icon]      User Management    Add users and assign roles
+```
+
+### `/settings/departments`
+**Layout**: Left list (dept names) + Right edit panel (inline, not a sheet)
+
+Left list: 8 departments, clickable. Selected dept has accent left-border highlight.
+
+Right panel (selected dept config):
+- Department name (read-only for system depts)
+- Primary Approver (searchable user select)
+- Backup Approver (searchable user select)
+- SLA Warning threshold (number input + "hours" suffix)
+- SLA Breach threshold (number input + "hours" suffix)
+- Mandatory toggle (shows warning modal if disabling a mandatory dept)
+- "Active" toggle
+- Checklist Items manager: reorderable list with add/remove/edit inline
+
+"Save Changes" button (bottom of right panel, sticky)
+
+### `/settings/workflows`
+**Section 1: Execution Mode**
+Two large radio option cards:
+```
+◉ Parallel        All departments notified simultaneously
+○ Sequential      Departments process in a defined order
+```
+
+**Section 2: Department Order** (only shown in Sequential mode)
+Drag-and-drop list using a simple drag handle (`GripVertical` icon). Each row shows dept name + current order number.
+
+**Section 3: Escalation Rules**
+Inline editable table:
+| Department | Warn after (hrs) | Escalate to | Breach action |
+Each row editable inline. "Add Rule" button below.
+
+**Section 4: HR Override Policy**
+Toggle: "Allow HR to override pending clearances"
+If enabled: "Required approval level" — select (Manager / Director / CEO)
+
+"Save All Rules" button (primary, bottom of page)
+
+### `/settings/users`
+**Table**: Avatar | Name | Employee ID | Role | Department | Status | Last Login | Actions (Edit / Deactivate)
+
+**Add User button** (top right) → Sheet panel with fields:
+- Full Name, Employee ID, Email, Role (select), Department (select), Active toggle
+
+**Bulk Import** row at table bottom: "Import via CSV" button (opens Sheet with template download + file upload zone, UI only)
+
+---
+
+## MOCK DATA STORE — `store/exitStore.ts`
+
+### TypeScript Types (`lib/types.ts`)
+```typescript
+export type Role = 'employee' | 'manager' | 'hr' | 'dept_approver' | 'admin'
+export type CaseStatus = 'pending_manager' | 'in_clearance' | 'pending_final' | 'completed' | 'cancelled'
+export type TaskStatus = 'pending' | 'in_progress' | 'approved' | 'rejected'
+export type DeptId = 'manager' | 'it' | 'admin' | 'finance' | 'procurement' | 'infosec' | 'hr' | 'facilities'
+
+export interface User {
+  id: string; name: string; email: string; role: Role
+  dept: string; employeeId: string; avatarInitials: string
+}
+
+export interface ClearanceTask {
+  id: string; exitCaseId: string; dept: DeptId; deptLabel: string
+  assigneeId: string; assigneeName: string
+  status: TaskStatus; isMandatory: boolean
+  slaDueAt: string; startedAt?: string; completedAt?: string
+  checklist: { id: string; label: string; isChecked: boolean; isMandatory: boolean; inputValue?: string }[]
+  notes?: string; rejectionReason?: string
+}
+
+export interface ExitCase {
+  id: string; employeeId: string; employeeName: string
+  employeeDept: string; designation: string; tenure: string
+  managerId: string; managerName: string
+  resignationDate: string; lastWorkingDay: string
+  noticePeriodDays: number; exitType: string
+  reasonCategory: string; reasonDetail: string
+  status: CaseStatus; initiatedBy: string
+  createdAt: string; completedAt?: string
+  tasks: ClearanceTask[]
+  documents: { id: string; type: string; name: string; url: string; uploadedAt: string; isGenerated: boolean }[]
+  timeline: { id: string; actorName: string; actorRole: string; action: string; detail?: string; timestamp: string; type: 'approval' | 'rejection' | 'document' | 'system' | 'note' }[]
+  exitInterview?: { completedAt: string; interviewer: string; rating: number; recommendation: 'yes' | 'neutral' | 'no'; feedback: string }
+}
+```
+
+### Seed Data (3 exit cases)
+
+**Case 1 — CASE-2024-001 · Arjun Nair** (status: `in_clearance`)
+- Sr. Developer · Engineering · Rahul Mehta
+- Resignation: 01 Jan 2025 · LWD: 15 Jan 2025 (14 days from a reference "today")
+- Tasks: Manager ✅ · IT ⚠️ OVERDUE · Admin ✅ · Finance 🔵 in_progress · Procurement ✅ · InfoSec ✅ · HR 🕐 pending · Facilities 🕐 pending
+- IT task: 3/7 items checked, started but overdue
+- Has one timeline entry for each status change
+
+**Case 2 — CASE-2024-002 · Meera Krishnan** (status: `pending_manager`)
+- QA Engineer · Testing · Rahul Mehta
+- Resignation: 05 Jan 2025 · LWD: 30 Jan 2025
+- No tasks started yet (all pending_manager state)
+- Timeline: only "Resignation submitted"
+
+**Case 3 — CASE-2024-003 · Dev Anand** (status: `completed`)
+- Product Manager · Product · Sunita Iyer
+- Resignation: 01 Nov 2024 · LWD: 30 Nov 2024 (historical)
+- All 8 tasks approved, documents generated
+- Full timeline with all events, including exit interview + document generation
+
+### Store Actions (Zustand)
+```typescript
+interface ExitStore {
+  cases: ExitCase[]
+  currentUser: User | null
+
+  // Auth
+  login: (userId: string) => void
+  logout: () => void
+
+  // Cases
+  addCase: (caseData: Partial<ExitCase>) => ExitCase
+  updateCaseStatus: (caseId: string, status: CaseStatus) => void
+
+  // Tasks
+  checkItem: (caseId: string, taskId: string, itemId: string, value: boolean) => void
+  setItemInput: (caseId: string, taskId: string, itemId: string, value: string) => void
+  approveTask: (caseId: string, taskId: string, notes?: string) => void
+  rejectTask: (caseId: string, taskId: string, reason: string) => void
+  saveTaskDraft: (caseId: string, taskId: string, notes: string) => void
+
+  // Documents
+  generateDocument: (caseId: string, type: 'relieving' | 'experience') => void
+
+  // Interview
+  saveExitInterview: (caseId: string, data: ExitCase['exitInterview']) => void
+}
+```
+
+---
+
+## SHARED COMPONENTS (`components/shared/`)
+
+### `<StatusBadge status={} size="sm|md" />`
+Maps status string → label + dot color + bg color. All status values:
+`pending` · `in_progress` · `approved` · `rejected` · `overdue` · `completed` · `cancelled`
+Renders as: `<span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: bgColor, color: textColor }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }}/>{label}</span>`
+
+### `<SLARiskChip dueAt={string} />`
+Calculates time remaining using date-fns `differenceInHours(dueAt, now)`.
+- `> 24h`: green "On Track"
+- `1–24h`: amber "Due Today" or "Due in Xh"
+- `0`: amber "Due Now"
+- `< 0`: red "Overdue by Xd Xh"
+
+### `<ClearanceProgressBar tasks={ClearanceTask[]} />`
+Segmented bar showing proportions. Segments: green (approved) · blue (in_progress) · gray (pending) · red (rejected)
+Below bar: "5 of 8 approved" label
+
+### `<UserAvatar name={string} size="sm|md|lg" />`
+Renders colored circle with initials. Hash the name to pick a consistent color from a palette of 8 colors.
+
+### `<PageHeader title breadcrumb actions />`
+Sticky top-of-content header. Left: breadcrumb (text-muted) above title (h1). Right: action buttons.
+
+### `<EmptyState icon title description action? />`
+Centered layout: Lucide icon (48px, muted) + title + description paragraph + optional CTA button.
+
+### `<ConfirmDialog title description confirmLabel confirmVariant onConfirm />`
+Shadcn Dialog wrapper for all destructive confirmations.
+
+### `<DataTable columns data filters? pagination? />`
+Generic typed table component. Shadcn Table underneath. Supports: sortable columns (click header), filter tabs, pagination (20/page), bulk checkbox selection, empty state.
+
+---
+
+## CONSTANTS — `lib/constants.ts`
+
+```typescript
+export const DEPARTMENTS = [
+  { id: 'manager',     label: 'Manager Clearance', icon: 'Users',       isMandatory: true,  slaHours: 48, defaultAssignee: 'u2' },
+  { id: 'it',          label: 'IT',                icon: 'Monitor',     isMandatory: true,  slaHours: 24, defaultAssignee: 'u4' },
+  { id: 'admin',       label: 'Administration',    icon: 'Building2',   isMandatory: true,  slaHours: 24, defaultAssignee: 'u7' },
+  { id: 'finance',     label: 'Finance',           icon: 'Landmark',    isMandatory: true,  slaHours: 48, defaultAssignee: 'u5' },
+  { id: 'procurement', label: 'Procurement',       icon: 'Package',     isMandatory: false, slaHours: 48, defaultAssignee: 'u8' },
+  { id: 'infosec',     label: 'Info Security',     icon: 'ShieldCheck', isMandatory: true,  slaHours: 24, defaultAssignee: 'u9' },
+  { id: 'hr',          label: 'HR',                icon: 'Heart',       isMandatory: true,  slaHours: 72, defaultAssignee: 'u3' },
+  { id: 'facilities',  label: 'Facilities',        icon: 'MapPin',      isMandatory: false, slaHours: 24, defaultAssignee: 'u10'},
+]
+
+export const CHECKLIST_TEMPLATES: Record<DeptId, ChecklistTemplate[]> = {
+  it: [
+    { id: 'it-1', label: 'Laptop returned and condition verified', isMandatory: true,  hasInput: true,  inputLabel: 'Asset tag / Serial number' },
+    { id: 'it-2', label: 'Mobile device returned (if applicable)', isMandatory: false, hasInput: false },
+    { id: 'it-3', label: 'Corporate email account deactivated',    isMandatory: true,  hasInput: false },
+    { id: 'it-4', label: 'VPN credentials revoked',               isMandatory: true,  hasInput: false },
+    { id: 'it-5', label: 'All application access removed',         isMandatory: true,  hasInput: false },
+    { id: 'it-6', label: 'GitHub / GitLab access removed',         isMandatory: true,  hasInput: false },
+    { id: 'it-7', label: 'Data backup verified',                   isMandatory: true,  hasInput: false },
+  ],
+  finance: [
+    { id: 'fin-1', label: 'Salary advance fully recovered',        isMandatory: true,  hasInput: true,  inputLabel: 'Amount (₹)' },
+    { id: 'fin-2', label: 'Loan balance settled',                  isMandatory: true,  hasInput: true,  inputLabel: 'Amount (₹)' },
+    { id: 'fin-3', label: 'Pending expense claims processed',      isMandatory: true,  hasInput: false },
+    { id: 'fin-4', label: 'Final settlement amount confirmed',     isMandatory: true,  hasInput: true,  inputLabel: 'Net settlement (₹)' },
+  ],
+  admin: [
+    { id: 'adm-1', label: 'Employee ID card returned',            isMandatory: true,  hasInput: false },
+    { id: 'adm-2', label: 'Access / swipe card returned',         isMandatory: true,  hasInput: true,  inputLabel: 'Card number' },
+    { id: 'adm-3', label: 'Parking tag surrendered',              isMandatory: false, hasInput: false },
+    { id: 'adm-4', label: 'Office keys returned',                 isMandatory: true,  hasInput: false },
+    { id: 'adm-5', label: 'Desk cleared and handed over',         isMandatory: true,  hasInput: false },
+  ],
+  manager: [
+    { id: 'mgr-1', label: 'All projects handed over',             isMandatory: true,  hasInput: false },
+    { id: 'mgr-2', label: 'Knowledge transfer sessions completed', isMandatory: true, hasInput: false },
+    { id: 'mgr-3', label: 'All timesheets submitted and approved', isMandatory: true, hasInput: false },
+    { id: 'mgr-4', label: 'Client introductions made',            isMandatory: false, hasInput: false },
+    { id: 'mgr-5', label: 'Release date confirmed',               isMandatory: true,  hasInput: false },
+  ],
+  infosec: [
+    { id: 'sec-1', label: 'Security compliance sign-off completed', isMandatory: true,  hasInput: false },
+    { id: 'sec-2', label: 'Data confidentiality agreement signed',  isMandatory: true,  hasInput: false },
+    { id: 'sec-3', label: 'Full access review completed',           isMandatory: true,  hasInput: false },
+  ],
+  hr: [
+    { id: 'hr-1', label: 'Exit interview completed',              isMandatory: true,  hasInput: false },
+    { id: 'hr-2', label: 'All HR documents collected',            isMandatory: true,  hasInput: false },
+    { id: 'hr-3', label: 'Policy compliance verified',            isMandatory: true,  hasInput: false },
+    { id: 'hr-4', label: 'Final approval granted',                isMandatory: true,  hasInput: false },
+  ],
+  procurement: [
+    { id: 'pro-1', label: 'Vendor-owned assets returned',         isMandatory: true,  hasInput: false },
+    { id: 'pro-2', label: 'Asset procurement records closed',     isMandatory: true,  hasInput: false },
+  ],
+  facilities: [
+    { id: 'fac-1', label: 'Workspace inspected and handed over',  isMandatory: true,  hasInput: false },
+    { id: 'fac-2', label: 'Facility access fully closed',         isMandatory: true,  hasInput: false },
+  ],
+}
+
+export const EXIT_REASONS = [
+  { value: 'better_opportunity', label: 'Better Opportunity'  },
+  { value: 'compensation',       label: 'Compensation'        },
+  { value: 'personal',           label: 'Personal Reasons'    },
+  { value: 'higher_studies',     label: 'Higher Studies'      },
+  { value: 'relocation',         label: 'Relocation'          },
+  { value: 'work_environment',   label: 'Work Environment'    },
+  { value: 'health',             label: 'Health Reasons'      },
+  { value: 'other',              label: 'Other'               },
+]
+
+export const ROLE_LABELS: Record<Role, string> = {
+  employee:      'Employee',
+  manager:       'Manager',
+  hr:            'HR Team',
+  dept_approver: 'Dept. Approver',
+  admin:         'Administrator',
+}
+```
+
+---
+
+## KEY BUSINESS RULES (enforce these in the UI)
+
+1. **Relieving Letter is locked** until every mandatory department's task status is `approved`. The generate button must be `disabled` with a Shadcn Tooltip: "Waiting for: IT, Finance (2 departments pending)".
+
+2. **Approve Clearance button is locked** until every checklist item where `isMandatory: true` is checked. Show inline validation (amber highlight on unchecked required rows) when user tries to approve without completing.
+
+3. **SLA chip is always live-calculated** from `slaDueAt` vs `Date.now()` — never hardcoded strings. Use a `useSLA(dueAt)` hook that returns `{ status, label, color }`.
+
+4. **Employee cannot access `/resign`** if they already have a case in the store. Middleware redirects them to `/dashboard`.
+
+5. **Rejection cascade**: When a task is rejected, the exit case status must show a warning state on the HR dashboard and case detail. HR must re-open the task for the original assignee to re-do it.
+
+6. **Manager approval gate**: All clearance tasks remain in `pending` state until the manager first approves the resignation. Task cards show "Waiting for manager approval" if case status is `pending_manager`.
+
+7. **New case Step 3**: Mandatory departments show a `Lock` icon with no toggle. Hovering shows tooltip: "This department is required and cannot be skipped." Non-mandatory depts show a working toggle switch.
+
+---
+
+## FILE STRUCTURE
+```
+src/
+├── app/
+│   ├── (public)/
+│   │   ├── page.tsx                   ← Landing page
+│   │   └── login/page.tsx             ← Login
+│   └── (app)/
+│       ├── layout.tsx                 ← Shell (sidebar + topbar)
+│       ├── dashboard/page.tsx         ← Role-aware dashboard
+│       ├── cases/
+│       │   ├── page.tsx               ← Cases list (HR/Admin)
+│       │   ├── new/page.tsx           ← New case wizard
+│       │   └── [id]/page.tsx          ← Case detail (tabs)
+│       ├── tasks/
+│       │   ├── page.tsx               ← Task list (Dept approver)
+│       │   └── [taskId]/page.tsx      ← Clearance form
+│       ├── resign/page.tsx            ← Employee resignation form
+│       ├── reports/
+│       │   ├── page.tsx               ← Analytics
+│       │   └── audit/page.tsx         ← Audit trail
+│       └── settings/
+│           ├── page.tsx               ← Settings home
+│           ├── departments/page.tsx
+│           ├── workflows/page.tsx
+│           └── users/page.tsx
+├── components/
+│   ├── layout/
+│   │   ├── Sidebar.tsx
+│   │   ├── TopBar.tsx
+│   │   └── BottomNav.tsx              ← Mobile only
+│   ├── shared/
+│   │   ├── StatusBadge.tsx
+│   │   ├── SLARiskChip.tsx
+│   │   ├── ClearanceProgressBar.tsx
+│   │   ├── UserAvatar.tsx
+│   │   ├── PageHeader.tsx
+│   │   ├── EmptyState.tsx
+│   │   ├── ConfirmDialog.tsx
+│   │   └── DataTable.tsx
+│   ├── dashboard/
+│   │   ├── EmployeeDashboard.tsx
+│   │   ├── ManagerDashboard.tsx
+│   │   ├── HRDashboard.tsx
+│   │   ├── DeptApproverDashboard.tsx
+│   │   └── AdminDashboard.tsx
+│   ├── cases/
+│   │   ├── CaseTable.tsx
+│   │   ├── CaseDetailTabs.tsx
+│   │   ├── ClearanceAccordion.tsx
+│   │   ├── DocumentsTab.tsx
+│   │   ├── ExitInterviewForm.tsx
+│   │   └── CaseTimeline.tsx
+│   ├── tasks/
+│   │   ├── TaskCard.tsx
+│   │   └── ChecklistItem.tsx
+│   └── charts/
+│       ├── ExitTrendChart.tsx
+│       ├── ReasonsDonutChart.tsx
+│       ├── TurnaroundBarChart.tsx
+│       └── SLAPerformanceChart.tsx
+├── store/
+│   ├── authStore.ts                   ← Current user, login/logout
+│   └── exitStore.ts                   ← Cases, tasks, actions
+├── lib/
+│   ├── types.ts
+│   ├── constants.ts
+│   └── utils.ts                       ← SLA calc, date formatting, initials
+├── hooks/
+│   ├── useAuth.ts                     ← Role check, redirect helper
+│   └── useSLA.ts                      ← Live SLA status from dueAt
+└── middleware.ts                      ← Route protection
+```
+
+---
+
+## DONE CRITERIA
+
+The build is complete when all of the following are true:
+
+**Routing & Auth**
+- [ ] `/` shows the landing page (no login required)
+- [ ] `/login` shows split layout with real form + demo role cards
+- [ ] Clicking any demo role card → logs in → redirects to `/dashboard`
+- [ ] Dashboard renders a completely different layout per role
+- [ ] Navigating to a protected route while logged out → redirects to `/login`
+- [ ] Navigating to a forbidden route while logged in → redirects to `/dashboard`
+
+**Employee**
+- [ ] Dashboard shows active case status, clearance progress list, timeline, documents
+- [ ] Clicking a dept row in clearance list → sheet shows that dept's checklist (read-only)
+- [ ] Resign page works with validation and confirmation dialog
+
+**Manager**
+- [ ] Dashboard shows attention banner + team exits table + my clearance tasks
+- [ ] Can approve a resignation from the table via inline sheet
+- [ ] `/cases/[id]` shows Overview and My Clearance tabs with functional checklist
+
+**HR**
+- [ ] Dashboard shows KPI cards, cases table with filters, attention panel
+- [ ] Cases list table has sortable columns, filter tabs, pagination
+- [ ] New case wizard: all 4 steps work, form validates, submits correctly
+- [ ] Case detail: all 5 tabs render correctly, clearance accordion expands
+- [ ] Generate document button is disabled until all mandatory clearances approved
+- [ ] Exit interview form saves and displays correctly
+
+**Dept Approver**
+- [ ] Dashboard shows pending task cards with correct SLA chips
+- [ ] `/tasks` shows filtered task list
+- [ ] Clearance form: checklist items toggle, inline inputs appear on check, sticky action bar visible
+- [ ] Approve flow: validates required items, shows confirmation, redirects after
+- [ ] Reject flow: opens dialog, requires reason, saves rejection reason
+
+**Admin**
+- [ ] All settings pages render with mock data
+- [ ] Department config shows left-list + right-panel layout
+- [ ] Workflow page shows drag-and-drop order (can be visual-only, no real dnd needed)
+- [ ] Users table with add user sheet
+
+**Reports**
+- [ ] All 4 charts render with seeded data
+- [ ] Date range picker changes don't crash (can show same data)
+- [ ] Audit trail table filters by type
+
+**Global**
+- [ ] Sidebar collapses correctly on tablet
+- [ ] All status badges render with correct colors
+- [ ] SLA chips show correct overdue/on-track states based on seed data dates
+- [ ] No placeholder text ("Lorem ipsum"), no empty untitled cards
+- [ ] Toast notifications appear on all form submissions
