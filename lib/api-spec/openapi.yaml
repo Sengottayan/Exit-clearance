@@ -1,22 +1,42 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Exit-Clearance API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: cases
+    description: Exit cases
+  - name: tasks
+    description: Clearance tasks
+  - name: documents
+    description: Case documents
+  - name: departments
+    description: Department configuration
+  - name: workflows
+    description: Workflow templates
+  - name: users
+    description: User management
+  - name: reports
+    description: Analytics and reports
+  - name: notifications
+    description: User notifications
+  - name: audit
+    description: Audit logs
+
 paths:
+  # ── Health ────────────────────────────────────────────────────────────────
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,8 +44,1173 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Auth ─────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+
+  # ── Cases ────────────────────────────────────────────────────────────────
+  /cases:
+    get:
+      operationId: listCases
+      tags: [cases]
+      summary: List all exit cases
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: employeeId
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of cases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExitCaseWithRelations"
+    post:
+      operationId: createCase
+      tags: [cases]
+      summary: Create a new exit case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCaseRequest"
+      responses:
+        "201":
+          description: Case created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+
+  /cases/{caseId}:
+    get:
+      operationId: getCase
+      tags: [cases]
+      summary: Get case details
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Case details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+        "404":
+          description: Case not found
+
+  /cases/{caseId}/approve-resignation:
+    post:
+      operationId: approveResignation
+      tags: [cases]
+      summary: Approve resignation (manager action)
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actor:
+                  type: string
+      responses:
+        "200":
+          description: Resignation approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+
+  /cases/{caseId}/cancel:
+    post:
+      operationId: cancelCase
+      tags: [cases]
+      summary: Cancel an exit case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                actor:
+                  type: string
+      responses:
+        "200":
+          description: Case cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+
+  /cases/{caseId}/complete:
+    post:
+      operationId: completeCase
+      tags: [cases]
+      summary: Manually complete a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Case completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+
+  /cases/{caseId}/extend:
+    post:
+      operationId: extendLastWorkingDay
+      tags: [cases]
+      summary: Extend last working day
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newDate]
+              properties:
+                newDate:
+                  type: string
+                  format: date-time
+                actor:
+                  type: string
+      responses:
+        "200":
+          description: Working day extended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+
+  /cases/{caseId}/escalate:
+    post:
+      operationId: escalateCase
+      tags: [cases]
+      summary: Escalate case to HR
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                actor:
+                  type: string
+      responses:
+        "200":
+          description: Case escalated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitCaseWithRelations"
+
+  /cases/{caseId}/comments:
+    get:
+      operationId: listCaseComments
+      tags: [cases]
+      summary: Get comments for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CaseComment"
+    post:
+      operationId: addCaseComment
+      tags: [cases]
+      summary: Add a comment to a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCommentRequest"
+      responses:
+        "201":
+          description: Comment added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseComment"
+
+  /cases/{caseId}/interview:
+    get:
+      operationId: getExitInterview
+      tags: [cases]
+      summary: Get exit interview for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Exit interview data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitInterviewResponse"
+    put:
+      operationId: saveExitInterview
+      tags: [cases]
+      summary: Save exit interview
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExitInterviewRequest"
+      responses:
+        "200":
+          description: Exit interview saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitInterviewResponse"
+
+  # ── Tasks ────────────────────────────────────────────────────────────────
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks for current user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: assigneeId
+          in: query
+          schema:
+            type: string
+        - name: caseId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClearanceTaskWithCase"
+
+  /tasks/{taskId}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get task details
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearanceTaskWithCase"
+        "404":
+          description: Task not found
+
+  /tasks/{taskId}/approve:
+    post:
+      operationId: approveTask
+      tags: [tasks]
+      summary: Approve a clearance task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Task approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearanceTaskWithCase"
+
+  /tasks/{taskId}/reject:
+    post:
+      operationId: rejectTask
+      tags: [tasks]
+      summary: Reject a clearance task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Task rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearanceTaskWithCase"
+
+  /tasks/{taskId}/save-draft:
+    post:
+      operationId: saveTaskDraft
+      tags: [tasks]
+      summary: Save task draft (checklist progress)
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checklist]
+              properties:
+                checklist:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ChecklistItemInput"
+      responses:
+        "200":
+          description: Draft saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearanceTaskWithCase"
+
+  /tasks/{taskId}/delegate:
+    post:
+      operationId: delegateTask
+      tags: [tasks]
+      summary: Delegate task to another user
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assigneeId]
+              properties:
+                assigneeId:
+                  type: string
+      responses:
+        "200":
+          description: Task delegated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearanceTaskWithCase"
+
+  # ── Documents ────────────────────────────────────────────────────────────
+  /cases/{caseId}/documents:
+    get:
+      operationId: listCaseDocuments
+      tags: [documents]
+      summary: List documents for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  /cases/{caseId}/documents/upload:
+    post:
+      operationId: uploadDocument
+      tags: [documents]
+      summary: Upload a document
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, docType]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                docType:
+                  type: string
+                  enum: [resignation_letter, relieving_letter, experience_certificate, attachment]
+      responses:
+        "201":
+          description: Document uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /cases/{caseId}/documents/generate:
+    post:
+      operationId: generateDocument
+      tags: [documents]
+      summary: Generate a system document (relieving letter / experience certificate)
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [docType]
+              properties:
+                docType:
+                  type: string
+                  enum: [relieving_letter, experience_certificate]
+      responses:
+        "201":
+          description: Document generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{documentId}/download:
+    get:
+      operationId: downloadDocument
+      tags: [documents]
+      summary: Download a document
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # ── Departments ──────────────────────────────────────────────────────────
+  /departments:
+    get:
+      operationId: listDepartments
+      tags: [departments]
+      summary: List all departments
+      responses:
+        "200":
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+    put:
+      operationId: updateDepartments
+      tags: [departments]
+      summary: Bulk update departments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/DepartmentUpdate"
+      responses:
+        "200":
+          description: Departments updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+
+  /departments/{deptId}:
+    get:
+      operationId: getDepartment
+      tags: [departments]
+      summary: Get department details
+      parameters:
+        - name: deptId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Department details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+
+  /departments/{deptId}/checklist-templates:
+    get:
+      operationId: listChecklistTemplates
+      tags: [departments]
+      summary: Get checklist templates for a department
+      parameters:
+        - name: deptId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Checklist templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChecklistTemplate"
+    put:
+      operationId: updateChecklistTemplates
+      tags: [departments]
+      summary: Update checklist templates for a department
+      parameters:
+        - name: deptId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/ChecklistTemplateInput"
+      responses:
+        "200":
+          description: Checklist templates updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChecklistTemplate"
+
+  # ── Workflows ────────────────────────────────────────────────────────────
+  /workflows:
+    get:
+      operationId: listWorkflows
+      tags: [workflows]
+      summary: List workflow templates
+      responses:
+        "200":
+          description: List of workflow templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowConfig"
+    post:
+      operationId: createWorkflow
+      tags: [workflows]
+      summary: Create a workflow template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowConfigInput"
+      responses:
+        "201":
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowConfig"
+
+  /workflows/{workflowId}:
+    get:
+      operationId: getWorkflow
+      tags: [workflows]
+      summary: Get workflow template
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Workflow template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowConfig"
+    put:
+      operationId: updateWorkflow
+      tags: [workflows]
+      summary: Update workflow template
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowConfigUpdate"
+      responses:
+        "200":
+          description: Workflow updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowConfig"
+    delete:
+      operationId: deleteWorkflow
+      tags: [workflows]
+      summary: Delete workflow template
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Workflow deleted
+
+  # ── Users ────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user details
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: User deleted
+
+  # ── Reports ──────────────────────────────────────────────────────────────
+  /reports/exit-trends:
+    get:
+      operationId: getExitTrends
+      tags: [reports]
+      summary: Get exit trends chart data
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 12
+      responses:
+        "200":
+          description: Exit trend data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitTrendsResponse"
+
+  /reports/exit-reasons:
+    get:
+      operationId: getExitReasons
+      tags: [reports]
+      summary: Get exit reason breakdown
+      responses:
+        "200":
+          description: Exit reason data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExitReasonsResponse"
+
+  /reports/turnaround:
+    get:
+      operationId: getTurnaround
+      tags: [reports]
+      summary: Get department turnaround times
+      responses:
+        "200":
+          description: Turnaround data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TurnaroundResponse"
+
+  /reports/sla-performance:
+    get:
+      operationId: getSLAPerformance
+      tags: [reports]
+      summary: Get SLA performance metrics
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 6
+      responses:
+        "200":
+          description: SLA performance data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SLAPerformanceResponse"
+
+  # ── Notifications ────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{notificationId}/mark-read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/mark-all-read:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+
+  /notifications/preferences:
+    get:
+      operationId: getNotificationPreferences
+      tags: [notifications]
+      summary: Get notification preferences
+      responses:
+        "200":
+          description: Notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferencesResponse"
+    put:
+      operationId: updateNotificationPreferences
+      tags: [notifications]
+      summary: Update notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferencesUpdate"
+      responses:
+        "200":
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferencesResponse"
+
+  # ── Audit Logs ───────────────────────────────────────────────────────────
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      summary: Get paginated audit logs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: caseId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paginated audit logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAuditLogs"
+
+  /audit-logs/export:
+    get:
+      operationId: exportAuditLogs
+      tags: [audit]
+      summary: Export audit logs as CSV
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  # ── Settings ─────────────────────────────────────────────────────────────
+  /settings:
+    get:
+      operationId: listSettings
+      tags: [cases]
+      summary: Get all app settings
+      responses:
+        "200":
+          description: App settings
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    put:
+      operationId: updateSettings
+      tags: [cases]
+      summary: Update app settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
 components:
   schemas:
+    # ── Shared ─────────────────────────────────────────────────────────────
     HealthStatus:
       type: object
       properties:
@@ -34,3 +1219,855 @@ components:
       required:
         - status
 
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    # ── Auth ───────────────────────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+
+    # ── User ───────────────────────────────────────────────────────────────
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - name
+        - dept
+        - employeeId
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [employee, manager, hr, dept_approver, admin]
+        name:
+          type: string
+        dept:
+          type: string
+        employeeId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        id: u1
+        email: priya@company.com
+        role: employee
+        name: Priya Sharma
+        dept: Engineering
+        employeeId: EMP-1042
+
+    CreateUserRequest:
+      type: object
+      required:
+        - email
+        - password
+        - role
+        - name
+        - dept
+        - employeeId
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        role:
+          type: string
+          enum: [employee, manager, hr, dept_approver, admin]
+        name:
+          type: string
+        dept:
+          type: string
+        employeeId:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [employee, manager, hr, dept_approver, admin]
+        name:
+          type: string
+        dept:
+          type: string
+        employeeId:
+          type: string
+
+    # ── Department ─────────────────────────────────────────────────────────
+    Department:
+      type: object
+      required:
+        - id
+        - label
+        - icon
+        - isMandatory
+        - slaHours
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        icon:
+          type: string
+        isMandatory:
+          type: boolean
+        slaHours:
+          type: integer
+        defaultAssignee:
+          type: string
+        sortOrder:
+          type: integer
+
+    DepartmentUpdate:
+      type: object
+      properties:
+        label:
+          type: string
+        icon:
+          type: string
+        isMandatory:
+          type: boolean
+        slaHours:
+          type: integer
+        defaultAssignee:
+          type: string
+        sortOrder:
+          type: integer
+
+    # ── Checklist Template ─────────────────────────────────────────────────
+    ChecklistTemplate:
+      type: object
+      required:
+        - id
+        - deptId
+        - label
+        - isMandatory
+        - hasInput
+      properties:
+        id:
+          type: string
+        deptId:
+          type: string
+        label:
+          type: string
+        isMandatory:
+          type: boolean
+        hasInput:
+          type: boolean
+        inputLabel:
+          type: string
+        sortOrder:
+          type: integer
+
+    ChecklistTemplateInput:
+      type: object
+      required:
+        - label
+        - isMandatory
+        - hasInput
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        isMandatory:
+          type: boolean
+        hasInput:
+          type: boolean
+        inputLabel:
+          type: string
+        sortOrder:
+          type: integer
+
+    # ── Case ───────────────────────────────────────────────────────────────
+    ExitCase:
+      type: object
+      required:
+        - id
+        - employeeId
+        - employeeName
+        - employeeEmail
+        - employeeRole
+        - employeeDept
+        - managerId
+        - managerName
+        - status
+        - resignationDate
+        - lastWorkingDay
+        - noticePeriodDays
+        - exitReason
+      properties:
+        id:
+          type: string
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        employeeEmail:
+          type: string
+        employeeRole:
+          type: string
+        employeeDept:
+          type: string
+        managerId:
+          type: string
+        managerName:
+          type: string
+        status:
+          type: string
+          enum: [pending_manager, in_clearance, completed, cancelled]
+        resignationDate:
+          type: string
+          format: date-time
+        lastWorkingDay:
+          type: string
+          format: date-time
+        noticePeriodDays:
+          type: integer
+        exitReason:
+          type: string
+        escalated:
+          type: boolean
+        cancelReason:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ExitCaseWithRelations:
+      allOf:
+        - $ref: "#/components/schemas/ExitCase"
+        - type: object
+          properties:
+            tasks:
+              type: array
+              items:
+                $ref: "#/components/schemas/ClearanceTask"
+            timeline:
+              type: array
+              items:
+                $ref: "#/components/schemas/TimelineEvent"
+            exitInterview:
+              $ref: "#/components/schemas/ExitInterview"
+            documents:
+              type: array
+              items:
+                $ref: "#/components/schemas/Document"
+            comments:
+              type: array
+              items:
+                $ref: "#/components/schemas/CaseComment"
+
+    CreateCaseRequest:
+      type: object
+      required:
+        - employeeId
+        - employeeName
+        - employeeEmail
+        - employeeRole
+        - employeeDept
+        - managerId
+        - managerName
+        - resignationDate
+        - lastWorkingDay
+        - noticePeriodDays
+        - exitReason
+      properties:
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        employeeEmail:
+          type: string
+        employeeRole:
+          type: string
+        employeeDept:
+          type: string
+        managerId:
+          type: string
+        managerName:
+          type: string
+        resignationDate:
+          type: string
+          format: date-time
+        lastWorkingDay:
+          type: string
+          format: date-time
+        noticePeriodDays:
+          type: integer
+        exitReason:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    # ── Case Comment ───────────────────────────────────────────────────────
+    CaseComment:
+      type: object
+      required:
+        - id
+        - authorId
+        - authorName
+        - authorRole
+        - message
+        - timestamp
+        - visibility
+      properties:
+        id:
+          type: string
+        authorId:
+          type: string
+        authorName:
+          type: string
+        authorRole:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        visibility:
+          type: string
+          enum: [all, internal]
+
+    AddCommentRequest:
+      type: object
+      required:
+        - authorId
+        - authorName
+        - authorRole
+        - message
+        - visibility
+      properties:
+        authorId:
+          type: string
+        authorName:
+          type: string
+        authorRole:
+          type: string
+        message:
+          type: string
+        visibility:
+          type: string
+          enum: [all, internal]
+
+    # ── Clearance Task ─────────────────────────────────────────────────────
+    ClearanceTask:
+      type: object
+      required:
+        - id
+        - caseId
+        - deptId
+        - deptLabel
+        - assigneeId
+        - assigneeName
+        - status
+        - slaHours
+        - slaDueAt
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        deptId:
+          type: string
+        deptLabel:
+          type: string
+        assigneeId:
+          type: string
+        assigneeName:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, approved, rejected, overdue]
+        slaHours:
+          type: integer
+        slaDueAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+        rejectionReason:
+          type: string
+        checklist:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChecklistItem"
+
+    ClearanceTaskWithCase:
+      allOf:
+        - $ref: "#/components/schemas/ClearanceTask"
+        - type: object
+          properties:
+            case:
+              $ref: "#/components/schemas/ExitCase"
+
+    # ── Checklist Item ─────────────────────────────────────────────────────
+    ChecklistItem:
+      type: object
+      required:
+        - id
+        - taskId
+        - label
+        - isMandatory
+        - hasInput
+      properties:
+        id:
+          type: string
+        taskId:
+          type: string
+        label:
+          type: string
+        isMandatory:
+          type: boolean
+        hasInput:
+          type: boolean
+        inputLabel:
+          type: string
+        checked:
+          type: boolean
+        inputValue:
+          type: string
+
+    ChecklistItemInput:
+      type: object
+      required:
+        - id
+        - checked
+      properties:
+        id:
+          type: string
+        checked:
+          type: boolean
+        inputValue:
+          type: string
+        label:
+          type: string
+
+    # ── Timeline Event ─────────────────────────────────────────────────────
+    TimelineEvent:
+      type: object
+      required:
+        - id
+        - caseId
+        - label
+        - timestamp
+        - actor
+        - actorRole
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        label:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        actorRole:
+          type: string
+        isPending:
+          type: boolean
+
+    # ── Exit Interview ─────────────────────────────────────────────────────
+    ExitInterview:
+      type: object
+      required:
+        - overallRating
+        - managementRating
+        - cultureRating
+        - reason
+        - wouldRejoin
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        overallRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        managementRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        cultureRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        reason:
+          type: string
+        improvements:
+          type: string
+        wouldRejoin:
+          type: boolean
+        comments:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+
+    ExitInterviewRequest:
+      type: object
+      required:
+        - overallRating
+        - managementRating
+        - cultureRating
+        - reason
+        - wouldRejoin
+      properties:
+        overallRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        managementRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        cultureRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        reason:
+          type: string
+        improvements:
+          type: string
+        wouldRejoin:
+          type: boolean
+        comments:
+          type: string
+
+    ExitInterviewResponse:
+      type: object
+      properties:
+        interview:
+          $ref: "#/components/schemas/ExitInterview"
+
+    # ── Document ───────────────────────────────────────────────────────────
+    Document:
+      type: object
+      required:
+        - id
+        - caseId
+        - docType
+        - fileName
+        - uploadedAt
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        docType:
+          type: string
+          enum: [resignation_letter, relieving_letter, experience_certificate, attachment]
+        fileName:
+          type: string
+        uploadedBy:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+
+    # ── Notification ───────────────────────────────────────────────────────
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - type
+        - title
+        - message
+        - read
+        - createdAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [approval, sla, system, rejection, completion]
+        title:
+          type: string
+        message:
+          type: string
+        href:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationPreferencesResponse:
+      type: object
+      properties:
+        approval:
+          type: boolean
+        sla:
+          type: boolean
+        system:
+          type: boolean
+        rejection:
+          type: boolean
+        completion:
+          type: boolean
+
+    NotificationPreferencesUpdate:
+      type: object
+      properties:
+        approval:
+          type: boolean
+        sla:
+          type: boolean
+        system:
+          type: boolean
+        rejection:
+          type: boolean
+        completion:
+          type: boolean
+
+    # ── Audit Log ──────────────────────────────────────────────────────────
+    AuditLogEntry:
+      type: object
+      required:
+        - id
+        - timestamp
+        - actor
+        - role
+        - type
+        - action
+        - entity
+        - details
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        role:
+          type: string
+        type:
+          type: string
+          enum: [Case, Task, Document, Comment, System]
+        action:
+          type: string
+        entity:
+          type: string
+        details:
+          type: string
+        caseId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PaginatedAuditLogs:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    # ── Workflow Config ────────────────────────────────────────────────────
+    WorkflowConfig:
+      type: object
+      required:
+        - id
+        - name
+        - deptIds
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        deptIds:
+          type: array
+          items:
+            type: string
+        slaMultiplier:
+          type: number
+          format: float
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WorkflowConfigInput:
+      type: object
+      required:
+        - name
+        - deptIds
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        deptIds:
+          type: array
+          items:
+            type: string
+        slaMultiplier:
+          type: number
+          format: float
+        isDefault:
+          type: boolean
+
+    WorkflowConfigUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        deptIds:
+          type: array
+          items:
+            type: string
+        slaMultiplier:
+          type: number
+          format: float
+        isDefault:
+          type: boolean
+
+    # ── Reports ────────────────────────────────────────────────────────────
+    ExitTrendsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              exits:
+                type: integer
+
+    ExitReasonsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              value:
+                type: integer
+
+    TurnaroundResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              days:
+                type: number
+                format: float
+
+    SLAPerformanceResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              onTime:
+                type: integer
+              overdue:
+                type: integer

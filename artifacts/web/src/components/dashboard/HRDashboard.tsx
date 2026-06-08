@@ -1,4 +1,4 @@
-import { useExitStore } from "@/store/exitStore";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "@/lib/wouter";
@@ -8,83 +8,56 @@ import {
   AlertTriangle,
   Users,
   CheckCircle2,
-  ArrowRight,
   TrendingUp,
   TrendingDown,
   Calendar,
   Sparkles,
   Zap,
-  ChevronRight,
-  Send,
   FileSpreadsheet,
   FileCheck,
   History,
   Activity,
 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExitTrendChart } from "@/components/charts/ExitTrendChart";
 import { SLAPerformanceChart } from "@/components/charts/SLAPerformanceChart";
-import { computeExitTrend, computeSLAPerformance } from "@/lib/analytics";
 import { format } from "date-fns";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { useHRDashboard } from "@/lib/api/use-hr-dashboard";
 
 export function HRDashboard() {
-  const cases = useExitStore(state => state.cases);
+  const { data, loading: apiLoading, error } = useHRDashboard();
   const [, setLocation] = useLocation();
-  const [loading, setLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
 
-  // Progressive loading simulation
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 650);
+    const timer = setTimeout(() => setShowSkeleton(false), 650);
     return () => clearTimeout(timer);
   }, []);
 
-  const activeCases = cases.filter(c => c.status !== 'completed' && c.status !== 'cancelled');
-  const pendingApprovals = cases.filter(c => c.status === 'pending_manager');
-  const inClearance = cases.filter(c => c.status === 'in_clearance');
-  
-  const allTasks = cases.flatMap(c => c.tasks);
-  const overdueTasks = allTasks.filter(t => t.status === 'overdue');
-  const completedThisMonth = cases.filter(c => c.status === 'completed');
+  const loading = showSkeleton || apiLoading;
 
-  // Sparkline data generators (mock pathways to simulate performance trends)
+  const overview = data?.overview;
+  const overdueTasks = data?.overdueTasks ?? [];
+  const timelineEvents = data?.timelineEvents ?? [];
+  const exitTrend = data?.exitTrend ?? [];
+  const slaPerformance = data?.slaPerformance ?? [];
+
   const sparklineDataActive = "M 5 25 L 15 22 L 25 28 L 35 15 L 45 18 L 55 10 L 65 15 L 75 8";
   const sparklineDataPending = "M 5 15 L 15 18 L 25 10 L 35 22 L 45 25 L 55 18 L 65 12 L 75 16";
   const sparklineDataOverdue = "M 5 8 L 15 10 L 25 15 L 35 12 L 45 22 L 55 25 L 65 18 L 75 22";
   const sparklineDataCompleted = "M 5 28 L 15 25 L 25 22 L 35 18 L 45 15 L 55 12 L 65 10 L 75 5";
 
-  // Timeline events aggregated from cases
-  const timelineEvents = cases
-    .flatMap(c => 
-      c.timeline.map(t => ({
-        ...t,
-        caseId: c.id,
-        employeeName: c.employeeName,
-        employeeDept: c.employeeDept,
-      }))
-    )
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 5);
-
-  const exitTrend = computeExitTrend(cases);
-  const slaPerformance = computeSLAPerformance(cases);
-
   if (loading) {
     return (
       <div className="space-y-8 pb-8 animate-pulse-soft">
-        {/* Banner Skeleton */}
         <div className="h-28 w-full bg-muted rounded-xl animate-shimmer" />
-
-        {/* Card Row Skeletons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="h-28 bg-muted border border-border/50 rounded-xl animate-shimmer" />
           ))}
         </div>
-
-        {/* Grid Skeletons */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-6">
             <div className="h-32 bg-muted border border-border/50 rounded-xl animate-shimmer" />
@@ -99,9 +72,21 @@ export function HRDashboard() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <AlertTriangle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-bold">Failed to load dashboard</h2>
+        <p className="text-muted-foreground text-sm max-w-md">{error}</p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-slide-up pb-8">
-      {/* 1. Header & Dynamic Intelligence greeting */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 p-6 md:p-8 text-white shadow-xl shadow-slate-950/20">
         <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl -translate-y-12 translate-x-12" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -111,8 +96,10 @@ export function HRDashboard() {
             </span>
             <h1 className="text-3xl font-extrabold tracking-tight">HR Control Center</h1>
             <p className="text-slate-300 text-sm max-w-xl font-medium">
-              Welcome back, Anita. Today is {format(new Date(), "EEEE, d MMM yyyy")}. You have{" "}
-              <span className="text-white font-bold underline decoration-primary decoration-2">{overdueTasks.length} clearance tasks</span> requiring attention.
+              Welcome back. Today is {format(new Date(), "EEEE, d MMM yyyy")}. You have{" "}
+              <span className="text-white font-bold underline decoration-primary decoration-2">
+                {overview?.overdueTasks ?? 0} clearance tasks
+              </span> requiring attention.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -134,10 +121,8 @@ export function HRDashboard() {
         </div>
       </div>
 
-      {/* 2. Redesigned Metrics Grid */}
       <TooltipProvider>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Active Cases */}
           <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 group border-border/70 hover:border-primary/30 relative overflow-hidden bg-card/60 backdrop-blur-sm">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
@@ -146,7 +131,7 @@ export function HRDashboard() {
                     Active Cases
                   </p>
                   <h3 className="text-3xl font-extrabold tracking-tight mt-1 group-hover:text-primary transition-colors">
-                    {activeCases.length}
+                    {overview?.activeCases ?? 0}
                   </h3>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/10">
@@ -158,7 +143,6 @@ export function HRDashboard() {
                   <TrendingUp className="w-3.5 h-3.5" />
                   <span>+12%</span>
                 </div>
-                {/* SVG Mini Sparkline */}
                 <svg className="w-16 h-6 stroke-blue-500 fill-none" strokeWidth="1.5">
                   <path d={sparklineDataActive} />
                 </svg>
@@ -166,7 +150,6 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          {/* Pending Approvals */}
           <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 group border-border/70 hover:border-primary/30 relative overflow-hidden bg-card/60 backdrop-blur-sm">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
@@ -175,7 +158,7 @@ export function HRDashboard() {
                     Pending Manager
                   </p>
                   <h3 className="text-3xl font-extrabold tracking-tight mt-1">
-                    {pendingApprovals.length}
+                    {overview?.pendingApprovals ?? 0}
                   </h3>
                 </div>
                 <Tooltip>
@@ -199,7 +182,6 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          {/* Overdue Tasks */}
           <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 border-red-500/20 bg-red-500/[0.02] hover:border-red-500/40 relative overflow-hidden">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
@@ -208,7 +190,7 @@ export function HRDashboard() {
                     Overdue Actions
                   </p>
                   <h3 className="text-3xl font-extrabold tracking-tight mt-1 text-red-600 dark:text-red-400">
-                    {overdueTasks.length}
+                    {overview?.overdueTasks ?? 0}
                   </h3>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm animate-pulse-soft">
@@ -226,7 +208,6 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          {/* Completed cases */}
           <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 group border-border/70 hover:border-primary/30 relative overflow-hidden bg-card/60 backdrop-blur-sm">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
@@ -235,7 +216,7 @@ export function HRDashboard() {
                     Completed Exits
                   </p>
                   <h3 className="text-3xl font-extrabold tracking-tight mt-1">
-                    {completedThisMonth.length}
+                    {overview?.completedThisMonth ?? 0}
                   </h3>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/10">
@@ -257,9 +238,7 @@ export function HRDashboard() {
       </TooltipProvider>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left Hand: Quick Action Hub & Analytics */}
         <div className="xl:col-span-2 space-y-8">
-          {/* Quick Actions Panel */}
           <Card className="border-border/60 bg-card/40 backdrop-blur-sm shadow-premium overflow-hidden">
             <CardHeader className="py-4 border-b border-border/40">
               <div className="flex items-center justify-between">
@@ -303,7 +282,6 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          {/* Analytics Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-premium">
               <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between">
@@ -333,9 +311,7 @@ export function HRDashboard() {
           </div>
         </div>
 
-        {/* Right Hand Sidebar: Priority Panel & Activity Feed */}
         <div className="space-y-8">
-          {/* Priority Attention Panel */}
           <Card className="border-red-200 dark:border-red-950/40 bg-red-500/[0.01] shadow-premium overflow-hidden flex flex-col">
             <CardHeader className="bg-red-500/10 border-b border-red-500/10 py-4 px-5">
               <div className="flex items-center gap-2">
@@ -349,36 +325,34 @@ export function HRDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 divide-y divide-border/40 max-h-[300px] overflow-y-auto">
-              {overdueTasks.map(task => {
-                const c = cases.find(c => c.tasks.some(t => t.id === task.id));
-                if (!c) return null;
-                return (
-                  <div key={task.id} className="p-4 hover:bg-muted/20 transition-all transition-all-300">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="font-semibold text-xs text-foreground leading-none">{c.employeeName}</p>
-                      <Badge variant="outline" className="text-[9px] uppercase font-mono px-1.5 py-0 border-red-500/20 text-red-600 bg-red-500/5">
-                        {task.deptLabel}
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground text-[10px] mt-1 font-medium">
-                      Clearance has breached the SLA requirement.
+              {overdueTasks.map((task: any) => (
+                <div key={task.id} className="p-4 hover:bg-muted/20 transition-all transition-all-300">
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="font-semibold text-xs text-foreground leading-none">
+                      {task.exit_cases?.employee_name ?? "Unknown"}
                     </p>
-                    <div className="flex gap-2 mt-3">
-                      <Button variant="outline" size="sm" className="w-full text-[10px] h-7 border-red-200/60 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold rounded-md">
-                        Escalate
-                      </Button>
-                      <Button
-                        onClick={() => setLocation("/cases")}
-                        variant="secondary"
-                        size="sm"
-                        className="w-full text-[10px] h-7 font-semibold rounded-md"
-                      >
-                        Inspect
-                      </Button>
-                    </div>
+                    <Badge variant="outline" className="text-[9px] uppercase font-mono px-1.5 py-0 border-red-500/20 text-red-600 bg-red-500/5">
+                      {task.dept_label}
+                    </Badge>
                   </div>
-                );
-              })}
+                  <p className="text-muted-foreground text-[10px] mt-1 font-medium">
+                    Clearance has breached the SLA requirement.
+                  </p>
+                  <div className="flex gap-2 mt-3">
+                    <Button variant="outline" size="sm" className="w-full text-[10px] h-7 border-red-200/60 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold rounded-md">
+                      Escalate
+                    </Button>
+                    <Button
+                      onClick={() => setLocation("/cases")}
+                      variant="secondary"
+                      size="sm"
+                      className="w-full text-[10px] h-7 font-semibold rounded-md"
+                    >
+                      Inspect
+                    </Button>
+                  </div>
+                </div>
+              ))}
               {overdueTasks.length === 0 && (
                 <div className="p-8 flex flex-col items-center justify-center text-center text-muted-foreground min-h-[180px]">
                   <CheckCircle2 className="w-8 h-8 mb-2 text-emerald-500/40" />
@@ -389,7 +363,6 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          {/* Activity Timeline Feed */}
           <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-premium">
             <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground/80">Activity Timeline</CardTitle>
@@ -397,11 +370,9 @@ export function HRDashboard() {
             </CardHeader>
             <CardContent className="pt-5 px-5">
               <div className="relative pl-4 border-l border-border/60 space-y-6">
-                {timelineEvents.map((event, idx) => (
+                {timelineEvents.map((event: any, idx: number) => (
                   <div key={event.id || idx} className="relative z-10">
-                    {/* Ring dot */}
                     <span className="absolute -left-[20.5px] top-1 w-3.5 h-3.5 rounded-full border-2 border-background bg-primary flex items-center justify-center shadow-sm" />
-                    
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <UserAvatar name={event.actor} className="w-5 h-5 border shadow-sm shrink-0" />
@@ -412,7 +383,7 @@ export function HRDashboard() {
                       </div>
                       <p className="text-xs text-muted-foreground pl-7">{event.label}</p>
                       <p className="text-[10px] text-muted-foreground/75 font-medium pl-7 uppercase tracking-wider">
-                        {event.employeeName} · {event.employeeDept}
+                        {event.employee_name} · {event.employee_dept}
                       </p>
                     </div>
                   </div>
