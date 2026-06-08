@@ -1,0 +1,1 @@
+- [ExitFlow utils exports](exitflow-utils.md) — utils.ts must export formatDate, getInitials, getAvatarColor or many components break at startup.
