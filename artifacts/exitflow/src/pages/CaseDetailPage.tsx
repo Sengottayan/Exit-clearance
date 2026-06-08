@@ -44,7 +44,7 @@ export default function CaseDetailPage() {
         action={
           <div className="flex gap-3">
             {isManager && exitCase.status === 'pending_manager' && (
-              <Button onClick={() => store.approveResignation(exitCase.id, user.name)}>
+              <Button onClick={() => store.approveResignation(exitCase.id, user?.name ?? '')}>
                 Approve Resignation
               </Button>
             )}

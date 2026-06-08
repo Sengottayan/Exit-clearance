@@ -41,15 +41,15 @@ export function CaseTable({ cases, showSearch = true }: CaseTableProps) {
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full bg-card shadow-sm rounded-lg border border-border overflow-hidden">
       {showSearch && (
-        <div className="flex items-center p-4 border-b">
+        <div className="flex items-center p-4 border-b border-border bg-muted/20">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search by name, ID, or department..."
-              className="pl-9 bg-muted/50"
+              className="pl-9 h-10 bg-background shadow-none border-border/60 focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50 transition-all rounded-md"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -59,38 +59,42 @@ export function CaseTable({ cases, showSearch = true }: CaseTableProps) {
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Case ID</TableHead>
-              <TableHead>Employee</TableHead>
-              <TableHead>LWD</TableHead>
-              <TableHead>Clearance</TableHead>
-              <TableHead>SLA</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-[120px] font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">Case ID</TableHead>
+              <TableHead className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">Employee</TableHead>
+              <TableHead className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">LWD</TableHead>
+              <TableHead className="w-[200px] font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">Clearance</TableHead>
+              <TableHead className="w-[140px] font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">SLA Status</TableHead>
+              <TableHead className="w-[140px] font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">Status</TableHead>
+              <TableHead className="w-[100px] text-right font-semibold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  No cases found.
+                <TableCell colSpan={7} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground">
+                    <Search className="w-8 h-8 mb-2 opacity-20" />
+                    <p className="text-sm font-medium">No cases found.</p>
+                    <p className="text-xs">Adjust your search or filters.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               filteredCases.map((c) => (
-                <TableRow key={c.id} className="group hover:bg-muted/30">
-                  <TableCell className="font-mono text-xs font-medium text-muted-foreground">{c.id}</TableCell>
+                <TableRow key={c.id} className="group hover:bg-muted/30 transition-colors">
+                  <TableCell className="font-mono text-[11px] font-medium text-muted-foreground">{c.id}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <UserAvatar name={c.employeeName} className="w-8 h-8" />
+                      <UserAvatar name={c.employeeName} className="w-9 h-9 border border-border shadow-sm" />
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium leading-none">{c.employeeName}</span>
-                        <span className="text-xs text-muted-foreground mt-1">{c.employeeDept}</span>
+                        <span className="text-[13px] font-semibold tracking-tight text-foreground leading-none">{c.employeeName}</span>
+                        <span className="text-[11px] text-muted-foreground mt-1 font-medium">{c.employeeDept}</span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{formatDate(c.lastWorkingDay)}</TableCell>
-                  <TableCell className="w-[180px]">
+                  <TableCell className="text-sm font-medium">{formatDate(c.lastWorkingDay)}</TableCell>
+                  <TableCell>
                     <ClearanceProgressBar tasks={c.tasks} />
                   </TableCell>
                   <TableCell>
@@ -100,33 +104,33 @@ export function CaseTable({ cases, showSearch = true }: CaseTableProps) {
                         showIcon={false}
                       />
                     ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
+                      <span className="text-muted-foreground/50 text-sm font-medium">—</span>
                     )}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={c.status} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
                       <Link href={`/cases/${c.id}`}>
-                        <Button variant="ghost" size="sm" className="h-8">
-                          <Eye className="w-4 h-4 mr-2" />
+                        <Button variant="secondary" size="sm" className="h-8 px-2.5 text-xs font-medium">
+                          <Eye className="w-3.5 h-3.5 mr-1.5" />
                           View
                         </Button>
                       </Link>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary">
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuLabel className="text-xs">Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
-                            <Link href={`/cases/${c.id}`}>View Details</Link>
+                            <Link href={`/cases/${c.id}`} className="cursor-pointer text-sm">View Details</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Copy Link</DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer text-sm">Copy Link</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

@@ -12,12 +12,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, breadcrumbs, action, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-col gap-2 mb-8", className)}>
+    <div className={cn("flex flex-col gap-3 mb-8", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <div className="flex items-center text-sm text-muted-foreground">
+        <nav className="flex items-center text-xs font-medium text-muted-foreground bg-muted/40 w-fit px-3 py-1.5 rounded-full border border-border/50">
           {breadcrumbs.map((crumb, index) => (
             <div key={index} className="flex items-center">
-              {index > 0 && <ChevronRight className="w-4 h-4 mx-1" />}
+              {index > 0 && <ChevronRight className="w-3.5 h-3.5 mx-1.5 opacity-50" />}
               {crumb.href ? (
                 <Link href={crumb.href} className="hover:text-foreground transition-colors">
                   {crumb.label}
@@ -27,11 +27,11 @@ export function PageHeader({ title, breadcrumbs, action, className }: PageHeader
               )}
             </div>
           ))}
-        </div>
+        </nav>
       )}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {action && <div>{action}</div>}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+        {action && <div className="flex-shrink-0">{action}</div>}
       </div>
     </div>
   );

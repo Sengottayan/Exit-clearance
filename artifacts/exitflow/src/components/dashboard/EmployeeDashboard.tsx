@@ -7,7 +7,7 @@ import { CaseTimeline } from "@/components/cases/CaseTimeline";
 import { formatDate } from "@/lib/utils";
 import { differenceInDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { FileText, CheckCircle2, Circle, AlertCircle, Clock, Lock } from "lucide-react";
+import { FileText, CheckCircle2, Circle, AlertCircle, Clock, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function EmployeeDashboard() {
@@ -19,15 +19,17 @@ export function EmployeeDashboard() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Good morning, {user?.name}</h1>
-          <p className="text-muted-foreground">{user?.role.replace('_', ' ')} · {user?.dept}</p>
+          <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
+          <p className="text-muted-foreground font-medium mt-1">{user?.role.replace('_', ' ')} · {user?.dept}</p>
         </div>
-        <Card className="border-dashed bg-muted/30">
-          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-            <CheckCircle2 className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
-            <h3 className="text-lg font-medium">No Active Exit Process</h3>
-            <p className="text-muted-foreground mt-2 max-w-sm">
-              You do not have an active resignation or exit process. 
+        <Card className="border-dashed bg-muted/20 border-2 shadow-none">
+          <CardContent className="flex flex-col items-center justify-center p-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-6">
+              <CheckCircle2 className="w-8 h-8 text-muted-foreground opacity-50" />
+            </div>
+            <h3 className="text-xl font-semibold">No Active Exit Process</h3>
+            <p className="text-muted-foreground mt-2 max-w-sm text-sm">
+              You do not have an active resignation or exit process. Your employment status is active.
             </p>
           </CardContent>
         </Card>
@@ -40,85 +42,90 @@ export function EmployeeDashboard() {
   
   const getDeptIcon = (status: string) => {
     switch(status) {
-      case 'approved': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
-      case 'rejected': return <AlertCircle className="w-5 h-5 text-red-500" />;
-      case 'in_progress': return <Clock className="w-5 h-5 text-blue-500" />;
-      case 'overdue': return <AlertCircle className="w-5 h-5 text-red-600" />;
-      default: return <Circle className="w-5 h-5 text-muted-foreground" />;
+      case 'approved': return <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center shrink-0"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div>;
+      case 'rejected': return <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0"><AlertCircle className="w-4 h-4 text-red-600" /></div>;
+      case 'in_progress': return <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-blue-600" /></div>;
+      case 'overdue': return <div className="w-8 h-8 rounded-full bg-red-50 border border-red-200 flex items-center justify-center shrink-0"><AlertCircle className="w-4 h-4 text-red-600 animate-pulse" /></div>;
+      default: return <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0"><Circle className="w-4 h-4 text-muted-foreground opacity-50" /></div>;
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
-        <p className="text-muted-foreground">Employee · {user?.dept}</p>
+        <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
+        <p className="text-muted-foreground font-medium mt-1">{user?.dept} Department</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="font-mono">{myCase.id}</Badge>
-                  <StatusBadge status={myCase.status} />
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground font-medium">Last Working Day</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-2xl font-bold">{formatDate(myCase.lastWorkingDay)}</p>
-                    {daysRemaining >= 0 && (
-                      <Badge variant="outline" className={daysRemaining < 7 ? 'bg-red-50 text-red-700 border-red-200' : daysRemaining < 20 ? 'bg-amber-50 text-amber-700 border-amber-200' : ''}>
-                        {daysRemaining} days left
-                      </Badge>
-                    )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          {/* Status Hero Card */}
+          <Card className="overflow-hidden shadow-sm border-border/80">
+            <div className="h-2 w-full bg-gradient-to-r from-primary via-blue-500 to-primary"></div>
+            <CardContent className="p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-border/50 pb-8">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Badge variant="outline" className="font-mono text-xs text-muted-foreground px-2">{myCase.id}</Badge>
+                    <StatusBadge status={myCase.status} />
                   </div>
+                  <h2 className="text-2xl font-bold tracking-tight">Exit Process Active</h2>
+                </div>
+                
+                <div className="bg-secondary/50 rounded-xl p-4 border border-border/50 flex flex-col items-end min-w-[180px]">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Last Working Day</p>
+                  <p className="text-2xl font-bold text-foreground mb-2">{formatDate(myCase.lastWorkingDay)}</p>
+                  {daysRemaining >= 0 && (
+                    <Badge variant="secondary" className={daysRemaining < 7 ? 'bg-red-100 text-red-800' : daysRemaining < 20 ? 'bg-amber-100 text-amber-800' : 'bg-primary/10 text-primary'}>
+                      {daysRemaining} days remaining
+                    </Badge>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Resignation Date</p>
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase mb-1.5">Resignation</p>
                   <p className="font-medium text-sm">{formatDate(myCase.resignationDate)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Notice Period</p>
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase mb-1.5">Notice Period</p>
                   <p className="font-medium text-sm">{myCase.noticePeriodDays} days</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Manager</p>
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase mb-1.5">Manager</p>
                   <p className="font-medium text-sm">{myCase.managerName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Department</p>
-                  <p className="font-medium text-sm">{myCase.employeeDept}</p>
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase mb-1.5">Role</p>
+                  <p className="font-medium text-sm truncate">{user?.role.replace('_', ' ')}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Department Clearances</CardTitle>
-              <CardDescription>Track your clearance progress across departments</CardDescription>
+          {/* Clearances Card */}
+          <Card className="shadow-sm border-border/80">
+            <CardHeader className="bg-muted/20 border-b pb-4 px-6 pt-6">
+              <CardTitle className="text-lg font-bold">Clearance Checklist</CardTitle>
+              <CardDescription className="text-sm">Track your clearance progress across all departments.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y">
+              <div className="divide-y divide-border/40">
                 {myCase.tasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-3">
+                  <div key={task.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 hover:bg-muted/10 transition-colors gap-4">
+                    <div className="flex items-center gap-4">
                       {getDeptIcon(task.status)}
                       <div>
-                        <p className="font-medium text-sm">{task.deptLabel}</p>
-                        <p className="text-xs text-muted-foreground">Assignee: {task.assigneeName}</p>
+                        <p className="font-semibold text-sm leading-none mb-1.5">{task.deptLabel}</p>
+                        <p className="text-xs text-muted-foreground font-medium">Assigned to: <span className="text-foreground/80">{task.assigneeName}</span></p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 sm:ml-auto pl-12 sm:pl-0">
                       {(task.status === 'pending' || task.status === 'in_progress') && (
-                        <SLARiskChip dueAt={task.slaDueAt} className="hidden sm:flex" />
+                        <SLARiskChip dueAt={task.slaDueAt} className="hidden sm:inline-flex" />
                       )}
-                      <StatusBadge status={task.status} />
+                      <StatusBadge status={task.status} className="shadow-none" />
                     </div>
                   </div>
                 ))}
@@ -126,47 +133,50 @@ export function EmployeeDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">My Documents</CardTitle>
+          {/* Documents */}
+          <Card className="shadow-sm border-border/80">
+            <CardHeader className="bg-muted/20 border-b pb-4 px-6 pt-6">
+              <CardTitle className="text-lg font-bold">My Documents</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded">
-                      <FileText className="w-4 h-4 text-primary" />
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl hover:border-primary/30 hover:bg-muted/20 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Resignation Letter</p>
-                      <p className="text-xs text-muted-foreground">Uploaded {formatDate(myCase.resignationDate)}</p>
+                      <p className="text-sm font-semibold mb-0.5">Resignation Letter</p>
+                      <p className="text-xs text-muted-foreground font-medium">Uploaded {formatDate(myCase.resignationDate)}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm">View</Button>
+                  <Button variant="secondary" size="sm" className="h-8 text-xs font-semibold px-4 opacity-0 group-hover:opacity-100 transition-opacity">Download</Button>
                 </div>
 
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-muted rounded">
+                <div className="flex items-center justify-between p-4 border border-dashed border-border rounded-xl bg-muted/30">
+                  <div className="flex items-center gap-4 opacity-60">
+                    <div className="w-10 h-10 bg-background rounded-lg flex items-center justify-center shrink-0 border shadow-sm">
                       <Lock className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Relieving Letter</p>
-                      <p className="text-xs text-muted-foreground">Available after all clearances</p>
+                      <p className="text-sm font-semibold mb-0.5">Relieving Letter</p>
+                      <p className="text-xs text-muted-foreground font-medium">Available after final HR clearance</p>
                     </div>
                   </div>
+                  <ShieldCheck className="w-4 h-4 text-muted-foreground/40 mr-2" />
                 </div>
 
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-muted rounded">
+                <div className="flex items-center justify-between p-4 border border-dashed border-border rounded-xl bg-muted/30">
+                  <div className="flex items-center gap-4 opacity-60">
+                    <div className="w-10 h-10 bg-background rounded-lg flex items-center justify-center shrink-0 border shadow-sm">
                       <Lock className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Experience Certificate</p>
-                      <p className="text-xs text-muted-foreground">Available after all clearances</p>
+                      <p className="text-sm font-semibold mb-0.5">Experience Certificate</p>
+                      <p className="text-xs text-muted-foreground font-medium">Available after final HR clearance</p>
                     </div>
                   </div>
+                  <ShieldCheck className="w-4 h-4 text-muted-foreground/40 mr-2" />
                 </div>
               </div>
             </CardContent>
@@ -174,11 +184,11 @@ export function EmployeeDashboard() {
         </div>
 
         <div className="lg:col-span-1">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Activity Timeline</CardTitle>
+          <Card className="h-full shadow-sm">
+            <CardHeader className="bg-muted/20 border-b pb-4 px-6 pt-6">
+              <CardTitle className="text-lg font-bold">Activity Timeline</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <CaseTimeline events={myCase.timeline} />
             </CardContent>
           </Card>

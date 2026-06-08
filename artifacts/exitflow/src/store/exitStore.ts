@@ -57,7 +57,7 @@ const SEED_CASES: ExitCase[] = [
         slaDueAt = '2025-01-03T00:00:00.000Z';
         if (items.length > 0) {
           items[0].checked = true;
-          items[0].inputValue = "LAP-2024-001";
+          (items[0] as ChecklistItem).inputValue = "LAP-2024-001";
           if (items.length > 2) items[2].checked = true;
           if (items.length > 3) items[3].checked = true;
         }
@@ -248,7 +248,7 @@ export const useExitStore = create<ExitStore>((set) => ({
       if (c.id !== caseId) return c;
       const tasks = c.tasks.map(t => {
         if (t.deptId !== deptId) return t;
-        return { ...t, status: 'approved', completedAt: new Date().toISOString(), notes };
+        return { ...t, status: 'approved' as TaskStatus, completedAt: new Date().toISOString(), notes };
       });
       const timeline = [
         { id: `evt-${Date.now()}`, label: `${DEPARTMENTS.find(d=>d.id === deptId)?.label} clearance approved`, timestamp: new Date().toISOString(), actor: 'Approver', actorRole: 'dept_approver' },
@@ -262,7 +262,7 @@ export const useExitStore = create<ExitStore>((set) => ({
       if (c.id !== caseId) return c;
       const tasks = c.tasks.map(t => {
         if (t.deptId !== deptId) return t;
-        return { ...t, status: 'rejected', rejectionReason: reason };
+        return { ...t, status: 'rejected' as TaskStatus, rejectionReason: reason };
       });
       const timeline = [
         { id: `evt-${Date.now()}`, label: `${DEPARTMENTS.find(d=>d.id === deptId)?.label} clearance rejected`, timestamp: new Date().toISOString(), actor: 'Approver', actorRole: 'dept_approver' },
@@ -276,7 +276,7 @@ export const useExitStore = create<ExitStore>((set) => ({
       if (c.id !== caseId) return c;
       const tasks = c.tasks.map(t => {
         if (t.deptId !== deptId) return t;
-        return { ...t, checklist, status: 'in_progress' };
+        return { ...t, checklist, status: 'in_progress' as TaskStatus };
       });
       return { ...c, tasks };
     })
@@ -302,7 +302,7 @@ export const useExitStore = create<ExitStore>((set) => ({
       const tasks = c.tasks.map(t => ({
         ...t,
         slaDueAt: format(addHours(now, t.slaHours), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"),
-        status: t.deptId === 'manager' ? 'approved' : 'pending',
+        status: (t.deptId === 'manager' ? 'approved' : 'pending') as TaskStatus,
         completedAt: t.deptId === 'manager' ? now.toISOString() : undefined
       }));
       const timeline = [

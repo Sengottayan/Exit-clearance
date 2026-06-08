@@ -12,9 +12,9 @@ export function UserAvatar({ name, src, className }: UserAvatarProps) {
   const bgColorClass = getAvatarColor(name || '?');
 
   return (
-    <Avatar className={cn("h-8 w-8", className)}>
-      {src && <AvatarImage src={src} alt={name} />}
-      <AvatarFallback className={cn("text-white font-medium", bgColorClass)}>
+    <Avatar className={cn("h-8 w-8 ring-1 ring-border shadow-sm", className)}>
+      {src && <AvatarImage src={src} alt={name} className="object-cover" />}
+      <AvatarFallback className={cn("text-white font-semibold tracking-wider text-[0.65rem]", bgColorClass)}>
         {initials}
       </AvatarFallback>
     </Avatar>

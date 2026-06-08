@@ -20,35 +20,40 @@ export function TopBar() {
   if (!user) return null;
 
   return (
-    <div className="md:hidden h-14 border-b bg-background flex items-center justify-between px-4 sticky top-0 z-40">
+    <div className="md:hidden h-14 border-b bg-background/80 backdrop-blur-md flex items-center justify-between px-4 sticky top-0 z-40 shadow-sm">
       <Link href="/dashboard" className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-          <Icons.Box className="w-4 h-4 text-primary-foreground" />
+        <div className="w-7 h-7 rounded bg-foreground flex items-center justify-center">
+          <Icons.Box className="w-4 h-4 text-background" />
         </div>
-        <span className="font-semibold tracking-tight">ExitFlow</span>
+        <span className="font-bold tracking-tight">ExitFlow</span>
       </Link>
 
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Icons.Bell className="w-4 h-4" />
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
+          <Icons.Bell className="w-5 h-5" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-              <UserAvatar name={user.name} className="w-8 h-8" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full ml-1">
+              <UserAvatar name={user.name} className="w-8 h-8 border shadow-sm" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-56 mt-1">
             <DropdownMenuLabel>
-              <div className="flex flex-col">
-                <span>{user.name}</span>
-                <span className="text-xs text-muted-foreground font-normal">{user.email}</span>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logout()}>
-              <Icons.LogOut className="w-4 h-4 mr-2" />
-              Log out
+            <DropdownMenuItem>
+              <Icons.User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
+              <Icons.LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -15,9 +15,9 @@ export function SLARiskChip({ dueAt, className, showIcon = true }: SLARiskChipPr
   return (
     <Badge 
       variant="outline" 
-      className={cn("px-2 py-0.5 border-transparent font-medium", color, className)}
+      className={cn("px-2 py-0.5 font-medium whitespace-nowrap shadow-sm bg-background", color, className)}
     >
-      {showIcon && <Clock className="w-3 h-3 mr-1" />}
+      {showIcon && <Clock className="w-[10px] h-[10px] mr-1.5 opacity-70" />}
       {label}
     </Badge>
   );
