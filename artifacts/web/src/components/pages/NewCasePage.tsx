@@ -1,93 +1,282 @@
+"use client";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "@/lib/wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, addDays } from "date-fns";
 import {
-  CalendarIcon,
-  Search,
-  Lock,
-  User,
-  Briefcase,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  HardDrive,
-  Key,
-  ShieldCheck,
-  ClipboardList,
+  CheckCircle2, ChevronRight, Search, Filter, ArrowRight,
+  Users, FileText, Shield, Monitor, ClipboardCheck, Eye,
+  User, MapPin, Calendar, Briefcase, Mail, Phone, Building2,
+  MoreVertical, GripVertical, ChevronDown, RotateCcw,
+  Laptop, Smartphone, CreditCard, Key, Globe, HardDrive,
+  Plus, Upload, Pencil, Trash2, AlertCircle, ExternalLink,
+  CheckSquare, ArrowLeft,
 } from "lucide-react";
 import { MOCK_USERS, DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
-import { getManagerForEmployee } from "@/lib/workflow";
 import { useSettingsStore } from "@/store/settingsStore";
-import { Badge } from "@/components/ui/badge";
 import { useCreateCase } from "@/hooks/api/useCases";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { getManagerForEmployee } from "@/lib/workflow";
 
+// ── Step config ───────────────────────────────────────────────────────────────
+const STEPS = [
+  { id: 1, label: "Employee",  icon: Users },
+  { id: 2, label: "Details",   icon: FileText },
+  { id: 3, label: "Clearance", icon: Shield },
+  { id: 4, label: "Assets",    icon: Monitor },
+  { id: 5, label: "Review",    icon: ClipboardCheck },
+];
+
+// ── Clearance workflow rows ───────────────────────────────────────────────────
+const DEFAULT_CLEARANCE = [
+  { id: "mgr",     label: "Manager Approval",  desc: "Final approval from reporting manager",   assignee: "Rahul Mehta",   role: "Product Manager",  required: true,  color: "bg-blue-500",   initials: "RM" },
+  { id: "hr",      label: "HR Clearance",      desc: "HR formalities and documentation",        assignee: "Priya Sharma",  role: "HR Manager",       required: true,  color: "bg-emerald-500",initials: "PS" },
+  { id: "it",      label: "IT Clearance",      desc: "Access revocation and asset return",      assignee: "Arjun Nair",    role: "IT Manager",       required: true,  color: "bg-indigo-500", initials: "AN" },
+  { id: "fin",     label: "Finance Clearance", desc: "Dues clearance and final settlement",     assignee: "Rohan Das",     role: "Finance Manager",  required: true,  color: "bg-amber-500",  initials: "RD" },
+  { id: "admin",   label: "Admin Clearance",   desc: "ID cards, documents and admin tasks",    assignee: "Admin Dept",    role: "Admin Manager",    required: true,  color: "bg-purple-500", initials: "AD" },
+  { id: "exit_int",label: "Exit Interview",    desc: "Exit Interview and feedback",             assignee: "Priya Sharma",  role: "HR Manager",       required: false, color: "bg-rose-500",   initials: "PS" },
+];
+
+// ── Mock assets ───────────────────────────────────────────────────────────────
+const DEFAULT_ASSETS = [
+  { id: "AST-1001", name: "MacBook Pro 16\"", sub: "Laptop",          category: "IT Equipment",     status: "Pending Return",     returnType: "Physical", condition: "Good",  icon: Laptop },
+  { id: "AST-1002", name: "iPhone 14 Pro",    sub: "",                category: "IT Equipment",     status: "Pending Return",     returnType: "Physical", condition: "Good",  icon: Smartphone },
+  { id: "AST-1003", name: "Employee ID Card", sub: "",                category: "Access Card",      status: "Pending Return",     returnType: "Physical", condition: "Good",  icon: CreditCard },
+  { id: "AST-1004", name: "Office Door Key",  sub: "",                category: "Physical Access",  status: "Pending Return",     returnType: "Physical", condition: "Good",  icon: Key },
+  { id: "AST-1005", name: "System Access",    sub: "",                category: "Digital Access",   status: "Pending Revocation", returnType: "Digital",  condition: null,    icon: Globe },
+  { id: "AST-1006", name: "Email Access",     sub: "",                category: "Digital Access",   status: "Pending Revocation", returnType: "Digital",  condition: null,    icon: HardDrive },
+];
+
+// ── Sidebar Panel ─────────────────────────────────────────────────────────────
+function SidePanel({ step, selectedUser, lwd, reason, selectedDepts }: any) {
+  const pct = Math.round(((step - 1) / 5) * 100);
+
+  if (step === 1) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-extrabold text-foreground">Exit Case Creation</h3>
+          <p className="text-[11px] text-muted-foreground mt-1">Follow the steps to create a comprehensive exit case.</p>
+        </div>
+        <div className="space-y-3">
+          {[
+            { n: 1, label: "Employee",  desc: "Select the employee initiating exit",  icon: Users },
+            { n: 2, label: "Details",   desc: "Provide exit and employment details",  icon: FileText },
+            { n: 3, label: "Clearance", desc: "Configure clearance workflow",         icon: Shield },
+            { n: 4, label: "Assets",    desc: "Identify assets and access",           icon: Monitor },
+            { n: 5, label: "Review",    desc: "Review and confirm the case",          icon: ClipboardCheck },
+          ].map(s => {
+            const Icon = s.icon;
+            return (
+              <div key={s.n} className={cn("flex items-center gap-3 p-3 rounded-xl transition-colors", step === s.n ? "bg-primary/10 border border-primary/20" : "")}>
+                <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", step === s.n ? "bg-primary text-white" : "bg-muted text-muted-foreground")}>
+                  <Icon className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <p className={cn("text-xs font-bold", step === s.n ? "text-primary" : "text-foreground")}>{s.n}. {s.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="border border-border/50 rounded-xl p-4 bg-card/50 mt-4">
+          <h4 className="text-xs font-extrabold text-foreground mb-1">Need Help?</h4>
+          <p className="text-[11px] text-muted-foreground mb-3">Check our guide on creating exit cases</p>
+          <button className="w-full flex items-center justify-between text-xs font-bold text-foreground border border-border/50 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
+            View Help Guide <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const stepStatuses = STEPS.map(s => ({
+    ...s,
+    status: step > s.id ? "completed" : step === s.id ? "in_progress" : "pending",
+  }));
+
+  const label = (s: string) => s === "completed" ? "Completed" : s === "in_progress" ? "In Progress" : "Pending";
+
+  return (
+    <div className="space-y-5">
+      {/* Progress block */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <h3 className="text-sm font-extrabold text-foreground">Step Progress</h3>
+          <span className="text-xs font-bold text-primary">{step - 1} of 5 completed</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground mb-2">{pct}%</p>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="space-y-2">
+        {stepStatuses.map(s => {
+          const Icon = s.icon;
+          return (
+            <div key={s.id} className="flex items-center gap-3">
+              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold",
+                s.status === "completed" ? "bg-primary text-white" :
+                s.status === "in_progress" ? "bg-muted border-2 border-primary text-primary" :
+                "bg-muted text-muted-foreground"
+              )}>
+                {s.status === "completed" ? <CheckCircle2 className="w-3.5 h-3.5" /> : s.id}
+              </div>
+              <div>
+                <p className={cn("text-xs font-bold", s.status === "completed" ? "text-foreground" : s.status === "in_progress" ? "text-primary" : "text-muted-foreground")}>{s.label}</p>
+                <p className={cn("text-[10px]", s.status === "completed" ? "text-emerald-500" : s.status === "in_progress" ? "text-primary/70" : "text-muted-foreground/60")}>
+                  {label(s.status)}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {step === 3 && (
+        <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+          <h4 className="text-xs font-extrabold text-foreground mb-3">Workflow Summary</h4>
+          <p className="text-[11px] text-muted-foreground mb-3">6 clearance steps configured</p>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            {[["Required", "5"], ["Optional", "1"], ["Parallel", "0"], ["Estimated Time", "5 - 7 Days"]].map(([k, v]) => (
+              <div key={k} className="bg-muted/40 rounded-lg p-2">
+                <p className="text-[10px] text-muted-foreground">{k}</p>
+                <p className="text-xs font-extrabold text-foreground mt-0.5">{v}</p>
+              </div>
+            ))}
+          </div>
+          <button className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs font-bold text-muted-foreground border border-border/50 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
+            <Eye className="w-3.5 h-3.5" /> Preview Workflow
+          </button>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+          <h4 className="text-xs font-extrabold text-foreground mb-3">Assets Summary</h4>
+          <div className="relative flex items-center justify-center py-2 mb-3">
+            <svg viewBox="0 0 80 80" className="w-20 h-20">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#1e293b" strokeWidth="10" />
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#f59e0b" strokeWidth="10" strokeDasharray="100 101" strokeDashoffset="25" strokeLinecap="round" />
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#3b82f6" strokeWidth="10" strokeDasharray="50 151" strokeDashoffset="-75" strokeLinecap="round" />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-lg font-extrabold text-foreground">6</span>
+              <span className="text-[9px] text-muted-foreground">Total Assets</span>
+            </div>
+          </div>
+          {[["Physical", "4", "text-amber-400"], ["Digital", "2", "text-blue-400"], ["Returned", "0", "text-emerald-400"], ["Overdue", "0", "text-red-400"]].map(([k, v, c]) => (
+            <div key={k} className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <span className={cn("w-2 h-2 rounded-full", c.replace("text-", "bg-"))} />
+                <span className="text-[11px] text-muted-foreground">{k}</span>
+              </div>
+              <span className="text-[11px] font-bold text-foreground">{v}</span>
+            </div>
+          ))}
+          <button className="w-full mt-3 flex items-center justify-between text-xs font-bold text-foreground border border-border/50 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
+            View Asset Guide <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+          <h4 className="text-xs font-extrabold text-foreground mb-3">Case Summary</h4>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="relative w-16 h-16 shrink-0">
+              <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#1e293b" strokeWidth="6" />
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#6366f1" strokeWidth="6" strokeDasharray="176" strokeDashoffset="0" strokeLinecap="round" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[9px] font-extrabold text-foreground leading-none">Ready</span>
+                <span className="text-[8px] text-muted-foreground">to create</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {["All required fields completed", "Workflow configured", "Assets declared", "Handover in progress"].map(t => (
+                <div key={t} className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <span className="text-[10px] text-muted-foreground">{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step !== 1 && (
+        <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+          <h4 className="text-xs font-extrabold text-foreground mb-1">Need Help?</h4>
+          <p className="text-[11px] text-muted-foreground mb-3">Learn more about creating exit cases.</p>
+          {step === 3 ? (
+            <div className="space-y-2">
+              {["Exit Process Guide", "SLA Policies", "Clearance Checklist"].map(t => (
+                <button key={t} className="w-full flex items-center justify-between text-[11px] font-semibold text-foreground border border-border/50 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
+                  {t} <ExternalLink className="w-3 h-3" />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button className="w-full flex items-center justify-between text-xs font-bold text-foreground border border-border/50 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
+              View Help Guide <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function NewCasePage() {
-  const { isHR, isAdmin } = useAuth();
+  const { isHR, isAdmin, user } = useAuth();
   const [, setLocation] = useLocation();
   const { mutate: createCase } = useCreateCase();
-  const workflowTemplates = useSettingsStore((s) => s.workflowTemplates);
-  const defaultTemplateId = useSettingsStore((s) => s.workflow.defaultTemplateId);
+  const defaultTemplateId = useSettingsStore(s => s.workflow.defaultTemplateId);
 
   const [step, setStep] = useState(1);
-  const [workflowTemplateId, setWorkflowTemplateId] = useState(defaultTemplateId);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [search, setSearch] = useState("");
-  
-  const [lwd, setLwd] = useState<Date>();
-  const [reason, setReason] = useState("");
+
+  // Step 2
+  const [reason, setReason] = useState("better_opportunity");
+  const [noticeDays, setNoticeDays] = useState(60);
+  const [resignDate, setResignDate] = useState(new Date());
+  const [lwd, setLwd] = useState<Date>(addDays(new Date(), 60));
+  const [relievingDate, setRelievingDate] = useState<Date>(addDays(new Date(), 60));
   const [notes, setNotes] = useState("");
-  
-  // Simulated Autosave State
-  const [saveTime, setSaveTime] = useState<string>("");
+  const [handoverManager, setHandoverManager] = useState("Rahul Mehta");
+  const [handoverStatus, setHandoverStatus] = useState("in_progress");
+  const [handoverPct, setHandoverPct] = useState(60);
 
-  // Step 4: Asset Tracking States
-  const [hasLaptop, setHasLaptop] = useState(false);
-  const [laptopSerial, setLaptopSerial] = useState("");
-  const [hasPhone, setHasPhone] = useState(false);
-  const [phoneModel, setPhoneModel] = useState("");
-  const [hasBadge, setHasBadge] = useState(false);
-  const [badgeNumber, setBadgeNumber] = useState("");
-  const [hasKeys, setHasKeys] = useState(false);
-  const [otherAssets, setOtherAssets] = useState("");
+  // Step 3
+  const [clearanceItems, setClearanceItems] = useState(
+    DEFAULT_CLEARANCE.map(c => ({ ...c, enabled: true }))
+  );
 
-  const activeTemplate = workflowTemplates.find((t) => t.id === workflowTemplateId) ?? workflowTemplates[0];
-  const [selectedDepts, setSelectedDepts] = useState<string[]>(activeTemplate?.deptIds ?? []);
-
-  // Update Autosave timestamp when forms are edited
-  useEffect(() => {
-    setSaveTime(format(new Date(), "h:mm:ss a"));
-  }, [selectedUser, lwd, reason, notes, hasLaptop, laptopSerial, hasPhone, phoneModel, hasBadge, badgeNumber, hasKeys, otherAssets, selectedDepts]);
-
-  const applyTemplate = (templateId: string) => {
-    setWorkflowTemplateId(templateId);
-    const template = workflowTemplates.find((t) => t.id === templateId);
-    if (template) setSelectedDepts([...template.deptIds]);
-  };
+  // Step 4
+  const [assets] = useState(DEFAULT_ASSETS);
 
   if (!isHR && !isAdmin) return <Link href="/dashboard" />;
 
-  const searchResults = MOCK_USERS.filter(u => 
-    u.role === 'employee' && 
-    (u.name.toLowerCase().includes(search.toLowerCase()) || 
-     u.email.toLowerCase().includes(search.toLowerCase()) ||
-     u.employeeId.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const noticeDays = lwd ? differenceInDays(lwd, new Date()) : 0;
+  const searchResults = search
+    ? MOCK_USERS.filter(u => u.role === "employee" &&
+        (u.name.toLowerCase().includes(search.toLowerCase()) ||
+         u.email?.toLowerCase().includes(search.toLowerCase()) ||
+         u.employeeId.toLowerCase().includes(search.toLowerCase()))
+      )
+    : MOCK_USERS.filter(u => u.role === "employee").slice(0, 5);
 
   const handleNext = () => setStep(s => Math.min(s + 1, 5));
   const handlePrev = () => setStep(s => Math.max(s - 1, 1));
@@ -97,473 +286,616 @@ export default function NewCasePage() {
       toast.error("Please fill in all mandatory details");
       return;
     }
-
-    const assetSummary = [
-      hasLaptop ? `Laptop: Yes (Serial: ${laptopSerial})` : "Laptop: No",
-      hasPhone ? `Phone: Yes (Model: ${phoneModel})` : "Phone: No",
-      hasBadge ? `Badge: Yes (Num: ${badgeNumber})` : "Badge: No",
-      hasKeys ? "Office Keys: Yes" : "Office Keys: No",
-      otherAssets ? `Other Assets: ${otherAssets}` : "",
-    ].filter(Boolean).join(" | ");
-
-    const finalNotes = notes ? `${notes}\n\nAsset Tracking Summary: ${assetSummary}` : `Asset Tracking Summary: ${assetSummary}`;
-
     createCase({
-      userId: selectedUser.id,            // Clerk/system user ID — used as employee_id FK
-      employeeId: selectedUser.employeeId, // HR number
+      userId: selectedUser.id,
+      employeeId: selectedUser.employeeId,
       employeeName: selectedUser.name,
       employeeEmail: selectedUser.email,
       employeeRole: selectedUser.role,
       employeeDept: selectedUser.dept,
-      resignationDate: new Date().toISOString(),
+      resignationDate: resignDate.toISOString(),
       lastWorkingDay: lwd.toISOString(),
       noticePeriodDays: noticeDays,
       exitReason: reason,
     });
-
     toast.success("Exit case created successfully");
     setLocation("/cases");
   };
 
-  return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-500 pb-12">
-      <PageHeader 
-        title="New Exit Case" 
-        breadcrumbs={[{ label: "Cases", href: "/cases" }, { label: "New Case" }]}
-      />
+  const canNext = step === 1 ? !!selectedUser : step === 2 ? !!lwd && !!reason : true;
 
-      {/* Stepper Wizard Indicator */}
-      <div className="mb-10 relative px-4">
-        <div className="absolute left-6 right-6 top-[22px] h-1 bg-muted/65 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-primary to-indigo-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(59,130,246,0.35)]"
-            style={{ width: `${((step - 1) / 4) * 100}%` }}
-          />
+  return (
+    <div className="flex gap-6 -mx-4 md:-mx-6 -mt-4 md:-mt-6 min-h-[calc(100vh-4rem)]">
+      {/* ── Main content ──────────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 flex flex-col px-4 md:px-6 pt-4 md:pt-6 pb-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+          <button onClick={() => setLocation("/cases")} className="hover:text-foreground transition-colors">Exit Cases</button>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-foreground font-semibold">New Case</span>
         </div>
-        <div className="flex items-center justify-between relative z-10">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-2">
-              <button 
-                onClick={() => {
-                  if (i < step || (step === 1 && selectedUser) || (step === 2 && lwd && reason)) {
-                    setStep(i);
-                  }
-                }}
-                disabled={i > step && ((step === 1 && !selectedUser) || (step === 2 && (!lwd || !reason)))}
-                className={cn(
-                  "w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-xs transition-all duration-300 ring-4 ring-background cursor-pointer",
-                  step > i ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-100" : 
-                  step === i ? "bg-gradient-to-br from-primary to-indigo-600 text-white ring-primary/25 scale-110 shadow-xl shadow-primary/25" : 
-                  "bg-muted/80 text-muted-foreground scale-95 hover:bg-muted"
+
+        {/* Page heading */}
+        <div className="mb-5">
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">New Exit Case</h1>
+          <p className="text-sm text-muted-foreground mt-1">Create a new exit case and start the offboarding workflow.</p>
+        </div>
+
+        {/* ── Step indicator ──────────────────────────────────────────────── */}
+        <div className="relative mb-6">
+          {/* connector line */}
+          <div className="absolute left-6 right-6 top-5 h-px bg-border/60" />
+          <div
+            className="absolute left-6 top-5 h-px bg-primary transition-all duration-500"
+            style={{ width: `calc(${((step - 1) / 4) * 100}% - 48px + ${step === 5 ? 48 : 0}px)` }}
+          />
+          <div className="flex items-center justify-between relative z-10">
+            {STEPS.map(s => {
+              const done = step > s.id;
+              const active = step === s.id;
+              return (
+                <div key={s.id} className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={() => s.id < step && setStep(s.id)}
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2",
+                      done  ? "bg-primary border-primary text-white" :
+                      active ? "bg-background border-primary text-primary shadow-lg shadow-primary/20" :
+                               "bg-background border-border text-muted-foreground"
+                    )}
+                  >
+                    {done ? <CheckCircle2 className="w-5 h-5" /> : s.id}
+                  </button>
+                  <span className={cn("text-[11px] font-bold", active ? "text-primary" : done ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Step content area ──────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col">
+
+          {/* STEP 1 — Select Employee */}
+          {step === 1 && (
+            <div className="bg-card border border-border/50 rounded-2xl flex-1 flex flex-col">
+              <div className="p-6 border-b border-border/40">
+                <h2 className="text-base font-extrabold text-foreground">Select Employee</h2>
+                <p className="text-xs text-muted-foreground mt-1">Choose the employee who is initiating the offboarding process.</p>
+              </div>
+              <div className="p-6 flex-1 space-y-4">
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                    <Input
+                      placeholder="Search by name, employee ID, or email"
+                      className="pl-10 h-10 bg-background border-border/60 rounded-xl text-xs font-medium"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <Button variant="outline" className="h-10 px-4 rounded-xl text-xs font-semibold border-border/60 bg-background">
+                    <Filter className="w-3.5 h-3.5 mr-1.5" /> Filters
+                  </Button>
+                </div>
+
+                {!search && (
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Recent Employees</p>
                 )}
-              >
-                {step > i ? <CheckCircle2 className="w-5.5 h-5.5 animate-in zoom-in" /> : i}
-              </button>
-              <span className={cn(
-                "text-[9px] font-bold tracking-widest uppercase transition-colors hidden sm:block",
-                step >= i ? "text-primary" : "text-muted-foreground/60"
-              )}>
-                {i === 1 ? "Employee" : i === 2 ? "Details" : i === 3 ? "Clearance" : i === 4 ? "Assets" : "Review"}
-              </span>
+
+                <div className="space-y-0 border border-border/40 rounded-xl overflow-hidden">
+                  {searchResults.map((u, idx) => (
+                    <div
+                      key={u.id}
+                      onClick={() => setSelectedUser(u)}
+                      className={cn(
+                        "flex items-center gap-4 px-4 py-3.5 cursor-pointer transition-colors border-b border-border/30 last:border-b-0",
+                        selectedUser?.id === u.id ? "bg-primary/5 border-l-2 border-l-primary" : "hover:bg-muted/20"
+                      )}
+                    >
+                      <UserAvatar name={u.name} className="w-9 h-9 shrink-0 text-xs font-bold" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground">{u.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{u.role || "Software Engineer"}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-foreground">{u.employeeId}</p>
+                        <p className="text-[10px] text-muted-foreground">Employee ID</p>
+                      </div>
+                      <div className="w-24 text-center">
+                        <p className="text-xs font-semibold text-foreground">{u.dept}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Showing {searchResults.length} of 243 employees</span>
+                  <button className="flex items-center gap-1 text-primary font-bold hover:text-primary/80 transition-colors">
+                    View all employees <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* STEP 2 — Exit Details */}
+          {step === 2 && (
+            <div className="grid grid-cols-5 gap-5 flex-1">
+              {/* Left: form */}
+              <div className="col-span-3 bg-card border border-border/50 rounded-2xl flex flex-col">
+                <div className="p-6 border-b border-border/40">
+                  <h2 className="text-base font-extrabold text-foreground">Exit & Employment Details</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Capture the employee's exit information and last working details.</p>
+                </div>
+                <div className="p-6 space-y-5 flex-1">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground/80">Exit Reason <span className="text-red-400">*</span></Label>
+                      <Select value={reason} onValueChange={setReason}>
+                        <SelectTrigger className="h-9 rounded-xl text-xs font-semibold bg-background border-border/60">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXIT_REASONS.map(r => <SelectItem key={r.value} value={r.value} className="text-xs">{r.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground/80">Notice Period (Days) <span className="text-red-400">*</span></Label>
+                      <Input
+                        type="number"
+                        value={noticeDays}
+                        onChange={e => setNoticeDays(Number(e.target.value))}
+                        className="h-9 rounded-xl text-xs font-semibold bg-background border-border/60"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground/80">Last Working Day <span className="text-red-400">*</span></Label>
+                      <div className="h-9 flex items-center gap-2 px-3 border border-border/60 bg-background rounded-xl text-xs font-semibold text-foreground">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        {format(lwd, "dd MMM yyyy")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground/80">Resignation Date <span className="text-red-400">*</span></Label>
+                      <div className="h-9 flex items-center gap-2 px-3 border border-border/60 bg-background rounded-xl text-xs font-semibold text-foreground">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        {format(resignDate, "dd MMM yyyy")}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground/80">Relieving Date (Expected)</Label>
+                      <div className="h-9 flex items-center gap-2 px-3 border border-border/60 bg-background rounded-xl text-xs font-semibold text-foreground">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        {format(relievingDate, "dd MMM yyyy")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-foreground/80">Additional Comments</Label>
+                    <Textarea
+                      placeholder="Add any additional information about the exit..."
+                      className="resize-none h-20 rounded-xl border-border/60 text-xs bg-background"
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Handover section */}
+                  <div className="border-t border-border/40 pt-5">
+                    <h3 className="text-sm font-extrabold text-foreground mb-1">Handover & Knowledge Transfer</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Track handover activities and knowledge transfer status.</p>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground/80">Handover Manager <span className="text-red-400">*</span></Label>
+                        <div className="h-10 flex items-center justify-between px-3 border border-border/60 bg-background rounded-xl">
+                          <div className="flex items-center gap-2">
+                            <UserAvatar name={handoverManager} className="w-6 h-6 text-[10px] font-bold" />
+                            <div>
+                              <p className="text-xs font-bold text-foreground">{handoverManager}</p>
+                              <p className="text-[9px] text-muted-foreground">Product Manager</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground/80">Handover Status <span className="text-red-400">*</span></Label>
+                        <Select value={handoverStatus} onValueChange={setHandoverStatus}>
+                          <SelectTrigger className="h-10 rounded-xl text-xs font-semibold bg-background border-border/60">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-amber-500" />
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="not_started" className="text-xs">Not Started</SelectItem>
+                            <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
+                            <SelectItem value="completed" className="text-xs">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold text-foreground/80">Knowledge Transfer Completion</Label>
+                        <span className="text-xs font-bold text-foreground">{handoverPct}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${handoverPct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Employment Snapshot */}
+              <div className="col-span-2 bg-card border border-border/50 rounded-2xl flex flex-col">
+                <div className="p-6 border-b border-border/40">
+                  <h2 className="text-sm font-extrabold text-foreground">Employment Snapshot</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Quick overview of employee details.</p>
+                </div>
+                <div className="p-6 space-y-4 flex-1">
+                  <div className="flex items-center gap-3 mb-4">
+                    <UserAvatar name={selectedUser?.name || user?.name || "SS"} className="w-12 h-12 text-sm font-bold" />
+                    <div>
+                      <p className="text-sm font-extrabold text-foreground">{selectedUser?.name || user?.name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedUser?.role || "Product Manager"}</p>
+                    </div>
+                  </div>
+                  {[
+                    { icon: User,     label: "Employee ID",       value: selectedUser?.employeeId || "EMP-1056" },
+                    { icon: Building2,label: "Department",        value: selectedUser?.dept || "Product" },
+                    { icon: MapPin,   label: "Location",          value: "Bengaluru, India" },
+                    { icon: Calendar, label: "Date of Joining",   value: "15 Jan 2023" },
+                    { icon: Briefcase,label: "Employment Type",   value: "Full Time" },
+                    { icon: User,     label: "Manager",           value: "Rahul Mehta", hasAvatar: true },
+                    { icon: Mail,     label: "Email",             value: selectedUser?.email || "sengottayan.s@offboardiq.com" },
+                    { icon: Phone,    label: "Phone",             value: "+91 98765 43210" },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center justify-between py-1">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <item.icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-[11px] font-medium">{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {item.hasAvatar && <UserAvatar name="Rahul Mehta" className="w-5 h-5 text-[8px] font-bold" />}
+                        <span className="text-[11px] font-bold text-foreground text-right max-w-[130px] truncate">{item.value}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3 — Clearance Workflow */}
+          {step === 3 && (
+            <div className="bg-card border border-border/50 rounded-2xl flex-1 flex flex-col">
+              <div className="p-6 border-b border-border/40 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground">Clearance Workflow</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Configure the clearance workflow for this exit case.</p>
+                </div>
+                <Button variant="outline" className="h-9 px-4 rounded-xl text-xs font-semibold border-border/60 bg-background gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5" /> Use Default Workflow
+                </Button>
+              </div>
+              <div className="flex-1 divide-y divide-border/40">
+                {clearanceItems.map((item, idx) => (
+                  <div key={item.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/10 transition-colors">
+                    <GripVertical className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", item.color + "/20")}>
+                      <Shield className={cn("w-4 h-4", item.color.replace("bg-", "text-"))} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-foreground">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                    <div className="flex items-center gap-2 w-44">
+                      <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-extrabold text-white shrink-0", item.color)}>
+                        {item.initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">{item.assignee}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{item.role}</p>
+                      </div>
+                    </div>
+                    <span className={cn("text-[10px] font-bold w-16 text-right", item.required ? "text-foreground" : "text-muted-foreground")}>
+                      {item.required ? "Required" : "Optional"}
+                    </span>
+                    <Switch
+                      checked={item.enabled}
+                      onCheckedChange={v => setClearanceItems(prev => prev.map((c, i) => i === idx ? { ...c, enabled: v } : c))}
+                    />
+                    <ChevronDown className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4 — Assets */}
+          {step === 4 && (
+            <div className="bg-card border border-border/50 rounded-2xl flex-1 flex flex-col">
+              <div className="p-6 border-b border-border/40 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground">Asset Declaration</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Add assets assigned to the employee and configure return requirements.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="h-9 px-4 rounded-xl text-xs font-semibold border-border/60 bg-background gap-1.5">
+                    <Plus className="w-3.5 h-3.5" /> Add Asset
+                  </Button>
+                  <Button className="h-9 px-4 rounded-xl text-xs font-semibold bg-primary gap-1.5">
+                    <Upload className="w-3.5 h-3.5" /> Bulk Import
+                  </Button>
+                </div>
+              </div>
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border/40 bg-muted/10">
+                      {["Asset", "Asset ID", "Category", "Status", "Return Type", "Condition", "Actions"].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {assets.map(asset => {
+                      const Icon = asset.icon;
+                      const isPending = asset.status === "Pending Return";
+                      return (
+                        <tr key={asset.id} className="hover:bg-muted/10 transition-colors">
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                <Icon className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-foreground">{asset.name}</p>
+                                {asset.sub && <p className="text-[10px] text-muted-foreground">{asset.sub}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-muted-foreground">{asset.id}</td>
+                          <td className="px-4 py-3.5 text-foreground/80">{asset.category}</td>
+                          <td className="px-4 py-3.5">
+                            <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border",
+                              isPending ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                            )}>
+                              {asset.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-foreground/80">{asset.returnType}</td>
+                          <td className="px-4 py-3.5">
+                            {asset.condition ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                                <CheckCircle2 className="w-3 h-3" /> {asset.condition}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/40">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1">
+                              <button className="p-1.5 hover:bg-muted rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                              <button className="p-1.5 hover:bg-muted rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-3 border-t border-border/30 text-[11px] text-muted-foreground">
+                Showing {assets.length} of {assets.length} assets
+              </div>
+              {/* Asset Return Instructions */}
+              <div className="mx-6 mb-6 border border-border/40 rounded-xl">
+                <button className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-foreground hover:bg-muted/20 rounded-xl transition-colors">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4 text-muted-foreground" />
+                    <span>Asset Return Instructions</span>
+                    <AlertCircle className="w-3.5 h-3.5 text-muted-foreground/50" />
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <div className="px-4 pb-3 text-[11px] text-muted-foreground">Add instructions for asset return and handover process.</div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5 — Review & Confirm */}
+          {step === 5 && (
+            <div className="bg-card border border-border/50 rounded-2xl flex-1 flex flex-col">
+              <div className="p-6 border-b border-border/40 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground">Review & Confirm</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Review all information before creating the exit case.</p>
+                </div>
+                <Button variant="outline" className="h-9 px-4 rounded-xl text-xs font-semibold border-border/60 bg-background gap-1.5">
+                  <Pencil className="w-3.5 h-3.5" /> Edit All
+                </Button>
+              </div>
+              <div className="p-6 space-y-4 flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Employee card */}
+                  <div className="border border-border/40 rounded-xl p-4 bg-background/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <Users className="w-3.5 h-3.5 text-blue-400" />
+                      </div>
+                      <span className="text-xs font-extrabold text-foreground">Employee</span>
+                    </div>
+                    <p className="text-sm font-extrabold text-foreground">{selectedUser?.name || "Sengottayan S"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{selectedUser?.employeeId || "EMP-1056"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{selectedUser?.role || "Product Manager"}</p>
+                  </div>
+                  {/* Exit Details card */}
+                  <div className="border border-border/40 rounded-xl p-4 bg-background/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-extrabold text-foreground">Exit Details</span>
+                    </div>
+                    {[
+                      ["Resignation Date", format(resignDate, "dd MMM yyyy")],
+                      ["Last Working Day", format(lwd, "dd MMM yyyy")],
+                      ["Notice Period", `${noticeDays} Days`],
+                      ["Exit Reason", EXIT_REASONS.find(r => r.value === reason)?.label || "—"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between py-0.5">
+                        <span className="text-[10px] text-muted-foreground">{k}</span>
+                        <span className={cn("text-[10px] font-bold text-foreground", (k === "Last Working Day" || k === "Resignation Date") && "text-amber-400")}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Clearance Workflow card */}
+                  <div className="border border-border/40 rounded-xl p-4 bg-background/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                        <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                      </div>
+                      <span className="text-xs font-extrabold text-foreground">Clearance Workflow</span>
+                    </div>
+                    {["6 Departments", "5 Required", "1 Optional", "6 Sequential Workflow"].map(v => (
+                      <p key={v} className="text-[11px] text-muted-foreground py-0.5">{v}</p>
+                    ))}
+                  </div>
+                  {/* Assets card */}
+                  <div className="border border-border/40 rounded-xl p-4 bg-background/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                        <Monitor className="w-3.5 h-3.5 text-amber-400" />
+                      </div>
+                      <span className="text-xs font-extrabold text-foreground">Assets</span>
+                    </div>
+                    {["6 Assets Declared", "4 Physical", "2 Digital", "All assets to be returned"].map(v => (
+                      <p key={v} className="text-[11px] text-muted-foreground py-0.5">{v}</p>
+                    ))}
+                  </div>
+                  {/* Handover card */}
+                  <div className="border border-border/40 rounded-xl p-4 bg-background/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                        <ClipboardCheck className="w-3.5 h-3.5 text-cyan-400" />
+                      </div>
+                      <span className="text-xs font-extrabold text-foreground">Handover</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-muted-foreground">Handover Manager</span>
+                      <span className="text-[10px] font-bold text-foreground">Rahul Mehta</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] text-muted-foreground">Handover Status</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <span className="text-[10px] font-bold text-foreground">In Progress</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mb-1">Knowledge Transfer</p>
+                    <p className="text-xs font-extrabold text-foreground mb-1.5">60% Completed</p>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: "60%" }} />
+                    </div>
+                  </div>
+                  {/* Additional Information card */}
+                  <div className="border border-border/40 rounded-xl p-4 bg-background/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-slate-500/10 flex items-center justify-center">
+                        <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      </div>
+                      <span className="text-xs font-extrabold text-foreground">Additional Information</span>
+                    </div>
+                    {[
+                      ["Employment Type", "Full Time"],
+                      ["Department:", selectedUser?.dept || "Product"],
+                      ["Location", "—"],
+                      ["Manager", "Rahul Mehta"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between py-0.5">
+                        <span className="text-[10px] text-muted-foreground">{k}</span>
+                        <span className="text-[10px] font-bold text-foreground">{v}</span>
+                      </div>
+                    ))}
+                    {notes && (
+                      <div className="mt-2 pt-2 border-t border-border/30">
+                        <p className="text-[10px] text-muted-foreground">Additional Comments</p>
+                        <p className="text-[10px] text-foreground mt-0.5">{notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info banner */}
+                <div className="flex items-center gap-2.5 p-4 border border-border/40 rounded-xl bg-muted/20">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <p className="text-[11px] text-muted-foreground">Once created, the exit case will be visible to all assigned stakeholders and the clearance workflow will be initiated.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer navigation ──────────────────────────────────────────── */}
+        <div className="flex items-center justify-between pt-5 mt-auto">
+          <Button
+            variant="outline"
+            onClick={step === 1 ? () => setLocation("/cases") : handlePrev}
+            className="h-10 px-5 rounded-xl text-xs font-semibold border-border/60 bg-background gap-1.5"
+          >
+            {step === 1 ? "Cancel" : <><ArrowLeft className="w-3.5 h-3.5" /> Back</>}
+          </Button>
+          <div className="flex gap-2">
+            {step > 1 && step < 5 && (
+              <Button variant="outline" className="h-10 px-5 rounded-xl text-xs font-semibold border-border/60 bg-background">
+                Save Draft
+              </Button>
+            )}
+            {step < 5 ? (
+              <Button
+                onClick={handleNext}
+                disabled={!canNext}
+                className="h-10 px-6 rounded-xl text-xs font-bold bg-primary shadow-md shadow-primary/20 gap-1.5"
+              >
+                Next Step <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="outline" className="h-10 px-5 rounded-xl text-xs font-semibold border-border/60 bg-background gap-1.5">
+                  <Upload className="w-3.5 h-3.5" /> Save Draft
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  className="h-10 px-6 rounded-xl text-xs font-bold bg-primary shadow-md shadow-primary/20 gap-1.5"
+                >
+                  Create Exit Case <CheckCircle2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main Wizard Form Card */}
-      <Card className="border-border/50 bg-card shadow-premium relative overflow-hidden rounded-2xl">
-        {/* Autosave header tag */}
-        <div className="absolute top-4.5 right-6 flex items-center gap-1.5 text-[9px] text-muted-foreground/85 font-extrabold bg-muted/65 px-3 py-1 rounded-full border border-border/40">
-          <Clock className="w-3.5 h-3.5 text-emerald-500 animate-pulse-soft" />
-          <span>Draft Saved at {saveTime}</span>
-        </div>
-
-        {/* Step 1: Select Employee */}
-        {step === 1 && (
-          <>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-extrabold tracking-tight">Select Employee</CardTitle>
-              <CardDescription className="text-xs font-semibold">Find and select the employee initiating offboarding.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-2">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                <Input 
-                  placeholder="Search by name, ID, or email..." 
-                  className="pl-10 h-11 w-full bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-primary/25 rounded-xl font-semibold text-xs"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-              </div>
-              <div className="border border-border/60 rounded-xl divide-y divide-border/30 max-h-[260px] overflow-y-auto bg-background/20">
-                {searchResults.map(u => (
-                  <div 
-                    key={u.id}
-                    onClick={() => setSelectedUser(u)}
-                    className={cn(
-                      "flex items-center gap-4 p-3.5 cursor-pointer transition-all duration-300",
-                      selectedUser?.id === u.id ? "bg-primary/[0.03] border-l-2 border-l-primary" : "hover:bg-muted/30"
-                    )}
-                  >
-                    <UserAvatar name={u.name} className="w-9 h-9 border border-background shadow-sm" />
-                    <div className="flex-1">
-                      <p className="font-bold text-xs text-foreground leading-none">{u.name}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1.5 font-bold">{u.role.toUpperCase()} · {u.dept}</p>
-                    </div>
-                    <div className="text-[10px] font-mono font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border/50">
-                      {u.employeeId}
-                    </div>
-                  </div>
-                ))}
-                {searchResults.length === 0 && (
-                  <div className="p-8 text-center text-xs text-muted-foreground font-semibold">No employees found matching query.</div>
-                )}
-              </div>
-            </CardContent>
-          </>
-        )}
-
-        {/* Step 2: Exit Details */}
-        {step === 2 && (
-          <>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-extrabold tracking-tight">Resignation & Last Working Day</CardTitle>
-              <CardDescription className="text-xs font-semibold">Enter offboarding details, timeline, and exit reason.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-foreground/80">Last Working Day</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn("w-full justify-start text-left font-bold text-xs h-11 rounded-xl border-border/60 bg-background", !lwd && "text-muted-foreground")}
-                      >
-                        {lwd ? format(lwd, "PPP") : <span>Pick exit date</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 rounded-xl shadow-premium border-border/40" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={lwd}
-                        onSelect={setLwd}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* Notice period warnings */}
-                  {noticeDays > 0 && (
-                    <div className={cn(
-                      "p-3.5 rounded-xl flex items-start gap-2 border text-[10px] font-semibold mt-2.5 shadow-sm",
-                      noticeDays < 30 ? "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20" : "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20"
-                    )}>
-                      {noticeDays < 30 ? <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 animate-pulse-soft" /> : <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />}
-                      <div>
-                        <p className="leading-none font-bold">Notice Period: {noticeDays} days</p>
-                        {noticeDays < 30 && (
-                          <p className="text-[9px] text-amber-600/80 dark:text-amber-400 font-medium mt-1 leading-relaxed">
-                            Warning: Employee notice is short (standard company requirement is 30 days).
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-foreground/80">Exit Reason</Label>
-                  <Select value={reason} onValueChange={setReason}>
-                    <SelectTrigger className="h-11 rounded-xl text-xs font-semibold bg-background border-border/60">
-                      <SelectValue placeholder="Select exit reason" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border/40">
-                      {EXIT_REASONS.map(r => <SelectItem key={r.value} value={r.value} className="text-xs font-semibold">{r.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-foreground/80">Internal Offboard Notes (Optional)</Label>
-                <Textarea 
-                  placeholder="Leave details regarding transition schedules or compliance warnings..." 
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="resize-none h-24 rounded-xl border-border/60 text-xs font-semibold bg-background focus-visible:ring-1 focus-visible:ring-primary/25"
-                />
-              </div>
-            </CardContent>
-          </>
-        )}
-
-        {/* Step 3: Clearance Templates */}
-        {step === 3 && (
-          <>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-extrabold tracking-tight">Clearance Approvals Pipeline</CardTitle>
-              <CardDescription className="text-xs font-semibold">Select workflow checklist template or toggle optional checkers.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                {workflowTemplates.map((template) => (
-                  <button
-                    key={template.id}
-                    type="button"
-                    onClick={() => applyTemplate(template.id)}
-                    className={cn(
-                      "p-4 rounded-xl border text-left transition-all duration-300 hover:shadow-soft",
-                      workflowTemplateId === template.id
-                        ? "border-primary bg-primary/[0.02] ring-2 ring-primary/10"
-                        : "hover:border-primary/20 hover:bg-muted/15 border-border/60",
-                    )}
-                  >
-                    <p className="font-extrabold text-xs text-foreground">{template.name}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed font-semibold">{template.description}</p>
-                    <p className="text-[9px] font-bold text-primary mt-3 uppercase tracking-wider">{template.deptIds.length} departments</p>
-                  </button>
-                ))}
-              </div>
-
-              {/* Departments checklist list */}
-              <div className="space-y-0.5 divide-y divide-border/30 border border-border/60 rounded-xl bg-background/20 overflow-hidden shadow-sm">
-                {DEPARTMENTS.map(dept => {
-                  const isSelected = selectedDepts.includes(dept.id);
-                  return (
-                    <div key={dept.id} className="flex items-center justify-between p-3.5 hover:bg-background/40">
-                      <div>
-                        <p className="font-extrabold text-xs text-foreground flex items-center gap-1.5 leading-none">
-                          {dept.label}
-                          {dept.isMandatory && <Lock className="w-3 h-3 text-muted-foreground/60" />}
-                        </p>
-                        <p className="text-[9px] text-muted-foreground font-extrabold mt-1 uppercase tracking-wider">SLA Target: {dept.slaHours} hours</p>
-                      </div>
-                      {dept.isMandatory ? (
-                        <Badge className="bg-secondary text-muted-foreground font-extrabold text-[9px] uppercase border rounded-md px-2 py-0.5">Mandatory</Badge>
-                      ) : (
-                        <Switch 
-                          checked={isSelected}
-                          onCheckedChange={(checked) => {
-                            if (checked) setSelectedDepts([...selectedDepts, dept.id]);
-                            else setSelectedDepts(selectedDepts.filter(id => id !== dept.id));
-                          }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </>
-        )}
-
-        {/* Step 4: Asset Tracking */}
-        {step === 4 && (
-          <>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-extrabold tracking-tight">Corporate Asset Offboarding</CardTitle>
-              <CardDescription className="text-xs font-semibold">Audit hardware and credentials allocated to this employee.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Laptop Card */}
-                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors shadow-sm bg-card", hasLaptop ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-xs font-bold text-foreground">
-                      <HardDrive className="w-4 h-4 text-primary" />
-                      <span>Company Laptop</span>
-                    </span>
-                    <Switch checked={hasLaptop} onCheckedChange={setHasLaptop} />
-                  </div>
-                  {hasLaptop && (
-                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Serial / Asset Tag</Label>
-                      <Input
-                        placeholder="e.g. MAC-PRO-2025-09"
-                        className="h-8.5 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
-                        value={laptopSerial}
-                        onChange={e => setLaptopSerial(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Phone Card */}
-                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors shadow-sm bg-card", hasPhone ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-xs font-bold text-foreground">
-                      <User className="w-4 h-4 text-primary" />
-                      <span>Mobile Device</span>
-                    </span>
-                    <Switch checked={hasPhone} onCheckedChange={setHasPhone} />
-                  </div>
-                  {hasPhone && (
-                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Phone Model & Number</Label>
-                      <Input
-                        placeholder="e.g. iPhone 15 Pro Max"
-                        className="h-8.5 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
-                        value={phoneModel}
-                        onChange={e => setPhoneModel(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Security Badge Card */}
-                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors shadow-sm bg-card", hasBadge ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-xs font-bold text-foreground">
-                      <ShieldCheck className="w-4 h-4 text-primary" />
-                      <span>Access Badge</span>
-                    </span>
-                    <Switch checked={hasBadge} onCheckedChange={setHasBadge} />
-                  </div>
-                  {hasBadge && (
-                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Badge ID Number</Label>
-                      <Input
-                        placeholder="e.g. BDG-70891"
-                        className="h-8.5 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
-                        value={badgeNumber}
-                        onChange={e => setBadgeNumber(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Office Keys Card */}
-                <div className={cn("p-4 border rounded-xl flex items-center justify-between transition-colors shadow-sm bg-card", hasKeys ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
-                  <span className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <Key className="w-4 h-4 text-primary" />
-                    <span>Office Keys</span>
-                  </span>
-                  <Switch checked={hasKeys} onCheckedChange={setHasKeys} />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-foreground/80">Other Corporate Assets / Credentials</Label>
-                <Textarea 
-                  placeholder="Specify monitors, credit cards, or software access licenses to return..."
-                  value={otherAssets}
-                  onChange={e => setOtherAssets(e.target.value)}
-                  className="resize-none h-20 rounded-xl border-border/60 text-xs bg-background"
-                />
-              </div>
-            </CardContent>
-          </>
-        )}
-
-        {/* Step 5: Review & Submit */}
-        {step === 5 && (
-          <>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-extrabold tracking-tight">Review & Confirm Exit</CardTitle>
-              <CardDescription className="text-xs font-semibold">Verify details and checklist setup before starting the exit clearance workflow.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border/60">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-2.5">
-                    <User className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Employee Profile</p>
-                      <p className="font-extrabold text-xs text-foreground mt-0.5">{selectedUser?.name}</p>
-                      <p className="text-[10px] text-muted-foreground font-semibold">{selectedUser?.role} · {selectedUser?.dept}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{selectedUser?.employeeId}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Briefcase className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Exit Reason</p>
-                      <p className="font-extrabold text-xs text-foreground mt-0.5">{EXIT_REASONS.find(r => r.value === reason)?.label}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-start gap-2.5">
-                    <CalendarIcon className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Offboard Dates</p>
-                      <p className="font-extrabold text-xs text-foreground mt-0.5">LWD: {lwd ? format(lwd, 'dd MMM yyyy') : ''}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                        <span>Notice period: {noticeDays} days</span>
-                        {noticeDays < 30 && <Badge variant="outline" className="border-red-500/20 bg-red-500/5 text-red-600 text-[8px] py-0 px-1 font-bold animate-pulse-soft">Short Notice</Badge>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <ClipboardList className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Clearance Pipeline</p>
-                      <p className="font-extrabold text-xs text-foreground mt-0.5">{selectedDepts.length} Checkers Active</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5 font-semibold max-w-[220px] truncate">
-                        {selectedDepts.map(id => DEPARTMENTS.find(d => d.id === id)?.label).join(", ")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Asset verification row */}
-              <div className="p-4 border border-border/60 bg-background/50 rounded-xl space-y-2.5 shadow-sm">
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Hardware & Assets Audit</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold">
-                    <CheckCircle2 className={cn("w-4 h-4", hasLaptop ? "text-primary" : "text-muted-foreground opacity-30")} />
-                    <span className={hasLaptop ? "text-foreground" : "text-muted-foreground/50"}>Laptop</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold">
-                    <CheckCircle2 className={cn("w-4 h-4", hasPhone ? "text-primary" : "text-muted-foreground opacity-30")} />
-                    <span className={hasPhone ? "text-foreground" : "text-muted-foreground/50"}>Mobile</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold">
-                    <CheckCircle2 className={cn("w-4 h-4", hasBadge ? "text-primary" : "text-muted-foreground opacity-30")} />
-                    <span className={hasBadge ? "text-foreground" : "text-muted-foreground/50"}>Access Card</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold">
-                    <CheckCircle2 className={cn("w-4 h-4", hasKeys ? "text-primary" : "text-muted-foreground opacity-30")} />
-                    <span className={hasKeys ? "text-foreground" : "text-muted-foreground/50"}>Keys</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </>
-        )}
-
-        {/* Wizard Footer Controls */}
-        <CardFooter className="flex justify-between border-t border-border/40 p-5 bg-muted/10 shrink-0 rounded-b-2xl">
-          <Button
-            variant="ghost"
-            onClick={handlePrev}
-            disabled={step === 1}
-            className="h-10 text-xs font-bold rounded-xl border border-border/50 bg-background/50 hover:bg-background"
-          >
-            Back Step
-          </Button>
-          {step < 5 ? (
-            <Button 
-              onClick={handleNext} 
-              disabled={(step === 1 && !selectedUser) || (step === 2 && (!lwd || !reason))}
-              className="h-10 text-xs font-bold rounded-xl bg-primary shadow-md shadow-primary/10"
-            >
-              Next Step
-            </Button>
-          ) : (
-            <Button
-              onClick={handleCreate}
-              className="h-10 text-xs font-bold rounded-xl bg-primary shadow-md shadow-primary/15"
-            >
-              Create Exit Case
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
+      {/* ── Right sidebar ─────────────────────────────────────────────────── */}
+      <div className="w-[260px] shrink-0 border-l border-border/40 pl-5 pr-4 pt-4 md:pt-6 pb-8 overflow-y-auto bg-card/20">
+        <SidePanel
+          step={step}
+          selectedUser={selectedUser}
+          lwd={lwd}
+          reason={reason}
+          selectedDepts={[]}
+        />
+      </div>
     </div>
   );
 }
