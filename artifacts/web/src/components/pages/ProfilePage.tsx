@@ -16,7 +16,8 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
-  const myCases = cases.filter((c) => c.employeeId === user.employeeId);
+  // The database exit_cases.employee_id stores the Clerk User ID (user.id), not the mock string user.employeeId
+  const myCases = cases.filter((c) => c.employeeId === user.id);
 
   return (
     <div className="animate-slide-up space-y-6 pb-8">

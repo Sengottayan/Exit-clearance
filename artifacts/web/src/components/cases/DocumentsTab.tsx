@@ -31,7 +31,8 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
     .filter((t) => mandatoryDeptIds.has(t.deptId))
     .every((t) => t.status === "approved");
 
-  const isOwnCase = user?.employeeId === exitCase.employeeId;
+  // The database exit_cases.employee_id stores the Clerk User ID (user.id)
+  const isOwnCase = user?.id === exitCase.employeeId;
   const canUpload = (isEmployee && isOwnCase) || isHR || isAdmin;
 
   const handleGenerate = (type: "relievingLetter" | "experienceCertificate") => {

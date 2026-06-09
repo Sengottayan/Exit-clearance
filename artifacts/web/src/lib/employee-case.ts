@@ -23,6 +23,7 @@ export function isCaseOwnedByUser(exitCase: ExitCase, user: User | null | undefi
   const userEmail = user.email?.trim().toLowerCase();
 
   return (
+    (exitCase.employeeId === user.id) ||
     (!!userEmployeeId && exitCase.employeeId === userEmployeeId) ||
     (!!userEmail && exitCase.employeeEmail.trim().toLowerCase() === userEmail)
   );
