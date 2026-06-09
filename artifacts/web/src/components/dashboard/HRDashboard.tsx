@@ -30,8 +30,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { ExitTrendChart } from "@/components/charts/ExitTrendChart";
-import { format } from "date-fns";
 import { useHRDashboard } from "@/lib/api/use-hr-dashboard";
+import { format } from "date-fns";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 // ── Needs Attention Dropdown ──────────────────────────────────────────────────
@@ -703,8 +703,18 @@ export function HRDashboard() {
             </button>
           </div>
           <div className="relative pl-4 border-l border-border/40 space-y-5">
-            {RECENT_ACTIVITY.map((event) => {
-              const Icon = event.icon;
+            {((data?.timelineEvents && data.timelineEvents.length > 0)
+              ? data.timelineEvents.map((t) => ({
+                  id: t.id,
+                  time: format(new Date(t.timestamp), "MMM d, h:mm a"),
+                  name: t.actor || "System",
+                  action: t.label,
+                  caseId: t.employee_name || t.case_id,
+                  dot: t.type === "approval" ? "bg-amber-500" : t.type === "task_completed" ? "bg-emerald-500" : "bg-blue-500",
+                }))
+              : RECENT_ACTIVITY
+            ).map((event) => {
+              const Icon = "icon" in event ? event.icon : Activity;
               return (
                 <div key={event.id} className="relative group">
                   <span

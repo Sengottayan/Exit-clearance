@@ -13,21 +13,25 @@ export interface DashboardOverview {
 
 export interface DashboardData {
   overview: DashboardOverview;
-  activeCases: unknown[];
-  pendingApprovals: unknown[];
-  overdueTasks: unknown[];
-  timelineEvents: {
+  trends: {
+    activeCasesPercentage: number;
+  };
+  slaAggregate: Array<{ name: string; value: number }>;
+  attentionItems: Array<{ title: string; value: number; description: string }>;
+  deadlines: Array<{ label: string; count: number; color: string }>;
+  priorityAlerts: Array<{ severity: string; message: string }>;
+  timelineEvents: Array<{
     id: string;
+    type: string;
     label: string;
     timestamp: string;
     actor: string;
     actor_role: string;
     case_id: string;
     employee_name: string;
-    employee_dept: string;
-  }[];
-  exitTrend: { name: string; exits: number }[];
-  slaPerformance: { name: string; onTime: number; overdue: number }[];
+  }>;
+  exitTrend: Array<{ name: string; exits: number }>;
+  hasMoreTimeline: boolean;
 }
 
 export function useHRDashboard() {

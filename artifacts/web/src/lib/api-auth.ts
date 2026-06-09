@@ -6,15 +6,16 @@ const clerkConfigured =
   isValidClerkPublishableKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
   isValidClerkSecretKey(process.env.CLERK_SECRET_KEY);
 
-export async function getOptionalAuth(): Promise<{ userId: string | null }> {
+export async function getOptionalAuth(): Promise<{ userId: string | null; orgId: string | null }> {
   if (!clerkConfigured) {
-    return { userId: "dev-user" };
+    return { userId: "dev-user", orgId: "dev-org" };
   }
 
   try {
-    return await clerkAuth();
+    const { userId, orgId } = await clerkAuth();
+    return { userId: userId ?? null, orgId: orgId ?? null };
   } catch {
-    return { userId: null };
+    return { userId: null, orgId: null };
   }
 }
 
