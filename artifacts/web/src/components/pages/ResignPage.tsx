@@ -39,6 +39,9 @@ export default function ResignPage() {
   const [, setLocation] = useLocation();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const [useLeaveOffset, setUseLeaveOffset] = useState(false);
+  const accruedLeaveBalance = 12;
+
   const activeCase = getActiveEmployeeCase(cases, user);
   const latestCase = getLatestEmployeeCase(cases, user);
 
@@ -50,6 +53,7 @@ export default function ResignPage() {
 
   const lwd = useWatch({ control: form.control, name: "lastWorkingDay" });
   const noticeDays = lwd ? differenceInCalendarDays(lwd, new Date()) : 0;
+  const adjustedNoticeDays = useLeaveOffset ? Math.max(0, noticeDays - accruedLeaveBalance) : noticeDays;
 
   if (!isEmployee) return <Redirect to="/dashboard" />;
   if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
@@ -97,6 +101,11 @@ export default function ResignPage() {
     if (!user) return;
 
     try {
+      const offsetDaysApplied = Math.min(accruedLeaveBalance, noticeDays);
+      const finalExitReason = useLeaveOffset 
+        ? `${data.reason} | Accrued Leave Offset: ${offsetDaysApplied} days applied (Adjusted active notice: ${adjustedNoticeDays} days)${data.notes ? ` | Notes: ${data.notes}` : ''}`
+        : `${data.reason}${data.notes ? ` | Notes: ${data.notes}` : ''}`;
+
       const createdCase = await createCase({
         employeeId: user.employeeId,
         employeeName: user.name,
@@ -105,8 +114,8 @@ export default function ResignPage() {
         employeeDept: user.dept,
         resignationDate: new Date().toISOString(),
         lastWorkingDay: data.lastWorkingDay.toISOString(),
-        noticePeriodDays: noticeDays,
-        exitReason: data.reason,
+        noticePeriodDays: adjustedNoticeDays,
+        exitReason: finalExitReason,
       });
 
       setConfirmOpen(false);
@@ -204,8 +213,8 @@ export default function ResignPage() {
                         <FormDescription className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-semibold text-muted-foreground/80">Select a future date.</span>
                           {noticeDays > 0 && (
-                            <Badge variant="secondary" className={cn("font-bold text-[9px] px-1.5 py-0 border", noticeDays < 30 ? "bg-amber-50 text-amber-700 border-amber-200/50" : "bg-primary/5 text-primary border-primary/20")}>
-                              Notice: {noticeDays} days
+                            <Badge variant="secondary" className={cn("font-bold text-[9px] px-1.5 py-0 border", adjustedNoticeDays < 30 ? "bg-amber-50 text-amber-700 border-amber-200/50" : "bg-primary/5 text-primary border-primary/20")}>
+                              Notice: {adjustedNoticeDays} days {useLeaveOffset && "(Leave Offset Applied)"}
                             </Badge>
                           )}
                         </FormDescription>
@@ -237,6 +246,41 @@ export default function ResignPage() {
                     )}
                   />
                 </div>
+
+                {/* Accrued Leave Offset Calculator */}
+                {noticeDays > 0 && (
+                  <div className="p-4.5 rounded-xl border border-border/65 bg-muted/10 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-foreground">Accrued Leave Offset Calculator</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">
+                          Offset active notice working days using leave balances ({accruedLeaveBalance} days available)
+                        </p>
+                      </div>
+                      <Checkbox
+                        checked={useLeaveOffset}
+                        onCheckedChange={(checked) => setUseLeaveOffset(!!checked)}
+                        className="rounded-md"
+                      />
+                    </div>
+                    {useLeaveOffset && (
+                      <div className="grid grid-cols-2 gap-4 pt-2.5 border-t border-border/40 animate-in fade-in duration-200">
+                        <div>
+                          <p className="text-[9px] text-muted-foreground uppercase font-extrabold tracking-wider">Adjusted Active Notice</p>
+                          <p className="text-sm font-extrabold text-foreground mt-0.5">
+                            {adjustedNoticeDays} Working Days
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-muted-foreground uppercase font-extrabold tracking-wider">Leave Days Applied</p>
+                          <p className="text-sm font-extrabold text-primary mt-0.5">
+                            {Math.min(accruedLeaveBalance, noticeDays)} Days
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <FormField
                   control={form.control}

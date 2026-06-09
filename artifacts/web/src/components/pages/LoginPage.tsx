@@ -252,7 +252,7 @@ function DevAuthPanel() {
   ].filter(Boolean) as typeof MOCK_USERS;
 
   return (
-    <div className="w-full max-w-[420px] mx-auto space-y-6 animate-slide-up" style={{ animationDelay: "200ms" }}>
+    <div className="w-full max-w-[420px] mx-auto space-y-6 animate-slide-up" style={{ animationDelay: "100ms" }}>
       <div className="md:hidden flex items-center gap-3 mb-8">
         <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center shadow-sm">
           <Box className="w-5 h-5 text-background" />
@@ -286,8 +286,7 @@ function DevAuthPanel() {
             key={u.id}
             type="button"
             onClick={() => handleDemoLogin(u.id)}
-            className="flex items-center gap-3.5 p-3.5 rounded-xl border border-border/70 bg-card hover:bg-secondary/40 hover:border-primary/45 transition-all duration-300 text-left group animate-slide-up hover:shadow-soft"
-            style={{ animationDelay: `${250 + i * 40}ms` }}
+            className="flex items-center gap-3.5 p-3.5 rounded-xl border border-border/70 bg-card hover:bg-secondary/40 hover:border-primary/45 transition-all duration-300 text-left group hover:shadow-soft"
             data-testid={`demo-login-${u.role}`}
           >
             <UserAvatar name={u.name} className="w-9 h-9 border border-background shadow-sm group-hover:scale-105 transition-transform duration-300 shrink-0" />

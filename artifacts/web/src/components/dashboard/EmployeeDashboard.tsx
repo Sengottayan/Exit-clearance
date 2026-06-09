@@ -7,7 +7,7 @@ import { CaseTimeline } from "@/components/cases/CaseTimeline";
 import { formatDate, cn } from "@/lib/utils";
 import { differenceInCalendarDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { FileText, CheckCircle2, Circle, AlertCircle, Clock, Lock, ShieldCheck, ExternalLink, FileSignature } from "lucide-react";
+import { FileText, CheckCircle2, Circle, AlertCircle, Clock, Lock, ShieldCheck, ExternalLink, FileSignature, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/lib/wouter";
 import { ProgressRing } from "@/components/shared/ProgressRing";
@@ -173,7 +173,17 @@ export function EmployeeDashboard() {
                         {getDeptIcon(displayStatus)}
                         <div>
                           <p className="font-bold text-xs text-foreground leading-none mb-1.5">{task.deptLabel}</p>
-                          <p className="text-[10px] text-muted-foreground font-semibold">Assigned Owner: <span className="text-foreground/80">{task.assigneeName}</span></p>
+                          <div className="text-[10px] text-muted-foreground font-semibold flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span>Assigned Owner: <span className="text-foreground/80">{task.assigneeName}</span></span>
+                            <a
+                              href={`mailto:${task.assigneeName.toLowerCase().replace(/\s+/g, '.')}@company.com?subject=Clearance%20Query%20-%20${encodeURIComponent(task.deptLabel)}`}
+                              className="inline-flex items-center gap-0.5 text-primary hover:text-primary/80 transition-colors font-bold"
+                              title={`Contact ${task.assigneeName}`}
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>Contact Owner</span>
+                            </a>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 sm:ml-auto pl-12 sm:pl-0">
@@ -194,7 +204,69 @@ export function EmployeeDashboard() {
             <CardHeader className="bg-muted/10 border-b border-border/40 pb-4 px-6 pt-6">
               <CardTitle className="text-base font-extrabold tracking-tight">My Documents</CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 space-y-6">
+              {/* Document Pipeline */}
+              <div className="border border-border/50 bg-secondary/15 rounded-xl p-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-4">Relieving Document Pipeline</p>
+                <div className="relative flex items-center justify-between">
+                  {/* Background Line */}
+                  <div className="absolute left-[10%] right-[10%] top-4.5 h-0.5 bg-border/40 rounded-full -z-10"></div>
+                  
+                  {/* Foreground progress line */}
+                  <div 
+                    className="absolute left-[10%] top-4.5 h-0.5 bg-gradient-to-r from-primary via-indigo-500 to-indigo-600 rounded-full -z-10 transition-all duration-700 ease-out"
+                    style={{ width: clearanceProgress === 100 ? "80%" : "0%" }}
+                  ></div>
+
+                  {/* Step 1: NDA Sign-off */}
+                  <div className="flex flex-col items-center text-center space-y-2 w-1/3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center border-2 border-primary text-primary shadow-sm bg-card">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-foreground">NDA Sign-off</p>
+                      <p className="text-[8px] text-muted-foreground font-semibold">Completed</p>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Relieving Letter */}
+                  <div className="flex flex-col items-center text-center space-y-2 w-1/3">
+                    <div className={cn(
+                      "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-sm bg-card",
+                      clearanceProgress === 100 
+                        ? "border-primary text-primary" 
+                        : "border-border/60 text-muted-foreground/50"
+                    )}>
+                      {clearanceProgress === 100 ? <CheckCircle2 className="w-5 h-5" /> : <Lock className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-foreground">Relieving Letter</p>
+                      <p className="text-[8px] text-muted-foreground font-semibold">
+                        {clearanceProgress === 100 ? "Ready to Download" : "Locked (Pending Clearance)"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Experience Certificate */}
+                  <div className="flex flex-col items-center text-center space-y-2 w-1/3">
+                    <div className={cn(
+                      "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-sm bg-card",
+                      clearanceProgress === 100 
+                        ? "border-primary text-primary" 
+                        : "border-border/60 text-muted-foreground/50"
+                    )}>
+                      {clearanceProgress === 100 ? <CheckCircle2 className="w-5 h-5" /> : <Lock className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-foreground">Experience Certificate</p>
+                      <p className="text-[8px] text-muted-foreground font-semibold">
+                        {clearanceProgress === 100 ? "Ready to Download" : "Locked (Pending Clearance)"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-3.5">
                 <div className="flex items-center justify-between p-4 border border-border/60 bg-card rounded-xl hover:border-primary/45 hover:shadow-soft transition-all duration-300 group">
                   <div className="flex items-center gap-4">
@@ -209,31 +281,61 @@ export function EmployeeDashboard() {
                   <Button variant="secondary" size="sm" className="h-8 text-[10px] font-bold px-4 hover:bg-primary hover:text-white transition-all">Download</Button>
                 </div>
 
-                <div className="flex items-center justify-between p-4 border border-dashed border-border/80 rounded-xl bg-muted/20">
-                  <div className="flex items-center gap-4 opacity-75">
-                    <div className="w-9 h-9 bg-background rounded-lg flex items-center justify-center shrink-0 border shadow-sm">
-                      <Lock className="w-4.5 h-4.5 text-muted-foreground/50" />
+                {clearanceProgress === 100 ? (
+                  <div className="flex items-center justify-between p-4 border border-border/60 bg-card rounded-xl hover:border-primary/45 hover:shadow-soft transition-all duration-300 group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 border border-primary/5">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground mb-0.5">Relieving Letter</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold">Generated automatically on clearance</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground/70 mb-0.5">Relieving Letter</p>
-                      <p className="text-[10px] text-muted-foreground font-semibold">Available after final HR approval clearance</p>
-                    </div>
+                    <Button variant="secondary" size="sm" className="h-8 text-[10px] font-bold px-4 hover:bg-primary hover:text-white transition-all">Download</Button>
                   </div>
-                  <ShieldCheck className="w-4.5 h-4.5 text-muted-foreground/35 mr-2" />
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 border border-dashed border-border/80 rounded-xl bg-muted/20">
+                    <div className="flex items-center gap-4 opacity-75">
+                      <div className="w-9 h-9 bg-background rounded-lg flex items-center justify-center shrink-0 border shadow-sm">
+                        <Lock className="w-4 h-4 text-muted-foreground/50" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground/70 mb-0.5">Relieving Letter</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold">Available after final HR approval clearance</p>
+                      </div>
+                    </div>
+                    <ShieldCheck className="w-4.5 h-4.5 text-muted-foreground/35 mr-2" />
+                  </div>
+                )}
 
-                <div className="flex items-center justify-between p-4 border border-dashed border-border/80 rounded-xl bg-muted/20">
-                  <div className="flex items-center gap-4 opacity-75">
-                    <div className="w-9 h-9 bg-background rounded-lg flex items-center justify-center shrink-0 border shadow-sm">
-                      <Lock className="w-4.5 h-4.5 text-muted-foreground/50" />
+                {clearanceProgress === 100 ? (
+                  <div className="flex items-center justify-between p-4 border border-border/60 bg-card rounded-xl hover:border-primary/45 hover:shadow-soft transition-all duration-300 group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 border border-primary/5">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground mb-0.5">Experience Certificate</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold">Generated automatically on clearance</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground/70 mb-0.5">Experience Certificate</p>
-                      <p className="text-[10px] text-muted-foreground font-semibold">Available after final HR approval clearance</p>
-                    </div>
+                    <Button variant="secondary" size="sm" className="h-8 text-[10px] font-bold px-4 hover:bg-primary hover:text-white transition-all">Download</Button>
                   </div>
-                  <ShieldCheck className="w-4.5 h-4.5 text-muted-foreground/35 mr-2" />
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 border border-dashed border-border/80 rounded-xl bg-muted/20">
+                    <div className="flex items-center gap-4 opacity-75">
+                      <div className="w-9 h-9 bg-background rounded-lg flex items-center justify-center shrink-0 border shadow-sm">
+                        <Lock className="w-4 h-4 text-muted-foreground/50" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground/70 mb-0.5">Experience Certificate</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold">Available after final HR approval clearance</p>
+                      </div>
+                    </div>
+                    <ShieldCheck className="w-4.5 h-4.5 text-muted-foreground/35 mr-2" />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

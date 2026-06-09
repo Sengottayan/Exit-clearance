@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Box, GitBranch, Bell, FileCheck, Shield, ArrowRight, ChevronRight, Activity, CheckCircle2 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
+import { CanvasParticles } from "@/components/shared/CanvasParticles";
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuth();
@@ -29,12 +30,13 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20 selection:text-primary overflow-hidden font-sans">
+    <div className="min-h-screen flex flex-col bg-transparent selection:bg-primary/20 selection:text-primary overflow-hidden font-sans">
       {/* Dynamic Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/20 blur-[120px] mix-blend-multiply opacity-70 animate-pulse duration-1000" />
-        <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/20 blur-[120px] mix-blend-multiply opacity-70 animate-pulse duration-1000 delay-500" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-indigo-500/20 blur-[120px] mix-blend-multiply opacity-70 animate-pulse duration-1000 delay-1000" />
+        <CanvasParticles />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] mix-blend-multiply opacity-70" />
+        <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[120px] mix-blend-multiply opacity-70" />
+        <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[120px] mix-blend-multiply opacity-70" />
       </div>
 
       <header className="h-16 flex items-center justify-between px-6 lg:px-12 border-b/10 glass sticky top-0 z-50 backdrop-blur-xl bg-background/60">
