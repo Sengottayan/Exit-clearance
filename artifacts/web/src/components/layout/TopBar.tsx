@@ -42,35 +42,36 @@ export function TopBar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b border-border/40 px-4 md:px-8 h-16 flex items-center justify-between shadow-sm">
+    <header className="sticky top-0 z-40 w-full glass px-4 md:px-8 h-14 flex items-center justify-between shadow-[0_1px_0_rgba(255,255,255,0.05)]">
       {/* Mobile Logo & Desktop Path Context */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="flex md:hidden items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-md">
-            <Icons.Box className="w-4 h-4 text-white" />
+          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+            <Icons.Box className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-bold tracking-tight text-foreground text-sm">ExitFlow</span>
+          <span className="font-semibold tracking-tight text-foreground text-sm">ExitFlow</span>
         </Link>
         
         {/* Desktop Path Context */}
-        <div className="hidden md:flex items-center gap-2 text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest bg-muted/40 hover:bg-muted/65 px-3 py-1.5 rounded-xl border border-border/40 transition-colors">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-soft" />
-          <span>Enterprise Portal</span>
+        <div className="hidden md:flex items-center gap-2 text-[11px] font-semibold text-white/90 bg-[#1e2a4f] hover:bg-[#273866] px-3 py-1.5 rounded-full transition-colors border border-[#3b5998]/50 cursor-pointer shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-[#4f83cc]" />
+          <span className="tracking-widest uppercase">Workspace</span>
+          <Icons.ChevronDown className="w-3 h-3 ml-1 opacity-70" />
         </div>
       </div>
 
       {/* Global Search Button */}
-      <div className="flex-1 max-w-md mx-6 hidden sm:block">
+      <div className="flex-1 max-w-[500px] mx-6 hidden sm:block">
         <button
           onClick={triggerSearch}
-          className="w-full flex items-center justify-between text-left px-4 h-10 text-xs text-muted-foreground/70 bg-secondary/55 hover:bg-secondary/90 hover:text-foreground rounded-xl border border-border/60 hover:border-primary/45 transition-all duration-300 shadow-sm"
+          className="w-full flex items-center justify-between text-left px-4 h-9 text-[13px] text-muted-foreground/60 bg-[#0f1525] hover:bg-[#151c30] hover:text-foreground rounded-full border border-white/5 transition-all duration-200 shadow-inner"
         >
           <div className="flex items-center gap-2.5">
-            <Icons.Search className="w-4 h-4 text-muted-foreground/60" />
-            <span className="font-medium">Search anything (cases, clearances, logs...)</span>
+            <Icons.Search className="w-4 h-4 text-[#8ab4f8]" />
+            <span className="font-medium tracking-wide">Search cases, employees, documents...</span>
           </div>
-          <kbd className="pointer-events-none inline-flex h-5.5 select-none items-center gap-0.5 rounded-md border border-border bg-card px-2 font-mono text-[9px] font-extrabold text-muted-foreground shadow-sm">
-            <span>ctrl</span><span>K</span>
+          <kbd className="pointer-events-none flex h-5 items-center gap-1 rounded bg-[#273866] px-1.5 font-sans text-[10px] font-bold text-[#8ab4f8]">
+            <span>⌘</span><span>K</span>
           </kbd>
         </button>
       </div>
@@ -124,9 +125,8 @@ export function TopBar() {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="h-10 w-10 rounded-full relative group flex items-center justify-center border border-border/40 hover:border-primary/45 hover:bg-secondary/40 transition-all duration-300 shrink-0 cursor-pointer">
-              <UserAvatar name={user.name} className="w-8 h-8 border shadow-sm group-hover:scale-105 transition-all duration-300" />
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-background shadow-sm group-hover:scale-110 transition-transform" />
+            <button className="h-8 w-8 rounded-md relative group flex items-center justify-center border border-white/10 hover:border-white/20 transition-all duration-200 shrink-0 cursor-pointer overflow-hidden">
+              <UserAvatar name={user.name} className="w-full h-full" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 mt-2">

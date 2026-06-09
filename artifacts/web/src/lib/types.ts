@@ -14,6 +14,7 @@ export interface User {
   managerId?: string;  // Clerk user ID of the reporting manager
   managerName?: string;
   jobTitle?: string;
+  phone?: string;
 }
 
 export interface ChecklistItem {

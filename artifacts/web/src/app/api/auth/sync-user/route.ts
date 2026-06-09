@@ -22,11 +22,14 @@ export async function POST(request: NextRequest) {
   const supabase = createServerSupabase();
   const body = await request.json().catch(() => ({}));
 
+  const action = (body as { action?: string }).action;
+
   const {
     email = "",
     name = "",
     role = "employee",
     dept = "",
+    phone = "",
     employeeId = "",
     managerId = null,
     managerName = "",
@@ -36,11 +39,61 @@ export async function POST(request: NextRequest) {
     name?: string;
     role?: Role;
     dept?: string;
+    phone?: string;
     employeeId?: string;
     managerId?: string | null;
     managerName?: string;
     jobTitle?: string;
   };
+
+  if (action === "update_profile") {
+    // Attempt to update dept and phone (and potentially assign a manager based on dept)
+    
+    // First let's find a manager in the new dept
+    let newManagerId = managerId;
+    let newManagerName = managerName;
+    
+    const { data: managers } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("role", "manager")
+      .eq("dept", dept)
+      .limit(1);
+      
+    if (managers && managers.length > 0) {
+      newManagerId = managers[0].id;
+      newManagerName = managers[0].name;
+    } else {
+      newManagerId = "system-manager";
+      newManagerName = "HR Manager (System)";
+    }
+
+    const { data: updatedUser, error: updateError } = await supabase
+      .from("users")
+      .update({ dept, phone, manager_id: newManagerId, manager_name: newManagerName })
+      .eq("id", userId)
+      .select("id, email, name, role, dept, employee_id, phone")
+      .single();
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        dept: updatedUser.dept,
+        employeeId: updatedUser.employee_id ?? "",
+        phone: updatedUser.phone ?? "",
+        managerId: newManagerId,
+        managerName: newManagerName,
+      },
+      token: "dummy-token-not-used", // authStore requires a token param
+    });
+  }
 
   // Upsert user row using only columns guaranteed to exist in the base schema.
   // Extended columns (manager_id, job_title) are added by migration 00003.

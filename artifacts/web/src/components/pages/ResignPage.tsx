@@ -128,19 +128,19 @@ export default function ResignPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Notice & Offboarding Policies (FAQ) */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className={cn("border-border/50 backdrop-blur-sm rounded-2xl transition-all duration-500",
+          <Card className={cn("glass-panel transition-all duration-500",
             noticeDays > 0 && noticeDays < 30 
-              ? "bg-amber-50/50 dark:bg-amber-500/10 border-amber-400 dark:border-amber-500/50 shadow-[0_0_15px_rgba(251,191,36,0.3)] dark:shadow-[0_0_20px_rgba(245,158,11,0.2)]" 
-              : "bg-card/50 shadow-premium"
+              ? "bg-amber-500/5 border-amber-500/20 shadow-[inset_0_1px_0_rgba(251,191,36,0.1),0_0_20px_rgba(245,158,11,0.1)]" 
+              : ""
           )}>
-            <CardHeader className="pb-4">
-              <CardTitle className={cn("text-sm font-extrabold uppercase tracking-widest flex items-center gap-2 transition-colors",
-                noticeDays > 0 && noticeDays < 30 ? "text-amber-700 dark:text-amber-400" : "text-foreground/80"
+            <CardHeader className="pb-4 border-b border-white/5">
+              <CardTitle className={cn("text-sm font-semibold tracking-wide flex items-center gap-2 transition-colors",
+                noticeDays > 0 && noticeDays < 30 ? "text-amber-500" : "text-foreground"
               )}>
-                <ShieldAlert className={cn("w-4 h-4", noticeDays > 0 && noticeDays < 30 ? "text-amber-600 dark:text-amber-400 animate-pulse" : "text-primary")} />
+                <ShieldAlert className={cn("w-4 h-4", noticeDays > 0 && noticeDays < 30 ? "text-amber-500 animate-pulse" : "text-primary")} />
                 <span>Notice Guidelines</span>
               </CardTitle>
-              <CardDescription className="text-[10px] font-semibold">Standard corporate departure regulations.</CardDescription>
+              <CardDescription className="text-xs font-medium mt-1">Standard corporate departure regulations.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 text-xs text-muted-foreground font-semibold leading-relaxed">
               <div className="space-y-1">
@@ -173,7 +173,7 @@ export default function ResignPage() {
         </div>
 
         {/* Right Side: Resignation Submission Form */}
-        <Card className="lg:col-span-2 border-border/50 bg-card shadow-premium rounded-2xl">
+        <Card className="lg:col-span-2 glass-panel">
           <CardHeader>
             <CardTitle className="text-base font-extrabold tracking-tight">Resignation Details</CardTitle>
             <CardDescription className="text-xs font-semibold">Initiate your formal exit process. Your reporting manager will be notified immediately for initial review and signoff.</CardDescription>

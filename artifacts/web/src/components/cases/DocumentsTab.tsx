@@ -3,11 +3,14 @@ import { ExitCase } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Lock, Upload, Paperclip } from "lucide-react";
+import * as Icons from "lucide-react";
 import { useGenerateDocument, useUploadDocument, useUploadAttachment } from "@/hooks/api/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import { DEPARTMENTS } from "@/lib/constants";
+import { FileUpload } from "@/components/shared/FileUpload";
+import { Badge } from "@/components/ui/badge";
 
 export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
   const { user, isHR, isAdmin, isEmployee } = useAuth();
@@ -46,162 +49,176 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
 
   return (
     <div className="space-y-6">
-      {canUpload && exitCase.status !== "cancelled" && (
-        <Card className="border-dashed border-2 bg-muted/20">
-          <CardContent className="p-6">
-            <div
-              className="flex flex-col items-center justify-center text-center py-4 cursor-pointer"
-              onClick={() => attachmentInputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const file = e.dataTransfer.files?.[0];
-                if (file) {
-                  uploadAttachment({ caseId: exitCase.id, fileName: file.name, actor: user?.name ?? "User" });
-                  toast.success("Attachment uploaded");
-                }
-              }}
-            >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <Upload className="w-6 h-6 text-primary" />
-              </div>
-              <p className="text-sm font-medium">Drag & drop files here, or click to browse</p>
-              <p className="text-xs text-muted-foreground mt-1">PDF, DOC, or image files up to 10 MB</p>
-            </div>
-            <input
-              ref={attachmentInputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={(e) => handleFileSelect(e, "attachment")}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Official Documents</CardTitle>
-          <CardDescription>Generated and uploaded exit documents</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0 divide-y">
-          <DocRow
-            title="Resignation Letter"
-            fileName={exitCase.documents.resignationLetter}
-            date={exitCase.resignationDate}
-            available
-            onUpload={
-              canUpload && !exitCase.documents.resignationLetter
-                ? () => fileInputRef.current?.click()
-                : undefined
-            }
-          />
-          <DocRow
-            title="Relieving Letter"
-            fileName={exitCase.documents.relievingLetter}
-            date={exitCase.tasks.find((t) => t.deptId === "hr")?.completedAt}
-            available={isClearanceComplete}
-            onGenerate={(isHR || isAdmin) ? () => handleGenerate("relievingLetter") : undefined}
-            lockedMessage="Waiting for all mandatory clearances to complete"
-          />
-          <DocRow
-            title="Experience Certificate"
-            fileName={exitCase.documents.experienceCertificate}
-            date={exitCase.tasks.find((t) => t.deptId === "hr")?.completedAt}
-            available={isClearanceComplete}
-            onGenerate={(isHR || isAdmin) ? () => handleGenerate("experienceCertificate") : undefined}
-            lockedMessage="Waiting for all mandatory clearances to complete"
-          />
-        </CardContent>
-      </Card>
-
-      {(exitCase.documents.attachments?.length ?? 0) > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Paperclip className="w-4 h-4" />
-              Attachments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 divide-y">
-            {exitCase.documents.attachments!.map((att) => (
-              <div key={att.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{att.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Uploaded by {att.uploadedBy} · {formatDate(att.uploadedAt)}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" /> Download
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        accept=".pdf,.doc,.docx"
-        onChange={(e) => handleFileSelect(e, "resignation")}
-      />
-    </div>
-  );
-}
-
-function DocRow({
-  title,
-  fileName,
-  date,
-  available,
-  onGenerate,
-  onUpload,
-  lockedMessage,
-}: {
-  title: string;
-  fileName?: string;
-  date?: string;
-  available: boolean;
-  onGenerate?: () => void;
-  onUpload?: () => void;
-  lockedMessage?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-lg ${available ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-          {available ? <FileText className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-        </div>
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <p className={`font-medium ${!available && "text-muted-foreground"}`}>{title}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {fileName ? fileName : available ? "Not uploaded yet" : lockedMessage}
-          </p>
-          {fileName && date && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(date)}</p>
-          )}
+          <h2 className="text-xl font-bold text-white mb-1">My Documents</h2>
+          <p className="text-sm text-slate-400">Manage your exit process documents</p>
         </div>
+        {canUpload && exitCase.status !== "cancelled" && (
+          <Button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-500 text-white font-semibold">
+            <Upload className="w-4 h-4 mr-2" />
+            Upload Document
+          </Button>
+        )}
       </div>
-      <div className="flex gap-2">
-        {fileName ? (
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" /> Download
-          </Button>
-        ) : onUpload ? (
-          <Button onClick={onUpload} size="sm" variant="outline">
-            <Upload className="w-4 h-4 mr-2" /> Upload
-          </Button>
-        ) : available && onGenerate ? (
-          <Button onClick={onGenerate} size="sm">Generate PDF</Button>
-        ) : null}
+
+      <div className="flex items-center gap-3 mb-6">
+        <Badge variant="outline" className="bg-[#1e2a4f] text-[#8ab4f8] border-[#3b5998]/50 px-3 py-1 text-xs hover:bg-[#273866] cursor-pointer">
+          All Documents <span className="ml-2 bg-[#0f1525] px-1.5 py-0.5 rounded text-[10px]">5</span>
+        </Badge>
+        <Badge variant="outline" className="text-slate-400 border-white/10 px-3 py-1 text-xs hover:text-white cursor-pointer bg-transparent">
+          Uploaded By Me <span className="ml-2 bg-white/10 px-1.5 py-0.5 rounded text-[10px]">3</span>
+        </Badge>
+        <Badge variant="outline" className="text-slate-400 border-white/10 px-3 py-1 text-xs hover:text-white cursor-pointer bg-transparent">
+          Pending Release
+        </Badge>
+      </div>
+
+      <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileSelect(e, "resignation")} />
+      <input type="file" ref={attachmentInputRef} className="hidden" onChange={(e) => handleFileSelect(e, "attachment")} />
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        {/* Resignation Letter */}
+        <Card className="border border-white/5 bg-[#121927] rounded-xl flex flex-col hover:bg-[#161f30] transition-colors">
+          <CardContent className="p-5 flex flex-col flex-1">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded bg-red-500/10 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-200">Resignation Letter</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">PDF • 245 KB</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
+                <Icons.MoreVertical className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-[11px] text-slate-500">Uploaded by you</p>
+              <p className="text-[11px] text-slate-400 font-medium">{formatDate(exitCase.resignationDate)}</p>
+            </div>
+            
+            <div className="mt-auto grid grid-cols-2 gap-3">
+              <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                <Icons.Eye className="w-3.5 h-3.5 mr-2" /> Preview
+              </Button>
+              <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                <Download className="w-3.5 h-3.5 mr-2" /> Download
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Relieving Letter (Locked or Available) */}
+        <Card className={cn("border border-white/5 rounded-xl flex flex-col transition-colors", isClearanceComplete ? "bg-[#121927] hover:bg-[#161f30]" : "bg-[#1a1712]")}>
+          <CardContent className="p-5 flex flex-col flex-1">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex gap-3">
+                <div className={cn("w-8 h-8 rounded flex items-center justify-center shrink-0", isClearanceComplete ? "bg-red-500/10" : "bg-amber-500/10")}>
+                  {isClearanceComplete ? <FileText className="w-4 h-4 text-red-500" /> : <Lock className="w-4 h-4 text-amber-500" />}
+                </div>
+                <div>
+                  <h4 className={cn("text-sm font-bold", isClearanceComplete ? "text-slate-200" : "text-amber-500")}>Relieving Letter</h4>
+                  {isClearanceComplete && <p className="text-[10px] text-slate-500 mt-0.5">PDF • 180 KB</p>}
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
+                <Icons.MoreVertical className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="mb-6">
+              {isClearanceComplete ? (
+                <>
+                  <p className="text-[11px] text-slate-500">Generated automatically</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Available</p>
+                </>
+              ) : (
+                <p className="text-xs text-amber-500/80">Will be available after all clearances</p>
+              )}
+            </div>
+            
+            <div className="mt-auto">
+              {isClearanceComplete ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {(isHR || isAdmin) && (
+                    <Button variant="outline" size="sm" onClick={() => handleGenerate("relievingLetter")} className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                      <Icons.RefreshCw className="w-3.5 h-3.5 mr-2" /> Generate
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                    <Download className="w-3.5 h-3.5 mr-2" /> Download
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <div className="h-1.5 w-full bg-[#2a2419] rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: '60%' }} />
+                  </div>
+                  <p className="text-[10px] text-amber-500/80 mt-2">60% Completed</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Experience Certificate (Locked or Available) */}
+        <Card className={cn("border border-white/5 rounded-xl flex flex-col transition-colors", isClearanceComplete ? "bg-[#121927] hover:bg-[#161f30]" : "bg-[#1a1712]")}>
+          <CardContent className="p-5 flex flex-col flex-1">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex gap-3">
+                <div className={cn("w-8 h-8 rounded flex items-center justify-center shrink-0", isClearanceComplete ? "bg-red-500/10" : "bg-amber-500/10")}>
+                  {isClearanceComplete ? <FileText className="w-4 h-4 text-red-500" /> : <Lock className="w-4 h-4 text-amber-500" />}
+                </div>
+                <div>
+                  <h4 className={cn("text-sm font-bold", isClearanceComplete ? "text-slate-200" : "text-amber-500")}>Experience Certificate</h4>
+                  {isClearanceComplete && <p className="text-[10px] text-slate-500 mt-0.5">PDF • 180 KB</p>}
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
+                <Icons.MoreVertical className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="mb-6">
+              {isClearanceComplete ? (
+                <>
+                  <p className="text-[11px] text-slate-500">Generated automatically</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Available</p>
+                </>
+              ) : (
+                <p className="text-xs text-amber-500/80">Will be available after all clearances</p>
+              )}
+            </div>
+            
+            <div className="mt-auto">
+              {isClearanceComplete ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {(isHR || isAdmin) && (
+                    <Button variant="outline" size="sm" onClick={() => handleGenerate("experienceCertificate")} className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                      <Icons.RefreshCw className="w-3.5 h-3.5 mr-2" /> Generate
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                    <Download className="w-3.5 h-3.5 mr-2" /> Download
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <div className="h-1.5 w-full bg-[#2a2419] rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: '60%' }} />
+                  </div>
+                  <p className="text-[10px] text-amber-500/80 mt-2">60% Completed</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );

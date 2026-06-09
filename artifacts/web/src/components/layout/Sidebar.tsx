@@ -36,24 +36,21 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-[260px] bg-sidebar/95 backdrop-blur-md border-r border-sidebar-border h-[100dvh] text-sidebar-foreground sticky top-0 shadow-xl shadow-black/15 z-20 transition-all duration-300">
+    <aside className="hidden md:flex flex-col w-[240px] bg-sidebar border-r border-sidebar-border h-[100dvh] text-sidebar-foreground sticky top-0 z-20">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 mb-4 border-b border-sidebar-border/30">
-        <Link href="/dashboard" className="flex items-center gap-2.5 text-sidebar-primary-foreground group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-105 group-hover:shadow-primary/45 transition-all duration-300">
-            <Icons.Box className="w-4 h-4 text-white" />
+      <div className="h-14 flex items-center px-4 mb-2">
+        <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-foreground hover:text-white group transition-colors">
+          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+            <Icons.Box className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-extrabold tracking-tight text-lg text-white">ExitFlow</span>
+          <span className="font-semibold text-sm">ExitFlow</span>
         </Link>
       </div>
 
       {/* Nav Menu */}
-      <div className="flex-1 px-4 py-2 space-y-6">
+      <div className="flex-1 px-3 py-2 space-y-6">
         <div>
-          <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-widest mb-4 px-3">
-            WORKSPACE NAVIGATION
-          </p>
-          <nav className="space-y-2">
+          <nav className="space-y-0.5">
             {(() => {
               const exactMatch = navItems.find(i => location === i.href);
               return navItems.map((item) => {
@@ -61,25 +58,30 @@ export function Sidebar() {
                 const isActive = exactMatch
                   ? exactMatch.href === item.href
                   : (item.href !== '/' && location.startsWith(item.href + '/'));
-              return (
-                <Link 
-                  key={`${item.href}-${item.label}`} 
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 group relative border border-transparent",
-                    isActive 
-                      ? "bg-sidebar-accent/80 text-white shadow-soft border-sidebar-border/30" 
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-white"
-                  )}
-                >
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-sidebar-primary rounded-r-md shadow-[0_0_8px_var(--color-primary)]" />
-                  )}
-                  <Icon className={cn("w-4 h-4 shrink-0 transition-all duration-300 group-hover:scale-110", isActive ? "text-sidebar-primary drop-shadow-[0_0_4px_rgba(59,130,246,0.5)]" : "text-sidebar-foreground/35 group-hover:text-sidebar-foreground/75")} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })})()}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "group flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                      isActive
+                        ? "bg-[#274472] text-[#8ab4f8] shadow-sm"
+                        : "text-sidebar-foreground/70 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-7 h-7 flex items-center justify-center rounded-md transition-colors",
+                        isActive ? "bg-[#33548a] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]" : "text-muted-foreground group-hover:text-white group-hover:bg-white/10"
+                      )}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <span className="tracking-wide">{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              });
+            })()}
           </nav>
         </div>
       </div>

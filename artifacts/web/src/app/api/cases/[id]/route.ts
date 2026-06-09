@@ -4,12 +4,12 @@ import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ caseId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { userId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
-  const { caseId } = await params;
+  const { id } = await params;
   const supabase = createServerSupabase();
 
   // Note: avoid joining author:users() — the FK alias may not exist in all environments.
@@ -17,7 +17,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("exit_cases")
     .select("*, clearance_tasks(*), timeline_events(*), exit_interviews(*), case_comments(*), documents(*)")
-    .eq("id", caseId)
+    .eq("id", id)
     .single();
 
   if (error) {
@@ -33,12 +33,12 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ caseId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { userId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
-  const { caseId } = await params;
+  const { id } = await params;
   const supabase = createServerSupabase();
   const body = await request.json();
 
@@ -69,7 +69,7 @@ export async function PATCH(
   const { data, error } = await supabase
     .from("exit_cases")
     .update(updateData)
-    .eq("id", caseId)
+    .eq("id", id)
     .select()
     .single();
 

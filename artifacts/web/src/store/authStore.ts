@@ -9,6 +9,7 @@ interface AuthState {
   loginById: (userId: string) => void;
   setClerkUser: (clerkUserId: string, role: Role, name?: string, email?: string) => void;
   updateUserManager: (managerId: string, managerName: string) => void;
+  updateUserProfile: (updates: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -76,7 +77,12 @@ export const useAuthStore = create<AuthState>()(
       },
       updateUserManager: (managerId, managerName) => {
         set((state) => ({
-          user: state.user ? { ...state.user, managerId, managerName } : state.user,
+          user: state.user ? { ...state.user, managerId, managerName } : null,
+        }));
+      },
+      updateUserProfile: (updates) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates } : null,
         }));
       },
       logout: () => set({ user: null }),
