@@ -17,7 +17,7 @@ const jbMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ExitFlow - Employee Exit Clearance System",
+  title: "OffboardIQ",
   description: "Streamline employee offboarding and clearance workflows",
 };
 

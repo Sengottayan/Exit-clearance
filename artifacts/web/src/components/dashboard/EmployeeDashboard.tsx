@@ -334,8 +334,8 @@ export function EmployeeDashboard() {
               </Link>
               <Link href={`/cases/${myCase.id}?tab=documents`} className="flex-1">
                 <Button variant="outline" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-xs h-9 justify-center text-slate-300">
-                  <Icons.Download className="w-3.5 h-3.5 mr-2" />
-                  Download Documents
+                  <Icons.FolderOpen className="w-3.5 h-3.5 mr-2" />
+                  Manage Documents
                 </Button>
               </Link>
             </CardContent>

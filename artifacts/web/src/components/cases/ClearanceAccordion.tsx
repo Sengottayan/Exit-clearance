@@ -1,13 +1,23 @@
-import { ClearanceTask } from "@/lib/types";
+import { ExitCase } from "@/lib/types";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SLARiskChip } from "@/components/shared/SLARiskChip";
 import { CheckCircle2, Circle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-export function ClearanceAccordion({ tasks }: { tasks: ClearanceTask[] }) {
+export function ClearanceAccordion({ exitCase }: { exitCase: ExitCase }) {
+  const tasks = exitCase?.tasks || [];
+  if (!tasks || tasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/10 border border-dashed rounded-lg">
+        <p className="text-sm font-medium text-slate-300">No workflow tasks assigned</p>
+        <p className="text-xs text-slate-500 mt-1">Department clearance tasks will appear here.</p>
+      </div>
+    );
+  }
+
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-white/5 bg-[#121927]">
       <Accordion type="multiple" className="w-full">
         {tasks.map(task => (
           <AccordionItem value={task.id} key={task.id} className="border-b last:border-0">

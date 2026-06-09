@@ -25,7 +25,7 @@ function LeftPanel() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
             <Box className="w-4 h-4 text-white" />
           </div>
-          <span className="font-extrabold text-2xl tracking-tight text-white">ExitFlow</span>
+          <span className="font-extrabold text-2xl tracking-tight text-white">OffboardIQ</span>
         </Link>
       </div>
 

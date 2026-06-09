@@ -17,7 +17,8 @@ export function ProgressRing({
   sublabel,
   className,
 }: ProgressRingProps) {
-  const clamped = Math.min(100, Math.max(0, value));
+  const safeValue = Number.isNaN(value) || !Number.isFinite(value) ? 0 : value;
+  const clamped = Math.min(100, Math.max(0, safeValue));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (clamped / 100) * circumference;

@@ -14,7 +14,6 @@ import {
 import { useAuthStore } from "@/store/authStore";
 import { useClerk } from "@clerk/nextjs";
 import { NotificationBell } from "@/components/shared/NotificationBell";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 export function TopBar() {
   const { user } = useAuth();
@@ -49,15 +48,8 @@ export function TopBar() {
           <div className="w-6 h-6 rounded bg-primary flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
             <Icons.Box className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-semibold tracking-tight text-foreground text-sm">ExitFlow</span>
+          <span className="font-semibold tracking-tight text-foreground text-sm">OffboardIQ</span>
         </Link>
-        
-        {/* Desktop Path Context */}
-        <div className="hidden md:flex items-center gap-2 text-[11px] font-semibold text-white/90 bg-[#1e2a4f] hover:bg-[#273866] px-3 py-1.5 rounded-full transition-colors border border-[#3b5998]/50 cursor-pointer shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-[#4f83cc]" />
-          <span className="tracking-widest uppercase">Workspace</span>
-          <Icons.ChevronDown className="w-3 h-3 ml-1 opacity-70" />
-        </div>
       </div>
 
       {/* Global Search Button */}
@@ -120,7 +112,6 @@ export function TopBar() {
         <div className="w-px h-6 bg-border mx-1 hidden md:block" />
 
         <NotificationBell />
-        <ThemeToggle />
 
         {/* User Menu */}
         <DropdownMenu>

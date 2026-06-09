@@ -43,7 +43,7 @@ export function Sidebar() {
           <div className="w-6 h-6 rounded bg-primary flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
             <Icons.Box className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-semibold text-sm">ExitFlow</span>
+          <span className="font-semibold text-sm">OffboardIQ</span>
         </Link>
       </div>
 

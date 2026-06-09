@@ -6,6 +6,15 @@ import { format } from "date-fns";
 export function CaseTimeline({ events }: { events: TimelineEvent[] }) {
   const sorted = [...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+  if (!events || events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/10 border border-dashed rounded-lg">
+        <p className="text-sm font-medium text-slate-300">No activity recorded yet</p>
+        <p className="text-xs text-slate-500 mt-1">Timeline events will appear here once the exit process begins.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {sorted.map((event, i) => (

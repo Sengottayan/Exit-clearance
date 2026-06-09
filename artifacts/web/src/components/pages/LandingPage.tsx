@@ -44,7 +44,7 @@ export default function LandingPage() {
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
             <Box className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">ExitFlow</span>
+          <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">OffboardIQ</span>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/login">

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ExitCase } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,9 @@ import { formatDate, cn } from "@/lib/utils";
 import { DEPARTMENTS } from "@/lib/constants";
 import { FileUpload } from "@/components/shared/FileUpload";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+import { supabase } from "@/lib/supabase";
 
 export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
   const { user, isHR, isAdmin, isEmployee } = useAuth();
@@ -19,6 +22,9 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
   const { mutate: uploadAttachment } = useUploadAttachment();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'uploaded' | 'pending'>('all');
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [selectedDocInfo, setSelectedDocInfo] = useState<{title: string, category: string, date: string, status: string, by: string} | null>(null);
 
   const mandatoryDeptIds = new Set(DEPARTMENTS.filter((d) => d.isMandatory).map((d) => d.id));
   const isClearanceComplete = exitCase.tasks
@@ -33,18 +39,55 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
     toast.success(`${type === "relievingLetter" ? "Relieving Letter" : "Experience Certificate"} generated.`);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: "resignation" | "attachment") => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, type: "resignation" | "attachment") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (type === "resignation") {
-      uploadDocument({ caseId: exitCase.id, docType: "resignationLetter", fileName: file.name });
-      toast.success("Resignation letter uploaded");
-    } else {
-      uploadAttachment({ caseId: exitCase.id, fileName: file.name, actor: user?.name ?? "User" });
-      toast.success("Attachment uploaded");
+    try {
+      // 1. Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${exitCase.id}/${type}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('exit-documents')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast.error(`Upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      // 2. Get Public URL (or just save path)
+      const { data: { publicUrl } } = supabase.storage
+        .from('exit-documents')
+        .getPublicUrl(filePath);
+
+      // 3. Update DB via API
+      if (type === "resignation") {
+        uploadDocument({ caseId: exitCase.id, docType: "resignationLetter", fileName: publicUrl });
+        toast.success("Resignation letter uploaded");
+      } else {
+        uploadAttachment({ caseId: exitCase.id, fileName: file.name, actor: user?.name ?? "User" });
+        toast.success("Attachment uploaded");
+      }
+    } catch (err) {
+      toast.error("An error occurred during upload.");
+    } finally {
+      e.target.value = "";
     }
-    e.target.value = "";
+  };
+
+  const openDocument = (url?: string) => {
+    if (url && url.startsWith('http')) {
+      window.open(url, '_blank');
+    } else {
+      toast.error("Document URL not found.");
+    }
+  };
+
+  const showInfo = (doc: {title: string, category: string, date: string, status: string, by: string}) => {
+    setSelectedDocInfo(doc);
+    setInfoOpen(true);
   };
 
   return (
@@ -63,13 +106,13 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
       </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <Badge variant="outline" className="bg-[#1e2a4f] text-[#8ab4f8] border-[#3b5998]/50 px-3 py-1 text-xs hover:bg-[#273866] cursor-pointer">
-          All Documents <span className="ml-2 bg-[#0f1525] px-1.5 py-0.5 rounded text-[10px]">5</span>
+        <Badge onClick={() => setActiveTab('all')} variant="outline" className={cn("px-3 py-1 text-xs cursor-pointer transition-colors", activeTab === 'all' ? "bg-[#1e2a4f] text-[#8ab4f8] border-[#3b5998]/50 hover:bg-[#273866]" : "text-slate-400 border-white/10 hover:text-white bg-transparent")}>
+          All Documents <span className={cn("ml-2 px-1.5 py-0.5 rounded text-[10px]", activeTab === 'all' ? "bg-[#0f1525]" : "bg-white/10")}>3</span>
         </Badge>
-        <Badge variant="outline" className="text-slate-400 border-white/10 px-3 py-1 text-xs hover:text-white cursor-pointer bg-transparent">
-          Uploaded By Me <span className="ml-2 bg-white/10 px-1.5 py-0.5 rounded text-[10px]">3</span>
+        <Badge onClick={() => setActiveTab('uploaded')} variant="outline" className={cn("px-3 py-1 text-xs cursor-pointer transition-colors", activeTab === 'uploaded' ? "bg-[#1e2a4f] text-[#8ab4f8] border-[#3b5998]/50 hover:bg-[#273866]" : "text-slate-400 border-white/10 hover:text-white bg-transparent")}>
+          Uploaded By Me <span className={cn("ml-2 px-1.5 py-0.5 rounded text-[10px]", activeTab === 'uploaded' ? "bg-[#0f1525]" : "bg-white/10")}>1</span>
         </Badge>
-        <Badge variant="outline" className="text-slate-400 border-white/10 px-3 py-1 text-xs hover:text-white cursor-pointer bg-transparent">
+        <Badge onClick={() => setActiveTab('pending')} variant="outline" className={cn("px-3 py-1 text-xs cursor-pointer transition-colors", activeTab === 'pending' ? "bg-[#1e2a4f] text-[#8ab4f8] border-[#3b5998]/50 hover:bg-[#273866]" : "text-slate-400 border-white/10 hover:text-white bg-transparent")}>
           Pending Release
         </Badge>
       </div>
@@ -77,9 +120,10 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
       <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileSelect(e, "resignation")} />
       <input type="file" ref={attachmentInputRef} className="hidden" onChange={(e) => handleFileSelect(e, "attachment")} />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         {/* Resignation Letter */}
+        {(activeTab === 'all' || activeTab === 'uploaded') && (
         <Card className="border border-white/5 bg-[#121927] rounded-xl flex flex-col hover:bg-[#161f30] transition-colors">
           <CardContent className="p-5 flex flex-col flex-1">
             <div className="flex justify-between items-start mb-4">
@@ -92,7 +136,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
                   <p className="text-[10px] text-slate-500 mt-0.5">PDF • 245 KB</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
+              <Button onClick={() => showInfo({title: 'Resignation Letter', category: 'Employee Upload', date: formatDate(exitCase.resignationDate), status: 'Available', by: 'You'})} variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
                 <Icons.MoreVertical className="w-4 h-4" />
               </Button>
             </div>
@@ -103,17 +147,19 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
             </div>
             
             <div className="mt-auto grid grid-cols-2 gap-3">
-              <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+              <Button onClick={() => openDocument(exitCase.documents.resignationLetter)} variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
                 <Icons.Eye className="w-3.5 h-3.5 mr-2" /> Preview
               </Button>
-              <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+              <Button onClick={() => openDocument(exitCase.documents.resignationLetter)} variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
                 <Download className="w-3.5 h-3.5 mr-2" /> Download
               </Button>
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Relieving Letter (Locked or Available) */}
+        {(activeTab === 'all' || activeTab === 'pending') && (
         <Card className={cn("border border-white/5 rounded-xl flex flex-col transition-colors", isClearanceComplete ? "bg-[#121927] hover:bg-[#161f30]" : "bg-[#1a1712]")}>
           <CardContent className="p-5 flex flex-col flex-1">
             <div className="flex justify-between items-start mb-4">
@@ -126,7 +172,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
                   {isClearanceComplete && <p className="text-[10px] text-slate-500 mt-0.5">PDF • 180 KB</p>}
                 </div>
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
+              <Button onClick={() => showInfo({title: 'Relieving Letter', category: 'System Generated', date: isClearanceComplete ? formatDate(new Date()) : 'Pending', status: isClearanceComplete ? 'Available' : 'Locked', by: 'System'})} variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
                 <Icons.MoreVertical className="w-4 h-4" />
               </Button>
             </div>
@@ -150,7 +196,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
                       <Icons.RefreshCw className="w-3.5 h-3.5 mr-2" /> Generate
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                  <Button onClick={() => openDocument(exitCase.documents.relievingLetter)} variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
                     <Download className="w-3.5 h-3.5 mr-2" /> Download
                   </Button>
                 </div>
@@ -165,8 +211,10 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Experience Certificate (Locked or Available) */}
+        {(activeTab === 'all' || activeTab === 'pending') && (
         <Card className={cn("border border-white/5 rounded-xl flex flex-col transition-colors", isClearanceComplete ? "bg-[#121927] hover:bg-[#161f30]" : "bg-[#1a1712]")}>
           <CardContent className="p-5 flex flex-col flex-1">
             <div className="flex justify-between items-start mb-4">
@@ -179,7 +227,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
                   {isClearanceComplete && <p className="text-[10px] text-slate-500 mt-0.5">PDF • 180 KB</p>}
                 </div>
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
+              <Button onClick={() => showInfo({title: 'Experience Certificate', category: 'System Generated', date: isClearanceComplete ? formatDate(new Date()) : 'Pending', status: isClearanceComplete ? 'Available' : 'Locked', by: 'System'})} variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white">
                 <Icons.MoreVertical className="w-4 h-4" />
               </Button>
             </div>
@@ -203,7 +251,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
                       <Icons.RefreshCw className="w-3.5 h-3.5 mr-2" /> Generate
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
+                  <Button onClick={() => openDocument(exitCase.documents.experienceCertificate)} variant="outline" size="sm" className="w-full bg-[#1e2a4f]/50 border-white/10 hover:bg-[#1e2a4f] text-slate-300 text-xs h-8">
                     <Download className="w-3.5 h-3.5 mr-2" /> Download
                   </Button>
                 </div>
@@ -218,8 +266,41 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
             </div>
           </CardContent>
         </Card>
+        )}
 
       </div>
+
+      <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+        <DialogContent className="sm:max-w-md bg-[#0f1525] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{selectedDocInfo?.title}</DialogTitle>
+            <DialogDescription className="text-slate-400">Document details and metadata</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between py-2 border-b border-white/5">
+              <span className="text-slate-400 text-sm">Category</span>
+              <span className="text-slate-200 text-sm font-medium">{selectedDocInfo?.category}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-white/5">
+              <span className="text-slate-400 text-sm">Status</span>
+              <span className="text-amber-400 text-sm font-medium">{selectedDocInfo?.status}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-white/5">
+              <span className="text-slate-400 text-sm">Uploaded / Generated</span>
+              <span className="text-slate-200 text-sm font-medium">{selectedDocInfo?.date}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-slate-400 text-sm">Actor</span>
+              <span className="text-slate-200 text-sm font-medium">{selectedDocInfo?.by}</span>
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => setInfoOpen(false)} variant="outline" className="border-white/10 hover:bg-white/5 text-white">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

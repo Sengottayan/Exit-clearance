@@ -136,5 +136,84 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data, { status: 201 });
+  // --- NEW WORKFLOW INITIALIZATION ---
+  try {
+    // 1. Fetch departments
+    const { data: depts } = await supabase.from("departments").select("*");
+    
+    // 2. Fetch checklist templates
+    const { data: templates } = await supabase.from("checklist_templates").select("*");
+
+    if (depts && depts.length > 0) {
+      const now = new Date();
+      
+      const tasksToInsert = depts.map((d: any, index: number) => {
+        // Find templates for this dept
+        const deptTemplates = (templates || []).filter((t: any) => t.dept_id === d.id);
+        
+        // Map templates to the JSON structure expected by clearance_tasks.checklist
+        const checklist = deptTemplates.map((t: any) => ({
+          id: t.id,
+          label: t.label,
+          isMandatory: t.is_mandatory,
+          checked: false,
+          hasInput: t.has_input,
+          inputLabel: t.input_label
+        }));
+
+        const slaDueAt = new Date(now.getTime() + (d.sla_hours || 24) * 60 * 60 * 1000);
+
+        return {
+          id: `t-${d.id}-${caseId}-${index}`,
+          case_id: caseId,
+          dept_id: d.id,
+          dept_label: d.label,
+          // If default_assignee is null, fallback to the manager or a system user
+          assignee_id: d.default_assignee || managerId,
+          assignee_name: d.default_assignee ? (d.label + " Admin") : managerName, // simple mock name if ID exists
+          status: "pending",
+          sla_hours: d.sla_hours || 24,
+          sla_due_at: slaDueAt.toISOString(),
+          checklist: checklist
+        };
+      });
+
+      // Insert tasks
+      const { error: tasksErr } = await supabase.from("clearance_tasks").insert(tasksToInsert);
+      if (tasksErr) console.error("Error inserting tasks:", tasksErr.message);
+    }
+
+    // 3. Insert Initial Timeline Event
+    await supabase.from("timeline_events").insert({
+      case_id: caseId,
+      actor: body.employee_name || "Employee",
+      actor_role: "employee",
+      label: "Resignation Submitted",
+      status: "pending"
+    });
+
+    // 4. Insert Audit Log
+    await supabase.from("audit_logs").insert({
+      actor: body.employee_name || "Employee",
+      role: "employee",
+      type: "Case",
+      action: "CREATED",
+      entity: caseId,
+      details: "Employee submitted resignation",
+      case_id: caseId
+    });
+
+  } catch (err) {
+    console.error("[POST /api/cases] Workflow initialization error:", err);
+    // Non-fatal, return the case anyway
+  }
+
+  // Fetch the fully initialized case to return
+  const { data: finalCase } = await supabase
+    .from("exit_cases")
+    .select("*, clearance_tasks(*), timeline_events(*), exit_interviews(*)")
+    .eq("id", caseId)
+    .single();
+
+  return NextResponse.json(finalCase || data, { status: 201 });
 }
