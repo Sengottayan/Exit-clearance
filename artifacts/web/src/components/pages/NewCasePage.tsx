@@ -19,7 +19,6 @@ import {
   Lock,
   User,
   Briefcase,
-  FileText,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -29,7 +28,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { MOCK_USERS, DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
-import { buildClearanceTasks, getManagerForEmployee } from "@/lib/workflow";
+import { getManagerForEmployee } from "@/lib/workflow";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Badge } from "@/components/ui/badge";
 import { useCreateCase } from "@/hooks/api/useCases";
@@ -99,9 +98,6 @@ export default function NewCasePage() {
       return;
     }
 
-    const manager = getManagerForEmployee(selectedUser.dept);
-    
-    // Aggregate assets notes to save in notes
     const assetSummary = [
       hasLaptop ? `Laptop: Yes (Serial: ${laptopSerial})` : "Laptop: No",
       hasPhone ? `Phone: Yes (Model: ${phoneModel})` : "Phone: No",
@@ -137,9 +133,9 @@ export default function NewCasePage() {
 
       {/* Stepper Wizard Indicator */}
       <div className="mb-10 relative px-4">
-        <div className="absolute left-6 right-6 top-[22px] h-1 bg-muted/60 rounded-full overflow-hidden">
+        <div className="absolute left-6 right-6 top-[22px] h-1 bg-muted/65 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+            className="h-full bg-gradient-to-r from-primary to-indigo-600 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(59,130,246,0.35)]"
             style={{ width: `${((step - 1) / 4) * 100}%` }}
           />
         </div>
@@ -156,7 +152,7 @@ export default function NewCasePage() {
                 className={cn(
                   "w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-xs transition-all duration-300 ring-4 ring-background cursor-pointer",
                   step > i ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-100" : 
-                  step === i ? "bg-primary text-primary-foreground ring-primary/25 scale-110 shadow-xl shadow-primary/25" : 
+                  step === i ? "bg-gradient-to-br from-primary to-indigo-600 text-white ring-primary/25 scale-110 shadow-xl shadow-primary/25" : 
                   "bg-muted/80 text-muted-foreground scale-95 hover:bg-muted"
                 )}
               >
@@ -174,9 +170,9 @@ export default function NewCasePage() {
       </div>
 
       {/* Main Wizard Form Card */}
-      <Card className="border-border/60 bg-card shadow-premium relative overflow-hidden">
+      <Card className="border-border/50 bg-card shadow-premium relative overflow-hidden rounded-2xl">
         {/* Autosave header tag */}
-        <div className="absolute top-4 right-6 flex items-center gap-1.5 text-[10px] text-muted-foreground/75 font-semibold bg-muted/60 px-2 py-0.5 rounded-full border border-border/50">
+        <div className="absolute top-4.5 right-6 flex items-center gap-1.5 text-[9px] text-muted-foreground/85 font-extrabold bg-muted/65 px-3 py-1 rounded-full border border-border/40">
           <Clock className="w-3.5 h-3.5 text-emerald-500 animate-pulse-soft" />
           <span>Draft Saved at {saveTime}</span>
         </div>
@@ -186,32 +182,32 @@ export default function NewCasePage() {
           <>
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-extrabold tracking-tight">Select Employee</CardTitle>
-              <CardDescription className="text-xs">Find and select the employee initiating offboarding.</CardDescription>
+              <CardDescription className="text-xs font-semibold">Find and select the employee initiating offboarding.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-2">
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/80" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                 <Input 
                   placeholder="Search by name, ID, or email..." 
-                  className="pl-10 h-10 w-full bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-primary/25 rounded-xl font-medium text-xs"
+                  className="pl-10 h-11 w-full bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-primary/25 rounded-xl font-semibold text-xs"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <div className="border rounded-xl divide-y divide-border/40 max-h-[260px] overflow-y-auto bg-background/30">
+              <div className="border border-border/60 rounded-xl divide-y divide-border/30 max-h-[260px] overflow-y-auto bg-background/20">
                 {searchResults.map(u => (
                   <div 
                     key={u.id}
                     onClick={() => setSelectedUser(u)}
                     className={cn(
-                      "flex items-center gap-4 p-3.5 cursor-pointer transition-colors duration-200",
-                      selectedUser?.id === u.id ? "bg-primary/[0.04]" : "hover:bg-muted/30"
+                      "flex items-center gap-4 p-3.5 cursor-pointer transition-all duration-300",
+                      selectedUser?.id === u.id ? "bg-primary/[0.03] border-l-2 border-l-primary" : "hover:bg-muted/30"
                     )}
                   >
-                    <UserAvatar name={u.name} className="w-9 h-9 border" />
+                    <UserAvatar name={u.name} className="w-9 h-9 border border-background shadow-sm" />
                     <div className="flex-1">
                       <p className="font-bold text-xs text-foreground leading-none">{u.name}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1 font-semibold">{u.role} · {u.dept}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1.5 font-bold">{u.role.toUpperCase()} · {u.dept}</p>
                     </div>
                     <div className="text-[10px] font-mono font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border/50">
                       {u.employeeId}
@@ -219,7 +215,7 @@ export default function NewCasePage() {
                   </div>
                 ))}
                 {searchResults.length === 0 && (
-                  <div className="p-8 text-center text-xs text-muted-foreground">No employees found matching query.</div>
+                  <div className="p-8 text-center text-xs text-muted-foreground font-semibold">No employees found matching query.</div>
                 )}
               </div>
             </CardContent>
@@ -241,13 +237,13 @@ export default function NewCasePage() {
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
-                        className={cn("w-full justify-start text-left font-semibold text-xs h-10 rounded-xl border-border/60 bg-background", !lwd && "text-muted-foreground")}
+                        className={cn("w-full justify-start text-left font-bold text-xs h-11 rounded-xl border-border/60 bg-background", !lwd && "text-muted-foreground")}
                       >
                         {lwd ? format(lwd, "PPP") : <span>Pick exit date</span>}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 rounded-xl shadow-premium border-border/40" align="start">
                       <Calendar
                         mode="single"
                         selected={lwd}
@@ -257,18 +253,18 @@ export default function NewCasePage() {
                     </PopoverContent>
                   </Popover>
 
-                  {/* Notice period warnings / compliance */}
+                  {/* Notice period warnings */}
                   {noticeDays > 0 && (
                     <div className={cn(
-                      "p-3 rounded-lg flex items-start gap-2 border text-[10px] font-semibold mt-2",
-                      noticeDays < 30 ? "bg-amber-500/5 border-amber-500/10 text-amber-600" : "bg-emerald-500/5 border-emerald-500/10 text-emerald-600"
+                      "p-3.5 rounded-xl flex items-start gap-2 border text-[10px] font-semibold mt-2.5 shadow-sm",
+                      noticeDays < 30 ? "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20" : "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20"
                     )}>
-                      {noticeDays < 30 ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+                      {noticeDays < 30 ? <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 animate-pulse-soft" /> : <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />}
                       <div>
-                        <p className="leading-none">Notice Period: {noticeDays} days</p>
+                        <p className="leading-none font-bold">Notice Period: {noticeDays} days</p>
                         {noticeDays < 30 && (
-                          <p className="text-[9px] text-amber-500/80 font-medium mt-1">
-                            Warning: Employee has short notice (standard company requirement is 30 days).
+                          <p className="text-[9px] text-amber-600/80 dark:text-amber-400 font-medium mt-1 leading-relaxed">
+                            Warning: Employee notice is short (standard company requirement is 30 days).
                           </p>
                         )}
                       </div>
@@ -279,11 +275,11 @@ export default function NewCasePage() {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-foreground/80">Exit Reason</Label>
                   <Select value={reason} onValueChange={setReason}>
-                    <SelectTrigger className="h-10 rounded-xl text-xs font-semibold bg-background border-border/60">
+                    <SelectTrigger className="h-11 rounded-xl text-xs font-semibold bg-background border-border/60">
                       <SelectValue placeholder="Select exit reason" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {EXIT_REASONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    <SelectContent className="rounded-xl border-border/40">
+                      {EXIT_REASONS.map(r => <SelectItem key={r.value} value={r.value} className="text-xs font-semibold">{r.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -295,7 +291,7 @@ export default function NewCasePage() {
                   placeholder="Leave details regarding transition schedules or compliance warnings..." 
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="resize-none h-24 rounded-xl border-border/60 text-xs font-medium bg-background"
+                  className="resize-none h-24 rounded-xl border-border/60 text-xs font-semibold bg-background focus-visible:ring-1 focus-visible:ring-primary/25"
                 />
               </div>
             </CardContent>
@@ -307,44 +303,44 @@ export default function NewCasePage() {
           <>
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-extrabold tracking-tight">Clearance Approvals Pipeline</CardTitle>
-              <CardDescription className="text-xs">Select workflow checklist template or toggle optional checkers.</CardDescription>
+              <CardDescription className="text-xs font-semibold">Select workflow checklist template or toggle optional checkers.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 {workflowTemplates.map((template) => (
                   <button
                     key={template.id}
                     type="button"
                     onClick={() => applyTemplate(template.id)}
                     className={cn(
-                      "p-4 rounded-xl border text-left transition-all duration-200",
+                      "p-4 rounded-xl border text-left transition-all duration-300 hover:shadow-soft",
                       workflowTemplateId === template.id
                         ? "border-primary bg-primary/[0.02] ring-2 ring-primary/10"
-                        : "hover:border-primary/20 hover:bg-muted/20 border-border/60",
+                        : "hover:border-primary/20 hover:bg-muted/15 border-border/60",
                     )}
                   >
-                    <p className="font-bold text-xs text-foreground">{template.name}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{template.description}</p>
+                    <p className="font-extrabold text-xs text-foreground">{template.name}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed font-semibold">{template.description}</p>
                     <p className="text-[9px] font-bold text-primary mt-3 uppercase tracking-wider">{template.deptIds.length} departments</p>
                   </button>
                 ))}
               </div>
 
-              {/* Departments checklist list toggle */}
-              <div className="space-y-0.5 divide-y divide-border/40 border border-border/60 rounded-xl bg-background/20 overflow-hidden">
+              {/* Departments checklist list */}
+              <div className="space-y-0.5 divide-y divide-border/30 border border-border/60 rounded-xl bg-background/20 overflow-hidden shadow-sm">
                 {DEPARTMENTS.map(dept => {
                   const isSelected = selectedDepts.includes(dept.id);
                   return (
                     <div key={dept.id} className="flex items-center justify-between p-3.5 hover:bg-background/40">
                       <div>
-                        <p className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        <p className="font-extrabold text-xs text-foreground flex items-center gap-1.5 leading-none">
                           {dept.label}
-                          {dept.isMandatory && <Lock className="w-3 h-3 text-muted-foreground opacity-60" />}
+                          {dept.isMandatory && <Lock className="w-3 h-3 text-muted-foreground/60" />}
                         </p>
-                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">SLA Check: {dept.slaHours} hours</p>
+                        <p className="text-[9px] text-muted-foreground font-extrabold mt-1 uppercase tracking-wider">SLA Target: {dept.slaHours} hours</p>
                       </div>
                       {dept.isMandatory ? (
-                        <Badge className="bg-secondary text-muted-foreground font-bold text-[9px] uppercase border">Mandatory</Badge>
+                        <Badge className="bg-secondary text-muted-foreground font-extrabold text-[9px] uppercase border rounded-md px-2 py-0.5">Mandatory</Badge>
                       ) : (
                         <Switch 
                           checked={isSelected}
@@ -362,17 +358,17 @@ export default function NewCasePage() {
           </>
         )}
 
-        {/* Step 4: Asset Tracking (NEW STEP) */}
+        {/* Step 4: Asset Tracking */}
         {step === 4 && (
           <>
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-extrabold tracking-tight">Corporate Asset Offboarding</CardTitle>
-              <CardDescription className="text-xs">Audit hardware and credentials allocated to this employee.</CardDescription>
+              <CardDescription className="text-xs font-semibold">Audit hardware and credentials allocated to this employee.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Laptop Card */}
-                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors", hasLaptop ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
+                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors shadow-sm bg-card", hasLaptop ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <HardDrive className="w-4 h-4 text-primary" />
@@ -382,10 +378,10 @@ export default function NewCasePage() {
                   </div>
                   {hasLaptop && (
                     <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Label className="text-[10px] font-bold text-muted-foreground">Serial / Asset Tag</Label>
+                      <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Serial / Asset Tag</Label>
                       <Input
                         placeholder="e.g. MAC-PRO-2025-09"
-                        className="h-8 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
+                        className="h-8.5 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
                         value={laptopSerial}
                         onChange={e => setLaptopSerial(e.target.value)}
                       />
@@ -394,7 +390,7 @@ export default function NewCasePage() {
                 </div>
 
                 {/* Phone Card */}
-                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors", hasPhone ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
+                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors shadow-sm bg-card", hasPhone ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <User className="w-4 h-4 text-primary" />
@@ -404,10 +400,10 @@ export default function NewCasePage() {
                   </div>
                   {hasPhone && (
                     <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Label className="text-[10px] font-bold text-muted-foreground">Phone Model & Number</Label>
+                      <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Phone Model & Number</Label>
                       <Input
                         placeholder="e.g. iPhone 15 Pro Max"
-                        className="h-8 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
+                        className="h-8.5 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
                         value={phoneModel}
                         onChange={e => setPhoneModel(e.target.value)}
                       />
@@ -416,20 +412,20 @@ export default function NewCasePage() {
                 </div>
 
                 {/* Security Badge Card */}
-                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors", hasBadge ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
+                <div className={cn("p-4 border rounded-xl space-y-3 transition-colors shadow-sm bg-card", hasBadge ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <ShieldCheck className="w-4 h-4 text-primary" />
-                      <span>Security Access Badge</span>
+                      <span>Access Badge</span>
                     </span>
                     <Switch checked={hasBadge} onCheckedChange={setHasBadge} />
                   </div>
                   {hasBadge && (
                     <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Label className="text-[10px] font-bold text-muted-foreground">Badge ID Number</Label>
+                      <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Badge ID Number</Label>
                       <Input
                         placeholder="e.g. BDG-70891"
-                        className="h-8 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
+                        className="h-8.5 text-xs font-semibold rounded-lg border-border/60 mt-1 bg-background"
                         value={badgeNumber}
                         onChange={e => setBadgeNumber(e.target.value)}
                       />
@@ -438,7 +434,7 @@ export default function NewCasePage() {
                 </div>
 
                 {/* Office Keys Card */}
-                <div className={cn("p-4 border rounded-xl flex items-center justify-between transition-colors", hasKeys ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
+                <div className={cn("p-4 border rounded-xl flex items-center justify-between transition-colors shadow-sm bg-card", hasKeys ? "border-primary/20 bg-primary/[0.01]" : "border-border/60")}>
                   <span className="flex items-center gap-2 text-xs font-bold text-foreground">
                     <Key className="w-4 h-4 text-primary" />
                     <span>Office Keys</span>
@@ -446,8 +442,7 @@ export default function NewCasePage() {
                   <Switch checked={hasKeys} onCheckedChange={setHasKeys} />
                 </div>
               </div>
-
-              {/* Other Assets Info */}
+              
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-foreground/80">Other Corporate Assets / Credentials</Label>
                 <Textarea 
@@ -474,8 +469,8 @@ export default function NewCasePage() {
                   <div className="flex items-start gap-2.5">
                     <User className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Employee Profile</p>
-                      <p className="font-bold text-xs text-foreground mt-0.5">{selectedUser?.name}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Employee Profile</p>
+                      <p className="font-extrabold text-xs text-foreground mt-0.5">{selectedUser?.name}</p>
                       <p className="text-[10px] text-muted-foreground font-semibold">{selectedUser?.role} · {selectedUser?.dept}</p>
                       <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{selectedUser?.employeeId}</p>
                     </div>
@@ -483,8 +478,8 @@ export default function NewCasePage() {
                   <div className="flex items-start gap-2.5">
                     <Briefcase className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Exit Reason</p>
-                      <p className="font-bold text-xs text-foreground mt-0.5">{EXIT_REASONS.find(r => r.value === reason)?.label}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Exit Reason</p>
+                      <p className="font-extrabold text-xs text-foreground mt-0.5">{EXIT_REASONS.find(r => r.value === reason)?.label}</p>
                     </div>
                   </div>
                 </div>
@@ -493,9 +488,9 @@ export default function NewCasePage() {
                   <div className="flex items-start gap-2.5">
                     <CalendarIcon className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Offboard Dates</p>
-                      <p className="font-bold text-xs text-foreground mt-0.5">LWD: {lwd ? format(lwd, 'dd MMM yyyy') : ''}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-0.5 flex items-center gap-1">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Offboard Dates</p>
+                      <p className="font-extrabold text-xs text-foreground mt-0.5">LWD: {lwd ? format(lwd, 'dd MMM yyyy') : ''}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground mt-0.5 flex items-center gap-1.5">
                         <span>Notice period: {noticeDays} days</span>
                         {noticeDays < 30 && <Badge variant="outline" className="border-red-500/20 bg-red-500/5 text-red-600 text-[8px] py-0 px-1 font-bold animate-pulse-soft">Short Notice</Badge>}
                       </p>
@@ -504,9 +499,9 @@ export default function NewCasePage() {
                   <div className="flex items-start gap-2.5">
                     <ClipboardList className="w-4.5 h-4.5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Clearance Pipeline</p>
-                      <p className="font-bold text-xs text-foreground mt-0.5">{selectedDepts.length} Checkers Active</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5 font-medium max-w-[220px] truncate">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Clearance Pipeline</p>
+                      <p className="font-extrabold text-xs text-foreground mt-0.5">{selectedDepts.length} Checkers Active</p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5 font-semibold max-w-[220px] truncate">
                         {selectedDepts.map(id => DEPARTMENTS.find(d => d.id === id)?.label).join(", ")}
                       </p>
                     </div>
@@ -515,8 +510,8 @@ export default function NewCasePage() {
               </div>
 
               {/* Asset verification row */}
-              <div className="p-4 border border-border/60 bg-background/50 rounded-xl space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Hardware & Assets Audit</p>
+              <div className="p-4 border border-border/60 bg-background/50 rounded-xl space-y-2.5 shadow-sm">
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Hardware & Assets Audit</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                   <div className="flex items-center gap-1.5 text-xs font-semibold">
                     <CheckCircle2 className={cn("w-4 h-4", hasLaptop ? "text-primary" : "text-muted-foreground opacity-30")} />
@@ -541,7 +536,7 @@ export default function NewCasePage() {
         )}
 
         {/* Wizard Footer Controls */}
-        <CardFooter className="flex justify-between border-t border-border/40 p-5 bg-muted/10 shrink-0">
+        <CardFooter className="flex justify-between border-t border-border/40 p-5 bg-muted/10 shrink-0 rounded-b-2xl">
           <Button
             variant="ghost"
             onClick={handlePrev}

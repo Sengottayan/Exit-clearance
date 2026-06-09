@@ -10,58 +10,77 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 import { GlobalLoading } from "@/components/shared/GlobalLoading";
 import { useEffect } from "react";
 import type { Role } from "@/lib/types";
-
-function FeatureCard({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-start gap-4 group">
-      <div className="w-10 h-10 rounded-lg bg-sidebar-accent border border-sidebar-border flex items-center justify-center shrink-0 shadow-sm mt-1 group-hover:scale-110 group-hover:border-primary/30 transition-all duration-300">
-        <Icon className="w-5 h-5 text-primary" />
-      </div>
-      <div>
-        <h3 className="text-lg font-medium text-white mb-1">{title}</h3>
-        <p className="text-sm text-sidebar-foreground/70 leading-relaxed">{description}</p>
-      </div>
-    </div>
-  );
-}
+import { cn } from "@/lib/utils";
 
 function LeftPanel() {
   return (
-    <div className="hidden md:flex flex-col w-[45%] bg-sidebar text-sidebar-foreground p-12 justify-between relative overflow-hidden">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:32px_32px] opacity-20 pointer-events-none" />
-      <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-primary/15 blur-[120px] pointer-events-none animate-pulse-soft" />
-      <div className="absolute -bottom-20 -left-20 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[100px] pointer-events-none" />
+    <div className="hidden md:flex flex-col w-[45%] bg-sidebar text-sidebar-foreground p-12 justify-between relative overflow-hidden border-r border-sidebar-border/30">
+      {/* Decorative grids and glows */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[120px] pointer-events-none animate-pulse-glow" />
+      <div className="absolute bottom-10 right-10 w-[300px] h-[300px] rounded-full bg-indigo-500/10 blur-[100px] pointer-events-none" />
 
       <div className="relative z-10 animate-slide-up">
-        <Link href="/" className="flex items-center gap-3 text-sidebar-foreground hover:text-white transition-colors w-fit">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center shadow-sm">
-            <Box className="w-5 h-5 text-primary-foreground" />
+        <Link href="/" className="flex items-center gap-3 text-sidebar-foreground hover:text-white transition-colors w-fit group">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+            <Box className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-2xl tracking-tight">ExitFlow</span>
+          <span className="font-extrabold text-2xl tracking-tight text-white">ExitFlow</span>
         </Link>
       </div>
 
-      <div className="space-y-12 relative z-10 max-w-md animate-slide-up" style={{ animationDelay: "150ms" }}>
-        <h2 className="text-4xl lg:text-5xl font-semibold leading-tight tracking-tight text-white">
-          Enterprise exit management,{" "}
-          <span className="text-primary-foreground/60 italic">refined.</span>
-        </h2>
-        <div className="space-y-8">
-          <FeatureCard icon={ShieldCheck} title="Secure Architecture" description="Role-based access controls with strict compartmentalization and SOC2 compliance readiness." />
-          <FeatureCard icon={Zap} title="Algorithmic SLAs" description="Automated escalation routing prevents procedural bottlenecks before they occur." />
-          <FeatureCard icon={Layers} title="Immutable Ledger" description="Comprehensive audit trails recording every approval, rejection, and document generation." />
+      {/* Interactive Clearance Funnel Visualizer */}
+      <div className="relative z-10 flex flex-col justify-center my-8 flex-1 max-w-sm w-full mx-auto space-y-8 animate-slide-up" style={{ animationDelay: "100ms" }}>
+        <div className="space-y-3">
+          <h2 className="text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight text-white">
+            Enterprise exit <br />
+            management, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 font-normal italic">refined.</span>
+          </h2>
+          <p className="text-xs text-sidebar-foreground/50 leading-relaxed font-semibold uppercase tracking-wider">
+            Automating clearances, assets & SLAs
+          </p>
+        </div>
+
+        {/* Visual funnel board */}
+        <div className="glass-card border border-white/5 rounded-2xl p-5 shadow-2xl relative overflow-hidden bg-white/[0.02] backdrop-blur-md">
+          <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+            <span className="text-[10px] font-bold tracking-widest text-primary uppercase">Clearance Pipeline</span>
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: 'IT Infrastructure', role: 'Hardware & Access', status: 'done', pct: '100%' },
+              { label: 'Finance & Accounts', role: 'Full & Final Settlement', status: 'active', pct: '60%' },
+              { label: 'Human Resources', role: 'Relieving & NDA Signoff', status: 'pending', pct: '0%' }
+            ].map((node, i) => (
+              <div key={node.label} className={cn("p-3 rounded-xl border flex items-center justify-between transition-all duration-300", 
+                node.status === 'done' ? 'bg-white/[0.01] border-white/[0.03] opacity-60' :
+                node.status === 'active' ? 'bg-primary/5 border-primary/20 shadow-sm border-primary/30' :
+                'bg-transparent border-white/[0.02] opacity-40'
+              )}>
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px]",
+                    node.status === 'done' ? 'bg-emerald-500/10 text-emerald-400' :
+                    node.status === 'active' ? 'bg-primary text-white shadow-sm' :
+                    'bg-white/5 text-white/50'
+                  )}>
+                    {node.status === 'done' ? '✓' : i + 1}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white leading-none">{node.label}</p>
+                    <p className="text-[9px] text-white/40 mt-1 font-medium">{node.role}</p>
+                  </div>
+                </div>
+                <div className="text-[10px] font-mono font-bold text-white/60">
+                  {node.pct}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="text-sm text-sidebar-foreground/50 font-mono relative z-10 animate-fade-in">
+      <div className="text-[10px] text-sidebar-foreground/35 font-mono relative z-10 animate-fade-in">
         v2.4.0-stable // {new Date().getFullYear()} ExitFlow Systems
       </div>
     </div>
@@ -87,87 +106,75 @@ function mapClerkRole(clerkRole: string | null): Role {
 
 const clerkAppearance = {
   variables: {
-    colorPrimary: "hsl(215, 90%, 55%)",
+    colorPrimary: "hsl(221.2, 83.2%, 53.3%)",
     colorBackground: "#ffffff",
     colorText: "#0f172a",
     colorTextSecondary: "#64748b",
-    colorInputBackground: "#e2e8f0",
+    colorInputBackground: "#f8fafc",
     colorInputText: "#0f172a",
-    colorDanger: "hsl(350, 89%, 60%)",
+    colorDanger: "hsl(346.8, 77.2%, 49.8%)",
     colorSuccess: "#059669",
   },
   elements: {
     card: {
       background: "#ffffff",
       border: "1px solid #e2e8f0",
-      boxShadow: "0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
-      padding: "2rem",
-      borderRadius: "1rem",
+      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)",
+      padding: "2.5rem",
+      borderRadius: "1.25rem",
     },
     headerTitle: {
       color: "#0f172a",
-      fontWeight: "700",
-      fontSize: "1.25rem",
+      fontWeight: "800",
+      fontSize: "1.5rem",
+      letterSpacing: "-0.02em",
     },
     headerSubtitle: {
       color: "#64748b",
+      fontSize: "0.875rem",
     },
     formFieldLabel: {
       color: "#1e293b",
-      fontWeight: "600",
-      fontSize: "0.8125rem",
+      fontWeight: "700",
+      fontSize: "0.8rem",
     },
     formFieldInput: {
-      border: "1.5px solid #94a3b8",
-      borderRadius: "0.5rem",
+      border: "1.5px solid #e2e8f0",
+      borderRadius: "0.75rem",
       fontSize: "0.875rem",
       padding: "0.75rem 0.875rem",
-      background: "#e2e8f0",
+      background: "#f8fafc",
       color: "#0f172a",
-      caretColor: "#0f172a",
-      boxShadow: "none",
-      outline: "none",
-    },
-    formFieldInput__password: {
-      paddingRight: "2.5rem",
-    },
-    formFieldInput__code: {
-      background: "#e2e8f0",
-      color: "#0f172a",
-      caretColor: "#0f172a",
-      fontVariantNumeric: "tabular-nums",
-      letterSpacing: "0.12em",
-    },
-    socialButtons: {
-      display: "none",
-    },
-    socialButtonsProviderButton: {
-      display: "none",
+      transition: "all 0.2s ease",
+      "&:focus": {
+        borderColor: "hsl(221.2, 83.2%, 53.3%)",
+        background: "#ffffff",
+      }
     },
     formButtonPrimary: {
-      borderRadius: "0.5rem",
+      borderRadius: "0.75rem",
       fontSize: "0.875rem",
-      fontWeight: "600",
-      padding: "0.75rem 1rem",
-      background: "hsl(215, 90%, 55%)",
+      fontWeight: "700",
+      padding: "0.875rem 1rem",
+      background: "hsl(221.2, 83.2%, 53.3%)",
       color: "#ffffff",
-      boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
+      boxShadow: "0 4px 12px rgba(37, 99, 235, 0.15)",
+      transition: "all 0.2s ease",
+      "&:hover": {
+        background: "hsl(221.2, 83.2%, 48%)",
+      }
     },
     dividerLine: { background: "#e2e8f0" },
     dividerText: { color: "#94a3b8", fontSize: "0.75rem" },
-    footerActionLink: { color: "hsl(215, 90%, 55%)", fontWeight: "600" },
+    footerActionLink: { color: "hsl(221.2, 83.2%, 53.3%)", fontWeight: "700" },
     footerActionText: { color: "#64748b" },
-    formFieldErrorText: { color: "hsl(350, 89%, 60%)" },
+    formFieldErrorText: { color: "hsl(346.8, 77.2%, 49.8%)" },
     formFieldSuccessText: { color: "#059669" },
     developmentModeWarning: { display: "none" },
     badge: { display: "none" },
     devModeWarning: { display: "none" },
     footer: { display: "none" },
     rootBox: { width: "100%" },
-    formFieldInputShowPasswordButton: {
-      color: "#64748b",
-      right: "0.75rem",
-    },
   },
 } as const;
 
@@ -200,15 +207,15 @@ function ClerkAuthPanel() {
   return (
     <div className="w-full max-w-[400px] mx-auto space-y-6 animate-slide-up" style={{ animationDelay: "200ms" }}>
       <div className="md:hidden flex items-center gap-3 mb-8">
-        <div className="w-8 h-8 rounded-md bg-foreground flex items-center justify-center shadow-sm">
+        <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center shadow-sm">
           <Box className="w-5 h-5 text-background" />
         </div>
-        <span className="font-bold text-2xl tracking-tight">ExitFlow</span>
+        <span className="font-extrabold text-2xl tracking-tight">ExitFlow</span>
       </div>
 
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome back</h1>
-        <p className="text-muted-foreground text-sm">
+      <div className="space-y-2 text-center md:text-left">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Welcome back</h1>
+        <p className="text-muted-foreground text-sm font-medium">
           Sign in to manage employee exit clearances.
         </p>
       </div>
@@ -245,52 +252,52 @@ function DevAuthPanel() {
   ].filter(Boolean) as typeof MOCK_USERS;
 
   return (
-    <div className="w-full max-w-[400px] mx-auto space-y-6 animate-slide-up" style={{ animationDelay: "200ms" }}>
+    <div className="w-full max-w-[420px] mx-auto space-y-6 animate-slide-up" style={{ animationDelay: "200ms" }}>
       <div className="md:hidden flex items-center gap-3 mb-8">
-        <div className="w-8 h-8 rounded-md bg-foreground flex items-center justify-center shadow-sm">
+        <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center shadow-sm">
           <Box className="w-5 h-5 text-background" />
         </div>
-        <span className="font-bold text-2xl tracking-tight">ExitFlow</span>
+        <span className="font-extrabold text-2xl tracking-tight">ExitFlow</span>
       </div>
 
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Platform Access</h1>
-        <p className="text-muted-foreground text-sm">
-          Select a demo role to explore the platform.
+      <div className="space-y-2 text-center md:text-left">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Platform Access</h1>
+        <p className="text-muted-foreground text-sm font-medium">
+          Select a demo role to explore the offboarding workflows.
         </p>
       </div>
 
-      <div className="relative py-4">
+      <div className="relative py-2">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border/60" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-4 text-muted-foreground font-medium flex items-center gap-2">
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 font-mono text-[10px] uppercase tracking-wider rounded-sm px-1.5 py-0">
+          <span className="bg-card px-4 text-muted-foreground font-semibold flex items-center gap-2">
+            <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-mono text-[9px] uppercase tracking-wider rounded-md px-2 py-0.5 border border-blue-200/40">
               Demo Sandbox
             </Badge>
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {demoUsers.map((u, i) => (
           <button
             key={u.id}
             type="button"
             onClick={() => handleDemoLogin(u.id)}
-            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary hover:border-border transition-all text-left group animate-slide-up"
-            style={{ animationDelay: `${300 + i * 50}ms` }}
+            className="flex items-center gap-3.5 p-3.5 rounded-xl border border-border/70 bg-card hover:bg-secondary/40 hover:border-primary/45 transition-all duration-300 text-left group animate-slide-up hover:shadow-soft"
+            style={{ animationDelay: `${250 + i * 40}ms` }}
             data-testid={`demo-login-${u.role}`}
           >
-            <UserAvatar name={u.name} className="w-9 h-9 border border-background shadow-sm group-hover:scale-105 transition-transform" />
+            <UserAvatar name={u.name} className="w-9 h-9 border border-background shadow-sm group-hover:scale-105 transition-transform duration-300 shrink-0" />
             <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-semibold tracking-tight truncate text-foreground group-hover:text-primary transition-colors">
+              <span className="text-xs font-extrabold tracking-tight truncate text-foreground group-hover:text-primary transition-colors">
                 {ROLE_LABELS[u.role] || u.role}
               </span>
-              <span className="text-xs text-muted-foreground truncate">{u.name}</span>
+              <span className="text-[11px] text-muted-foreground truncate font-medium mt-0.5">{u.name}</span>
             </div>
-            <ArrowRight className="w-4 h-4 ml-auto text-muted-foreground/0 group-hover:text-muted-foreground transition-all -translate-x-2 group-hover:translate-x-0" />
+            <ArrowRight className="w-4 h-4 ml-auto text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-all -translate-x-2 group-hover:translate-x-0" />
           </button>
         ))}
       </div>
@@ -306,7 +313,7 @@ export default function LoginPage({
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background animate-in fade-in duration-500">
       <LeftPanel />
-      <div className="flex-1 flex flex-col justify-center p-6 md:p-12 lg:p-24 overflow-y-auto bg-card shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.1)] z-20">
+      <div className="flex-1 flex flex-col justify-center p-6 md:p-12 lg:p-24 overflow-y-auto bg-card shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.02)] z-20">
         {clerkConfigured ? <ClerkAuthPanel /> : <DevAuthPanel />}
       </div>
     </div>

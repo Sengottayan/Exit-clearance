@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlertTriangle, CalendarIcon, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarIcon, ExternalLink, ShieldAlert, FileText, CheckCircle2, ArrowRight } from "lucide-react";
 import { differenceInCalendarDays, format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -53,33 +53,34 @@ export default function ResignPage() {
 
   if (!isEmployee) return <Redirect to="/dashboard" />;
   if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
+  
   if (activeCase) {
     return (
-      <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
         <PageHeader
           title="Submit Resignation"
           breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Resign" }]}
         />
 
-        <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/10">
+        <Card className="border-amber-200 dark:border-amber-500/25 bg-amber-50/50 dark:bg-amber-500/10 rounded-2xl shadow-premium">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
-              <AlertTriangle className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100 font-extrabold text-base">
+              <AlertTriangle className="h-5 w-5 text-amber-600 animate-pulse-soft" />
               Exit Process Already Active
             </CardTitle>
-            <CardDescription className="text-amber-800/90 dark:text-amber-100/80">
-              You already have an active exit case in progress. Open the case to track approvals and clearance updates instead of creating a duplicate request.
+            <CardDescription className="text-amber-800/90 dark:text-amber-100/80 font-medium text-xs leading-relaxed mt-1">
+              You already have an active exit case in progress. Open the case to track approvals, timelines, and clearance updates instead of creating a duplicate request.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
+          <CardContent className="flex flex-wrap gap-3 pt-2">
             <Link href={`/cases/${activeCase.id}`}>
-              <Button>
+              <Button className="bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl shadow-md">
                 <ExternalLink className="mr-2 h-4 w-4" />
                 View Active Case
               </Button>
             </Link>
             <Link href="/dashboard">
-              <Button variant="outline">Back to Dashboard</Button>
+              <Button variant="outline" className="font-bold text-xs rounded-xl shadow-sm">Back to Dashboard</Button>
             </Link>
           </CardContent>
         </Card>
@@ -117,17 +118,52 @@ export default function ResignPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       <PageHeader 
         title="Submit Resignation" 
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Resign" }]}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Side: Notice & Offboarding Policies (FAQ) */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-premium rounded-2xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-foreground/80 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-primary" />
+                <span>Notice Guidelines</span>
+              </CardTitle>
+              <CardDescription className="text-[10px] font-semibold">Standard corporate departure regulations.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5 text-xs text-muted-foreground font-semibold leading-relaxed">
+              <div className="space-y-1">
+                <p className="text-foreground font-bold">Standard Notice Requirement</p>
+                <p className="text-[11px]">Your department requires a standard notice period of <strong>30 days</strong>. Selecting a date with less notice requires explicit manager overrides.</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-foreground font-bold">Clearance Workflow</p>
+                <p className="text-[11px]">Upon manager approval, clearances will be initiated across IT, Security, Finance, and HR. You can track approvals live on your dashboard.</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-foreground font-bold">Asset Handover</p>
+                <p className="text-[11px]">All corporate equipment (laptop, phones, access badges) must be returned prior to your last working day to receive final HR relieving documents.</p>
+              </div>
+              {latestCase && (
+                <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 mt-2">
+                  <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Most Recent Case</div>
+                  <div className="mt-1 font-bold text-foreground text-xs">{latestCase.id}</div>
+                  <div className="mt-0.5 text-[10px] text-muted-foreground/80 uppercase font-bold">{latestCase.status.replace("_", " ")}</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Side: Resignation Submission Form */}
+        <Card className="lg:col-span-2 border-border/50 bg-card shadow-premium rounded-2xl">
           <CardHeader>
-            <CardTitle>Resignation Details</CardTitle>
-            <CardDescription>Initiate your exit process. Your manager will be notified for approval.</CardDescription>
+            <CardTitle className="text-base font-extrabold tracking-tight">Resignation Details</CardTitle>
+            <CardDescription className="text-xs font-semibold">Initiate your formal exit process. Your reporting manager will be notified immediately for initial review and signoff.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -138,23 +174,23 @@ export default function ResignPage() {
                     name="lastWorkingDay"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Proposed Last Working Day</FormLabel>
+                        <FormLabel className="text-xs font-bold text-foreground/80">Proposed Last Working Day</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  "h-11 w-full justify-start rounded-xl border-border/60 bg-background font-medium",
+                                  "h-11 w-full justify-start rounded-xl border-border/60 bg-background font-bold text-xs transition-colors",
                                   !field.value && "text-muted-foreground",
                                 )}
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4 opacity-70" />
-                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                {field.value ? format(field.value, "PPP") : <span>Select last day</span>}
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 rounded-xl" align="start">
+                          <PopoverContent className="w-auto p-0 rounded-xl shadow-premium border-border/40" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -165,15 +201,15 @@ export default function ResignPage() {
                             />
                           </PopoverContent>
                         </Popover>
-                        <FormDescription className="flex items-center gap-2">
-                          <span>Select a date after today.</span>
+                        <FormDescription className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-semibold text-muted-foreground/80">Select a future date.</span>
                           {noticeDays > 0 && (
-                            <Badge variant="secondary" className={cn("font-semibold", noticeDays < 30 && "bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200")}>
+                            <Badge variant="secondary" className={cn("font-bold text-[9px] px-1.5 py-0 border", noticeDays < 30 ? "bg-amber-50 text-amber-700 border-amber-200/50" : "bg-primary/5 text-primary border-primary/20")}>
                               Notice: {noticeDays} days
                             </Badge>
                           )}
                         </FormDescription>
-                        <FormMessage />
+                        <FormMessage className="text-[10px]" />
                       </FormItem>
                     )}
                   />
@@ -183,20 +219,20 @@ export default function ResignPage() {
                     name="reason"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Primary Reason for Exit</FormLabel>
+                        <FormLabel className="text-xs font-bold text-foreground/80">Primary Reason for Exit</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="h-11 rounded-xl border-border/60 bg-background">
-                              <SelectValue placeholder="Select a reason" />
+                            <SelectTrigger className="h-11 rounded-xl border-border/60 bg-background font-semibold text-xs transition-colors">
+                              <SelectValue placeholder="Select exit reason" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="rounded-xl border-border/40">
                             {EXIT_REASONS.map((r) => (
-                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                              <SelectItem key={r.value} value={r.value} className="text-xs font-semibold">{r.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[10px]" />
                       </FormItem>
                     )}
                   />
@@ -207,16 +243,16 @@ export default function ResignPage() {
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Resignation Note</FormLabel>
+                      <FormLabel className="text-xs font-bold text-foreground/80">Resignation Note</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Share context for your manager (handover plan, dates, etc.)"
-                          className="resize-none min-h-[120px] rounded-xl border-border/60 bg-background"
+                          placeholder="Provide context regarding transition files, active project handovers, or other relevant items..."
+                          className="resize-none min-h-[110px] rounded-xl border-border/60 bg-background text-xs font-semibold focus-visible:ring-1 focus-visible:ring-primary/25 focus-visible:border-primary/50"
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>Optional. Keep it professional and concise.</FormDescription>
-                      <FormMessage />
+                      <FormDescription className="text-[10px]">Optional. Keep notes concise and professional.</FormDescription>
+                      <FormMessage className="text-[10px]" />
                     </FormItem>
                   )}
                 />
@@ -225,63 +261,35 @@ export default function ResignPage() {
                   control={form.control}
                   name="acknowledged"
                   render={({ field }) => (
-                    <FormItem className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <FormItem className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
                       <div className="flex flex-row items-start space-x-3">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5 rounded-md" />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel className="font-semibold text-foreground">
-                            I understand this action cannot be undone
+                          <FormLabel className="font-bold text-xs text-foreground">
+                            I understand this action is formal and initiates clearances
                           </FormLabel>
-                          <FormDescription>
-                            Submitting triggers the formal clearance workflow and notifications.
+                          <FormDescription className="text-[10px] font-semibold leading-relaxed mt-0.5">
+                            Submitting this request triggers formal notice period tracking, sets offboarding timelines, and schedules checklists across departments.
                           </FormDescription>
                         </div>
                       </div>
-                      <FormMessage className="mt-2" />
+                      <FormMessage className="mt-2 text-[10px]" />
                     </FormItem>
                   )}
                 />
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-border/60">
+                <div className="flex justify-end gap-3 pt-4.5 border-t border-border/40">
                   <Link href="/dashboard">
-                    <Button variant="ghost" type="button">Cancel</Button>
+                    <Button variant="ghost" type="button" className="font-bold text-xs rounded-xl shadow-none">Cancel</Button>
                   </Link>
-                  <Button type="submit" disabled={!form.formState.isValid || isSubmitting}>
+                  <Button type="submit" disabled={!form.formState.isValid || isSubmitting} className="font-bold text-xs rounded-xl bg-primary text-white shadow-md shadow-primary/10 px-5 h-10">
                     {isSubmitting ? "Submitting..." : "Submit Resignation"}
                   </Button>
                 </div>
               </form>
             </Form>
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
-            <CardDescription>Review before submitting.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Employee</span>
-              <span className="font-semibold text-foreground truncate">{user?.name}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Department</span>
-              <span className="font-semibold text-foreground truncate">{user?.dept || "—"}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Notice</span>
-              <span className="font-semibold text-foreground">{noticeDays > 0 ? `${noticeDays} days` : "—"}</span>
-            </div>
-            {latestCase && (
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Most Recent Case</div>
-                <div className="mt-1 font-semibold text-foreground">{latestCase.id}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{latestCase.status.replace("_", " ")}</div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -290,7 +298,7 @@ export default function ResignPage() {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Confirm Resignation Submission"
-        description="Are you absolutely sure you want to submit your resignation? This will initiate the formal exit clearance process."
+        description="Are you absolutely sure you want to submit your resignation? This will notify your manager and initiate the formal offboarding workflow."
         confirmLabel="Yes, Submit Resignation"
         variant="destructive"
         onConfirm={onConfirm}

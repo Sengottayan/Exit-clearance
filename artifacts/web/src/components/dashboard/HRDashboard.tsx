@@ -14,7 +14,6 @@ import {
   Sparkles,
   Zap,
   FileSpreadsheet,
-  FileCheck,
   History,
   Activity,
 } from "lucide-react";
@@ -87,25 +86,26 @@ export function HRDashboard() {
 
   return (
     <div className="space-y-8 animate-slide-up pb-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 p-6 md:p-8 text-white shadow-xl shadow-slate-950/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl -translate-y-12 translate-x-12" />
+      {/* Premium Hero card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800/80 p-6 md:p-8 text-white shadow-xl shadow-slate-950/20">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl -translate-y-12 translate-x-12 animate-pulse-glow" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold text-primary tracking-widest uppercase bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full">
+          <div className="space-y-3">
+            <span className="text-[10px] font-extrabold text-primary tracking-widest uppercase bg-primary/10 border border-primary/25 px-3 py-1 rounded-full">
               System Insights
             </span>
             <h1 className="text-3xl font-extrabold tracking-tight">HR Control Center</h1>
-            <p className="text-slate-300 text-sm max-w-xl font-medium">
+            <p className="text-slate-300 text-xs md:text-sm max-w-xl font-semibold leading-relaxed">
               Welcome back. Today is {format(new Date(), "EEEE, d MMM yyyy")}. You have{" "}
-              <span className="text-white font-bold underline decoration-primary decoration-2">
+              <span className="text-white font-extrabold underline decoration-primary decoration-2 underline-offset-4">
                 {overview?.overdueTasks ?? 0} clearance tasks
-              </span> requiring attention.
+              </span> requiring immediate attention.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={() => setLocation("/cases/new")}
-              className="bg-primary hover:bg-primary/95 text-white shadow-md shadow-primary/15 font-semibold text-xs py-5 px-4 rounded-xl flex items-center gap-1.5"
+              className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white shadow-lg shadow-primary/10 font-bold text-xs py-5.5 px-5 rounded-xl flex items-center gap-1.5 transition-all duration-300 hover:scale-102 border-0"
             >
               <PlusCircle className="w-4 h-4" />
               Initiate Exit Case
@@ -113,7 +113,7 @@ export function HRDashboard() {
             <Button
               onClick={() => setLocation("/cases")}
               variant="outline"
-              className="bg-transparent border-slate-700 hover:bg-slate-800 text-slate-200 text-xs py-5 px-4 rounded-xl font-semibold"
+              className="bg-white/5 border-slate-800 hover:bg-white/10 hover:border-slate-700 text-slate-200 text-xs py-5.5 px-5 rounded-xl font-bold transition-all duration-300 hover:scale-102"
             >
               View Case Directory
             </Button>
@@ -123,23 +123,24 @@ export function HRDashboard() {
 
       <TooltipProvider>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 group border-border/70 hover:border-primary/30 relative overflow-hidden bg-card/60 backdrop-blur-sm">
+          {/* Active Cases Card */}
+          <Card className="shadow-premium hover:shadow-elevated transition-all duration-300 group border-border/60 hover:border-primary/45 relative overflow-hidden bg-card/50 backdrop-blur-sm glow-card rounded-2xl">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/85 leading-none">
                     Active Cases
                   </p>
-                  <h3 className="text-3xl font-extrabold tracking-tight mt-1 group-hover:text-primary transition-colors">
+                  <h3 className="text-3xl font-extrabold tracking-tight mt-2 group-hover:text-primary transition-colors duration-300">
                     {overview?.activeCases ?? 0}
                   </h3>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/10">
-                  <Users className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/10">
+                  <Users className="w-4.5 h-4.5" />
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                <div className="flex items-center gap-1.5 text-emerald-500 text-xs font-semibold">
+              <div className="flex items-center justify-between pt-3 border-t border-border/30">
+                <div className="flex items-center gap-1.5 text-emerald-500 text-xs font-bold">
                   <TrendingUp className="w-3.5 h-3.5" />
                   <span>+12%</span>
                 </div>
@@ -150,28 +151,29 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 group border-border/70 hover:border-primary/30 relative overflow-hidden bg-card/60 backdrop-blur-sm">
+          {/* Pending Approval Card */}
+          <Card className="shadow-premium hover:shadow-elevated transition-all duration-300 group border-border/60 hover:border-primary/45 relative overflow-hidden bg-card/50 backdrop-blur-sm glow-card rounded-2xl">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/85 leading-none">
                     Pending Manager
                   </p>
-                  <h3 className="text-3xl font-extrabold tracking-tight mt-1">
+                  <h3 className="text-3xl font-extrabold tracking-tight mt-2">
                     {overview?.pendingApprovals ?? 0}
                   </h3>
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="w-9 h-9 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/10 cursor-pointer">
-                      <Clock className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/10 cursor-pointer">
+                      <Clock className="w-4.5 h-4.5" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>Exits waiting manager resignation approval</TooltipContent>
+                  <TooltipContent className="font-semibold text-xs rounded-lg">Exits waiting manager resignation approval</TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                <div className="flex items-center gap-1.5 text-rose-500 text-xs font-semibold">
+              <div className="flex items-center justify-between pt-3 border-t border-border/30">
+                <div className="flex items-center gap-1.5 text-rose-500 text-xs font-bold">
                   <TrendingDown className="w-3.5 h-3.5" />
                   <span>-4%</span>
                 </div>
@@ -182,23 +184,24 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 border-red-500/20 bg-red-500/[0.02] hover:border-red-500/40 relative overflow-hidden">
+          {/* Overdue Card */}
+          <Card className="shadow-premium hover:shadow-elevated transition-all duration-300 border-red-500/20 bg-red-500/[0.02] hover:border-red-500/40 relative overflow-hidden rounded-2xl">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400 leading-none">
                     Overdue Actions
                   </p>
-                  <h3 className="text-3xl font-extrabold tracking-tight mt-1 text-red-600 dark:text-red-400">
+                  <h3 className="text-3xl font-extrabold tracking-tight mt-2 text-red-600 dark:text-red-400">
                     {overview?.overdueTasks ?? 0}
                   </h3>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm animate-pulse-soft">
-                  <AlertTriangle className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm animate-pulse-soft">
+                  <AlertTriangle className="w-4.5 h-4.5" />
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-red-500/10">
-                <span className="text-[10px] font-semibold text-red-600/70 dark:text-red-400/70 uppercase">
+              <div className="flex items-center justify-between pt-3 border-t border-red-500/10">
+                <span className="text-[9px] font-extrabold text-red-600/70 dark:text-red-400/70 uppercase tracking-wide">
                   SLA Breached
                 </span>
                 <svg className="w-16 h-6 stroke-red-600 fill-none" strokeWidth="1.5">
@@ -208,23 +211,24 @@ export function HRDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-premium hover:shadow-elevated transition-all transition-all-300 group border-border/70 hover:border-primary/30 relative overflow-hidden bg-card/60 backdrop-blur-sm">
+          {/* Completed Exits Card */}
+          <Card className="shadow-premium hover:shadow-elevated transition-all duration-300 group border-border/60 hover:border-primary/45 relative overflow-hidden bg-card/50 backdrop-blur-sm glow-card rounded-2xl">
             <CardContent className="p-5 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/85 leading-none">
                     Completed Exits
                   </p>
-                  <h3 className="text-3xl font-extrabold tracking-tight mt-1">
+                  <h3 className="text-3xl font-extrabold tracking-tight mt-2">
                     {overview?.completedThisMonth ?? 0}
                   </h3>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/10">
-                  <CheckCircle2 className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/10">
+                  <CheckCircle2 className="w-4.5 h-4.5" />
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                <div className="flex items-center gap-1.5 text-emerald-500 text-xs font-semibold">
+              <div className="flex items-center justify-between pt-3 border-t border-border/30">
+                <div className="flex items-center gap-1.5 text-emerald-500 text-xs font-bold">
                   <TrendingUp className="w-3.5 h-3.5" />
                   <span>+18%</span>
                 </div>
@@ -239,72 +243,77 @@ export function HRDashboard() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-2 space-y-8">
-          <Card className="border-border/60 bg-card/40 backdrop-blur-sm shadow-premium overflow-hidden">
-            <CardHeader className="py-4 border-b border-border/40">
+          {/* Quick Action Hub */}
+          <Card className="border-border/60 bg-card/50 backdrop-blur-sm shadow-premium overflow-hidden rounded-2xl">
+            <CardHeader className="py-4.5 border-b border-border/40 px-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4.5 h-4.5 text-primary" />
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground/80">
+                  <CardTitle className="text-xs font-extrabold uppercase tracking-widest text-foreground/80">
                     Quick Action Hub
                   </CardTitle>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-semibold">HR SHORTCUTS</span>
+                <span className="text-[9px] text-muted-foreground font-extrabold tracking-wider uppercase">HR shortcuts</span>
               </div>
             </CardHeader>
-            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Link href="/cases/new" className="group p-4 bg-background border border-border/50 hover:border-primary/40 rounded-xl transition-all duration-200 hover:shadow-soft flex flex-col justify-between min-h-[110px]">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center transition-all group-hover:scale-105">
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-background/25">
+              <Link href="/cases/new" className="group p-5 bg-card border border-border/60 hover:border-primary/45 rounded-xl transition-all duration-300 hover:shadow-soft flex flex-col justify-between min-h-[120px] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl pointer-events-none group-hover:bg-primary/10 transition-colors" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-primary group-hover:text-white shrink-0">
                   <PlusCircle className="w-4.5 h-4.5" />
                 </div>
-                <div className="mt-4 text-left">
-                  <p className="text-xs font-bold text-foreground">Initiate Exit</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Add new exit case</p>
+                <div className="mt-4 text-left relative z-10">
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">Initiate Exit</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 font-semibold leading-relaxed">Add new exit case</p>
                 </div>
               </Link>
-              <Link href="/reports" className="group p-4 bg-background border border-border/50 hover:border-primary/40 rounded-xl transition-all duration-200 hover:shadow-soft flex flex-col justify-between min-h-[110px]">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center transition-all group-hover:scale-105">
+              <Link href="/reports" className="group p-5 bg-card border border-border/60 hover:border-primary/45 rounded-xl transition-all duration-300 hover:shadow-soft flex flex-col justify-between min-h-[120px] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-emerald-500 group-hover:text-white shrink-0">
                   <FileSpreadsheet className="w-4.5 h-4.5" />
                 </div>
-                <div className="mt-4 text-left">
-                  <p className="text-xs font-bold text-foreground">Analytics Report</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Run SLA/funnel metrics</p>
+                <div className="mt-4 text-left relative z-10">
+                  <p className="text-xs font-bold text-foreground group-hover:text-emerald-600 transition-colors">Analytics Report</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 font-semibold leading-relaxed">Run SLA/funnel metrics</p>
                 </div>
               </Link>
-              <Link href="/reports/audit" className="group p-4 bg-background border border-border/50 hover:border-primary/40 rounded-xl transition-all duration-200 hover:shadow-soft flex flex-col justify-between min-h-[110px]">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center transition-all group-hover:scale-105">
+              <Link href="/reports/audit" className="group p-5 bg-card border border-border/60 hover:border-primary/45 rounded-xl transition-all duration-300 hover:shadow-soft flex flex-col justify-between min-h-[120px] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-indigo-500/10 transition-colors" />
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-50 group-hover:text-indigo-600 shrink-0">
                   <History className="w-4.5 h-4.5" />
                 </div>
-                <div className="mt-4 text-left">
-                  <p className="text-xs font-bold text-foreground">Compliance Trail</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Verify system actions</p>
+                <div className="mt-4 text-left relative z-10">
+                  <p className="text-xs font-bold text-foreground group-hover:text-indigo-600 transition-colors">Compliance Trail</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 font-semibold leading-relaxed">Verify system actions</p>
                 </div>
               </Link>
             </CardContent>
           </Card>
 
+          {/* Charts Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-premium">
-              <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-sm shadow-premium rounded-2xl">
+              <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between px-5">
                 <div>
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground/80">Exit Volume Trend</CardTitle>
-                  <CardDescription className="text-[10px] mt-0.5">Exits recorded by month</CardDescription>
+                  <CardTitle className="text-xs font-extrabold uppercase tracking-widest text-foreground/80">Exit Volume Trend</CardTitle>
+                  <CardDescription className="text-[10px] mt-0.5 font-semibold">Exits recorded by month</CardDescription>
                 </div>
-                <Calendar className="w-4 h-4 text-muted-foreground opacity-60" />
+                <Calendar className="w-4 h-4 text-muted-foreground/60" />
               </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 px-4">
                 <ExitTrendChart data={exitTrend} />
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-premium">
-              <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-sm shadow-premium rounded-2xl">
+              <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between px-5">
                 <div>
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground/80">SLA Compliance Rate</CardTitle>
-                  <CardDescription className="text-[10px] mt-0.5">Performance index</CardDescription>
+                  <CardTitle className="text-xs font-extrabold uppercase tracking-widest text-foreground/80">SLA Compliance Rate</CardTitle>
+                  <CardDescription className="text-[10px] mt-0.5 font-semibold">Performance index</CardDescription>
                 </div>
-                <Activity className="w-4 h-4 text-muted-foreground opacity-60" />
+                <Activity className="w-4 h-4 text-muted-foreground/60" />
               </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 px-4">
                 <SLAPerformanceChart data={slaPerformance} />
               </CardContent>
             </Card>
@@ -312,41 +321,42 @@ export function HRDashboard() {
         </div>
 
         <div className="space-y-8">
-          <Card className="border-red-200 dark:border-red-950/40 bg-red-500/[0.01] shadow-premium overflow-hidden flex flex-col">
+          {/* Attention list card */}
+          <Card className="border-red-200 dark:border-red-950/40 bg-red-500/[0.01] shadow-premium overflow-hidden flex flex-col rounded-2xl">
             <CardHeader className="bg-red-500/10 border-b border-red-500/10 py-4 px-5">
               <div className="flex items-center gap-2">
                 <Zap className="w-4.5 h-4.5 text-red-600 animate-pulse-soft" />
-                <CardTitle className="text-red-900 dark:text-red-400 text-xs font-bold uppercase tracking-wider">
+                <CardTitle className="text-red-950 dark:text-red-400 text-xs font-extrabold uppercase tracking-wider">
                   Needs Attention
                 </CardTitle>
               </div>
-              <CardDescription className="text-red-700/80 dark:text-red-400/80 text-[10px] mt-0.5 font-medium">
+              <CardDescription className="text-red-700/80 dark:text-red-400/85 text-[10px] mt-0.5 font-semibold">
                 {overdueTasks.length} clearances exceed standard SLA due dates
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 divide-y divide-border/40 max-h-[300px] overflow-y-auto">
+            <CardContent className="p-0 divide-y divide-border/30 max-h-[300px] overflow-y-auto bg-card/10">
               {overdueTasks.map((task: any) => (
-                <div key={task.id} className="p-4 hover:bg-muted/20 transition-all transition-all-300">
+                <div key={task.id} className="p-4.5 hover:bg-muted/15 transition-all duration-300">
                   <div className="flex justify-between items-start mb-1">
-                    <p className="font-semibold text-xs text-foreground leading-none">
+                    <p className="font-bold text-xs text-foreground leading-none">
                       {task.exit_cases?.employee_name ?? "Unknown"}
                     </p>
-                    <Badge variant="outline" className="text-[9px] uppercase font-mono px-1.5 py-0 border-red-500/20 text-red-600 bg-red-500/5">
+                    <Badge variant="outline" className="text-[9px] uppercase font-mono px-1.5 py-0 border-red-500/25 text-red-600 bg-red-500/5 rounded">
                       {task.dept_label}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground text-[10px] mt-1 font-medium">
+                  <p className="text-muted-foreground text-[10px] mt-1.5 font-semibold leading-relaxed">
                     Clearance has breached the SLA requirement.
                   </p>
-                  <div className="flex gap-2 mt-3">
-                    <Button variant="outline" size="sm" className="w-full text-[10px] h-7 border-red-200/60 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold rounded-md">
+                  <div className="flex gap-2 mt-3.5">
+                    <Button variant="outline" size="sm" className="w-full text-[10px] h-7.5 border-red-200/60 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold rounded-lg transition-colors">
                       Escalate
                     </Button>
                     <Button
                       onClick={() => setLocation("/cases")}
                       variant="secondary"
                       size="sm"
-                      className="w-full text-[10px] h-7 font-semibold rounded-md"
+                      className="w-full text-[10px] h-7.5 font-bold rounded-lg transition-colors"
                     >
                       Inspect
                     </Button>
@@ -355,41 +365,42 @@ export function HRDashboard() {
               ))}
               {overdueTasks.length === 0 && (
                 <div className="p-8 flex flex-col items-center justify-center text-center text-muted-foreground min-h-[180px]">
-                  <CheckCircle2 className="w-8 h-8 mb-2 text-emerald-500/40" />
+                  <CheckCircle2 className="w-8 h-8 mb-2.5 text-emerald-500/40" />
                   <p className="text-xs font-bold text-foreground">All clearances within SLA</p>
-                  <p className="text-[10px] mt-0.5 text-muted-foreground/80">Exits are moving on track.</p>
+                  <p className="text-[10px] mt-0.5 text-muted-foreground/80 font-semibold">Exits are moving on track.</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-premium">
-            <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground/80">Activity Timeline</CardTitle>
-              <History className="w-4 h-4 text-muted-foreground opacity-60" />
+          {/* Timeline Card */}
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-premium rounded-2xl">
+            <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between px-5">
+              <CardTitle className="text-xs font-extrabold uppercase tracking-widest text-foreground/80">Activity Timeline</CardTitle>
+              <History className="w-4 h-4 text-muted-foreground/60" />
             </CardHeader>
-            <CardContent className="pt-5 px-5">
-              <div className="relative pl-4 border-l border-border/60 space-y-6">
+            <CardContent className="pt-5 px-5 pb-5">
+              <div className="relative pl-4 border-l border-border/50 space-y-6">
                 {timelineEvents.map((event: any, idx: number) => (
-                  <div key={event.id || idx} className="relative z-10">
-                    <span className="absolute -left-[20.5px] top-1 w-3.5 h-3.5 rounded-full border-2 border-background bg-primary flex items-center justify-center shadow-sm" />
+                  <div key={event.id || idx} className="relative z-10 group">
+                    <span className="absolute -left-[20.5px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background bg-primary flex items-center justify-center shadow-sm group-hover:bg-indigo-600 transition-colors" />
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <UserAvatar name={event.actor} className="w-5 h-5 border shadow-sm shrink-0" />
-                        <span className="text-xs font-semibold text-foreground truncate max-w-[120px]">{event.actor}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono ml-auto">
+                        <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{event.actor}</span>
+                        <span className="text-[9px] text-muted-foreground/60 font-mono ml-auto font-bold">
                           {format(new Date(event.timestamp), "d MMM")}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground pl-7">{event.label}</p>
-                      <p className="text-[10px] text-muted-foreground/75 font-medium pl-7 uppercase tracking-wider">
+                      <p className="text-xs text-muted-foreground/90 pl-7 font-medium leading-relaxed">{event.label}</p>
+                      <p className="text-[9px] text-muted-foreground/50 font-bold pl-7 uppercase tracking-wider">
                         {event.employee_name} · {event.employee_dept}
                       </p>
                     </div>
                   </div>
                 ))}
                 {timelineEvents.length === 0 && (
-                  <div className="p-8 text-center text-muted-foreground text-xs">No recent activity.</div>
+                  <div className="p-8 text-center text-muted-foreground text-xs font-semibold">No recent activity.</div>
                 )}
               </div>
             </CardContent>
