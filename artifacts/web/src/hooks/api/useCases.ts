@@ -100,12 +100,15 @@ export function useCreateCase() {
       exitReason: string;
     }) => {
       try {
+        const manager = getManagerForEmployee(input.employeeDept);
         const body = {
           employee_id: input.employeeId,
           employee_name: input.employeeName,
           employee_email: input.employeeEmail,
           employee_role: input.employeeRole,
           employee_dept: input.employeeDept,
+          manager_id: manager.id,
+          manager_name: manager.name,
           resignation_date: input.resignationDate,
           last_working_day: input.lastWorkingDay,
           notice_period_days: input.noticePeriodDays,

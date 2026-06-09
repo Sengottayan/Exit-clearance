@@ -20,7 +20,7 @@ function LeftPanel() {
       <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[120px] pointer-events-none animate-pulse-glow" />
       <div className="absolute bottom-10 right-10 w-[300px] h-[300px] rounded-full bg-indigo-500/10 blur-[100px] pointer-events-none" />
 
-      <div className="relative z-10 animate-slide-up">
+      <div className="relative z-10" style={{ animation: "slide-up 0.5s cubic-bezier(0.16,1,0.3,1) both" }}>
         <Link href="/" className="flex items-center gap-3 text-sidebar-foreground hover:text-white transition-colors w-fit group">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
             <Box className="w-4 h-4 text-white" />
@@ -30,14 +30,14 @@ function LeftPanel() {
       </div>
 
       {/* Interactive Clearance Funnel Visualizer */}
-      <div className="relative z-10 flex flex-col justify-center my-8 flex-1 max-w-sm w-full mx-auto space-y-8 animate-slide-up" style={{ animationDelay: "100ms" }}>
+      <div className="relative z-10 flex flex-col justify-center my-8 flex-1 max-w-sm w-full mx-auto space-y-8" style={{ animation: "slide-up 0.6s 0.12s cubic-bezier(0.16,1,0.3,1) both" }}>
         <div className="space-y-3">
           <h2 className="text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight text-white">
             Enterprise exit <br />
             management, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 font-normal italic">refined.</span>
           </h2>
           <p className="text-xs text-sidebar-foreground/50 leading-relaxed font-semibold uppercase tracking-wider">
-            Automating clearances, assets & SLAs
+            Automating clearances, assets &amp; SLAs
           </p>
         </div>
 
@@ -53,7 +53,7 @@ function LeftPanel() {
               { label: 'Finance & Accounts', role: 'Full & Final Settlement', status: 'active', pct: '60%' },
               { label: 'Human Resources', role: 'Relieving & NDA Signoff', status: 'pending', pct: '0%' }
             ].map((node, i) => (
-              <div key={node.label} className={cn("p-3 rounded-xl border flex items-center justify-between transition-all duration-300", 
+              <div key={node.label} className={cn("p-3 rounded-xl border flex items-center justify-between transition-all duration-300",
                 node.status === 'done' ? 'bg-white/[0.01] border-white/[0.03] opacity-60' :
                 node.status === 'active' ? 'bg-primary/5 border-primary/20 shadow-sm border-primary/30' :
                 'bg-transparent border-white/[0.02] opacity-40'
@@ -80,7 +80,7 @@ function LeftPanel() {
         </div>
       </div>
 
-      <div className="text-[10px] text-sidebar-foreground/35 font-mono relative z-10 animate-fade-in">
+      <div className="text-[10px] text-sidebar-foreground/35 font-mono relative z-10" style={{ animation: "slide-up 0.7s 0.2s cubic-bezier(0.16,1,0.3,1) both" }}>
         v2.4.0-stable // {new Date().getFullYear()} ExitFlow Systems
       </div>
     </div>

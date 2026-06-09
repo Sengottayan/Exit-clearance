@@ -198,6 +198,11 @@
   }
 }
 
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 @keyframes pulse-soft {
   0%, 100% {
     opacity: 1;
@@ -337,12 +342,24 @@
     animation: slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
+  .animate-fade-in {
+    opacity: 0;
+    animation: fade-in 0.5s ease both;
+  }
+
   .animate-pulse-soft {
     animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
+  /* Ensure disabled calendar dates are always visible */
+  [data-slot="calendar"] [data-disabled] {
+    color: hsl(var(--muted-foreground)) !important;
+    opacity: 0.45 !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-slide-up,
+    .animate-fade-in,
     .animate-pulse-soft,
     .animate-shimmer {
       animation: none !important;

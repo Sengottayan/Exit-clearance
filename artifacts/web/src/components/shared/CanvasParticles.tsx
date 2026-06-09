@@ -10,6 +10,7 @@ interface Particle {
   color: string;      // Color string (RGB format)
   speed: number;      // Rotation speed
   waveOffset: number; // Wave offset for physical ripple effect
+  alpha: number;      // Base alpha
 }
 
 export function CanvasParticles() {
@@ -25,6 +26,9 @@ export function CanvasParticles() {
     let animationId: number;
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
+
+    // Detect dark mode
+    const isDark = () => document.documentElement.classList.contains("dark");
 
     // Track mouse position for interactive displacement
     let mouseX = width / 2;
@@ -47,106 +51,114 @@ export function CanvasParticles() {
     window.addEventListener("mousemove", handleMouseMove);
 
     // Initialize particles on a 3D dome (hemisphere)
-    const particleCount = Math.min(350, Math.floor(width / 3.5));
+    const particleCount = Math.min(300, Math.floor(width / 4));
     const particles: Particle[] = [];
 
     // Base config
-    const baseRadius = Math.max(width, height) * 0.55;
-    
+    const baseRadius = Math.max(width, height) * 0.5;
+
     for (let i = 0; i < particleCount; i++) {
       // phi around the circle (0 to 2*PI)
       const phi = Math.random() * Math.PI * 2;
       // theta upwards (0 to PI/2 to form a top dome)
       const theta = Math.pow(Math.random(), 1.5) * (Math.PI * 0.45);
-      
-      const size = Math.random() * 1.5 + 0.6;
-      
-      // Determine colors: Primary blue/Indigo split adapted to brand
-      const isPrimary = Math.random() > 0.45;
-      const color = isPrimary ? "59, 130, 246" : "99, 102, 241"; // Brand Blue/Indigo RGB
-      
+
+      const size = Math.random() * 1.8 + 0.5;
+
+      // Brand blue/indigo/violet palette
+      const colorChoice = Math.random();
+      const color = colorChoice > 0.65
+        ? "59, 130, 246"   // blue-500
+        : colorChoice > 0.3
+        ? "99, 102, 241"   // indigo-500
+        : "139, 92, 246";  // violet-500
+
       particles.push({
         phi,
         theta,
         baseRadius,
         size,
         color,
-        speed: (Math.random() * 0.05 + 0.02) * (Math.random() > 0.5 ? 1 : -1),
+        speed: (Math.random() * 0.04 + 0.015) * (Math.random() > 0.5 ? 1 : -1),
         waveOffset: Math.random() * Math.PI * 2,
+        alpha: Math.random() * 0.4 + 0.3,
       });
     }
 
     let time = 0;
-    const perspective = 700; // Camera distance / depth
+    const perspective = 700;
 
     const render = () => {
-      time += 0.05;
-      
-      // Clear canvas with a very soft radial black/dark-blue background gradient
-      ctx.fillStyle = "rgba(10, 15, 30, 0.12)"; // Fades previous frame to create fine trails
+      time += 0.045;
+
+      const dark = isDark();
+
+      // Use transparent background to let page color show through — no fill that blocks light mode
+      // Just clear with very slight trail effect
+      if (dark) {
+        ctx.fillStyle = "rgba(10, 12, 30, 0.10)";
+      } else {
+        ctx.fillStyle = "rgba(248, 250, 252, 0.08)";
+      }
       ctx.fillRect(0, 0, width, height);
 
-      // Smooth mouse coordinates (linear interpolation)
+      // Smooth mouse coordinates
       mouseX += (targetMouseX - mouseX) * 0.08;
       mouseY += (targetMouseY - mouseY) * 0.08;
 
-      // Dome center (shifted down near the bottom of screen to create the arch)
+      // Dome center — shifted down so the arch emerges from bottom
       const centerX = width / 2;
-      const centerY = height * 1.25;
+      const centerY = height * 1.2;
 
       // Sort particles by depth Z so we render back-to-front
       const projected = particles.map(p => {
-        // Current angle includes rotation over time
         const currentPhi = p.phi + (p.speed * time * 0.05);
-        
-        // Add dynamic wave ripple along the radius
-        const ripple = Math.sin(time * 0.3 + p.waveOffset) * 15;
+
+        const ripple = Math.sin(time * 0.25 + p.waveOffset) * 12;
         const r = p.baseRadius + ripple;
 
-        // Convert spherical coords to 3D Cartesian coords
         let x3d = r * Math.cos(p.theta) * Math.sin(currentPhi);
-        let y3d = -r * Math.sin(p.theta); // Pointing upwards
+        let y3d = -r * Math.sin(p.theta);
         let z3d = r * Math.cos(p.theta) * Math.cos(currentPhi);
 
-        // Interactive mouse distortion: push particles slightly away
+        // Interactive mouse distortion
         const dx = x3d + centerX - mouseX;
         const dy = y3d + centerY - mouseY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 200) {
-          const force = (200 - dist) * 0.08;
+        if (dist < 180) {
+          const force = (180 - dist) * 0.07;
           x3d += (dx / dist) * force;
           y3d += (dy / dist) * force;
         }
 
-        // Project 3D to 2D
         const scale = perspective / (perspective + z3d);
         const x2d = centerX + x3d * scale;
         const y2d = centerY + y3d * scale;
 
-        // Fading opacity based on Z-depth (back-facing particles are faint)
-        const alpha = Math.max(0.08, scale * 0.75 * (1 - p.theta / (Math.PI * 0.5)));
+        // Alpha: more visible on light mode, less on dark (blend modes differ)
+        const depthAlpha = Math.max(0.05, scale * 0.8 * (1 - p.theta / (Math.PI * 0.5)));
+        const baseAlpha = dark ? depthAlpha * 0.75 : depthAlpha * 0.55;
 
-        return { x2d, y2d, size: p.size * scale, color: p.color, alpha, z3d };
+        return { x2d, y2d, size: p.size * scale, color: p.color, alpha: baseAlpha, z3d };
       });
 
-      // Sort by Z depth (descending so we draw back particles first to prevent visual overlap bugs)
+      // Sort by Z depth
       projected.sort((a, b) => b.z3d - a.z3d);
 
       // Draw particles
       projected.forEach(p => {
-        if (p.x2d < 0 || p.x2d > width || p.y2d < 0 || p.y2d > height) return;
+        if (p.x2d < -10 || p.x2d > width + 10 || p.y2d < -10 || p.y2d > height + 10) return;
 
-        // Draw particle dot
         ctx.beginPath();
         ctx.arc(p.x2d, p.y2d, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+        ctx.fillStyle = `rgba(${p.color}, ${Math.min(p.alpha, 0.9)})`;
         ctx.fill();
 
-        // Faint glow for larger dots close to camera
-        if (p.size > 1.2 && p.alpha > 0.4) {
+        // Glow halo for close/front particles
+        if (p.size > 1.3 && p.alpha > 0.3) {
           ctx.beginPath();
-          ctx.arc(p.x2d, p.y2d, p.size * 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${p.color}, ${p.alpha * 0.15})`;
+          ctx.arc(p.x2d, p.y2d, p.size * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${p.color}, ${p.alpha * 0.12})`;
           ctx.fill();
         }
       });
@@ -166,8 +178,8 @@ export function CanvasParticles() {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute top-0 left-0 w-full h-full -z-10 pointer-events-none block"
-      style={{ mixBlendMode: "screen" }}
+      className="absolute top-0 left-0 w-full h-full pointer-events-none block"
+      style={{ zIndex: 0 }}
     />
   );
 }

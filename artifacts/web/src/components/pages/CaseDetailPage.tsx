@@ -28,11 +28,23 @@ export default function CaseDetailPage() {
   const { user, isHR, isAdmin, isManager, isEmployee } = useAuth();
   const [approveOpen, setApproveOpen] = useState(false);
 
-  const { data: exitCase } = useCase(id ?? "");
+  const { data: exitCase, isLoading } = useCase(id ?? "");
   const { mutate: approveResignation } = useApproveResignation();
 
+  // Show loading spinner while data is being fetched — prevents premature "Case not found" flash
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+          <p className="text-xs text-muted-foreground font-semibold">Loading case details…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!exitCase) {
-    return <div className="p-8 text-center">Case not found</div>;
+    return <div className="p-8 text-center text-muted-foreground">Case not found or you do not have access.</div>;
   }
 
   const isOwnCase = isCaseOwnedByUser(exitCase, user);

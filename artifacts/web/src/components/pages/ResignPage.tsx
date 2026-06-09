@@ -39,9 +39,6 @@ export default function ResignPage() {
   const [, setLocation] = useLocation();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const [useLeaveOffset, setUseLeaveOffset] = useState(false);
-  const accruedLeaveBalance = 12;
-
   const activeCase = getActiveEmployeeCase(cases, user);
   const latestCase = getLatestEmployeeCase(cases, user);
 
@@ -53,7 +50,6 @@ export default function ResignPage() {
 
   const lwd = useWatch({ control: form.control, name: "lastWorkingDay" });
   const noticeDays = lwd ? differenceInCalendarDays(lwd, new Date()) : 0;
-  const adjustedNoticeDays = useLeaveOffset ? Math.max(0, noticeDays - accruedLeaveBalance) : noticeDays;
 
   if (!isEmployee) return <Redirect to="/dashboard" />;
   if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
@@ -101,11 +97,6 @@ export default function ResignPage() {
     if (!user) return;
 
     try {
-      const offsetDaysApplied = Math.min(accruedLeaveBalance, noticeDays);
-      const finalExitReason = useLeaveOffset 
-        ? `${data.reason} | Accrued Leave Offset: ${offsetDaysApplied} days applied (Adjusted active notice: ${adjustedNoticeDays} days)${data.notes ? ` | Notes: ${data.notes}` : ''}`
-        : `${data.reason}${data.notes ? ` | Notes: ${data.notes}` : ''}`;
-
       const createdCase = await createCase({
         employeeId: user.employeeId,
         employeeName: user.name,
@@ -114,8 +105,8 @@ export default function ResignPage() {
         employeeDept: user.dept,
         resignationDate: new Date().toISOString(),
         lastWorkingDay: data.lastWorkingDay.toISOString(),
-        noticePeriodDays: adjustedNoticeDays,
-        exitReason: finalExitReason,
+        noticePeriodDays: noticeDays,
+        exitReason: data.reason,
       });
 
       setConfirmOpen(false);
@@ -136,25 +127,37 @@ export default function ResignPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Notice & Offboarding Policies (FAQ) */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-border/50 bg-card/50 backdrop-blur-sm shadow-premium rounded-2xl">
+          <Card className={cn("border-border/50 backdrop-blur-sm rounded-2xl transition-all duration-500",
+            noticeDays > 0 && noticeDays < 30 
+              ? "bg-amber-50/50 dark:bg-amber-500/10 border-amber-400 dark:border-amber-500/50 shadow-[0_0_15px_rgba(251,191,36,0.3)] dark:shadow-[0_0_20px_rgba(245,158,11,0.2)]" 
+              : "bg-card/50 shadow-premium"
+          )}>
             <CardHeader className="pb-4">
-              <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-foreground/80 flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-primary" />
+              <CardTitle className={cn("text-sm font-extrabold uppercase tracking-widest flex items-center gap-2 transition-colors",
+                noticeDays > 0 && noticeDays < 30 ? "text-amber-700 dark:text-amber-400" : "text-foreground/80"
+              )}>
+                <ShieldAlert className={cn("w-4 h-4", noticeDays > 0 && noticeDays < 30 ? "text-amber-600 dark:text-amber-400 animate-pulse" : "text-primary")} />
                 <span>Notice Guidelines</span>
               </CardTitle>
               <CardDescription className="text-[10px] font-semibold">Standard corporate departure regulations.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 text-xs text-muted-foreground font-semibold leading-relaxed">
               <div className="space-y-1">
-                <p className="text-foreground font-bold">Standard Notice Requirement</p>
+                <p className={cn("font-bold transition-colors", noticeDays > 0 && noticeDays < 30 ? "text-amber-800 dark:text-amber-200" : "text-foreground")}>Standard Notice Requirement</p>
                 <p className="text-[11px]">Your department requires a standard notice period of <strong>30 days</strong>. Selecting a date with less notice requires explicit manager overrides.</p>
+                {noticeDays > 0 && noticeDays < 30 && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-amber-100/50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-700/30 text-amber-800 dark:text-amber-300 flex gap-2 items-start animate-pulse-soft">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>Warning: Your selected date provides only <strong>{noticeDays} days</strong> of notice. This will be flagged to your manager.</span>
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
-                <p className="text-foreground font-bold">Clearance Workflow</p>
+                <p className={cn("font-bold transition-colors", noticeDays > 0 && noticeDays < 30 ? "text-amber-800 dark:text-amber-200" : "text-foreground")}>Clearance Workflow</p>
                 <p className="text-[11px]">Upon manager approval, clearances will be initiated across IT, Security, Finance, and HR. You can track approvals live on your dashboard.</p>
               </div>
               <div className="space-y-1">
-                <p className="text-foreground font-bold">Asset Handover</p>
+                <p className={cn("font-bold transition-colors", noticeDays > 0 && noticeDays < 30 ? "text-amber-800 dark:text-amber-200" : "text-foreground")}>Asset Handover</p>
                 <p className="text-[11px]">All corporate equipment (laptop, phones, access badges) must be returned prior to your last working day to receive final HR relieving documents.</p>
               </div>
               {latestCase && (
@@ -210,14 +213,14 @@ export default function ResignPage() {
                             />
                           </PopoverContent>
                         </Popover>
-                        <FormDescription className="flex items-center gap-2 mt-1">
+                        <div className="text-[0.8rem] text-muted-foreground flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-semibold text-muted-foreground/80">Select a future date.</span>
                           {noticeDays > 0 && (
-                            <Badge variant="secondary" className={cn("font-bold text-[9px] px-1.5 py-0 border", adjustedNoticeDays < 30 ? "bg-amber-50 text-amber-700 border-amber-200/50" : "bg-primary/5 text-primary border-primary/20")}>
-                              Notice: {adjustedNoticeDays} days {useLeaveOffset && "(Leave Offset Applied)"}
+                            <Badge variant="secondary" className={cn("font-bold text-[9px] px-1.5 py-0 border", noticeDays < 30 ? "bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700/50" : "bg-primary/5 text-primary border-primary/20")}>
+                              Notice: {noticeDays} days
                             </Badge>
                           )}
-                        </FormDescription>
+                        </div>
                         <FormMessage className="text-[10px]" />
                       </FormItem>
                     )}
@@ -247,41 +250,6 @@ export default function ResignPage() {
                   />
                 </div>
 
-                {/* Accrued Leave Offset Calculator */}
-                {noticeDays > 0 && (
-                  <div className="p-4.5 rounded-xl border border-border/65 bg-muted/10 shadow-sm space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-foreground">Accrued Leave Offset Calculator</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">
-                          Offset active notice working days using leave balances ({accruedLeaveBalance} days available)
-                        </p>
-                      </div>
-                      <Checkbox
-                        checked={useLeaveOffset}
-                        onCheckedChange={(checked) => setUseLeaveOffset(!!checked)}
-                        className="rounded-md"
-                      />
-                    </div>
-                    {useLeaveOffset && (
-                      <div className="grid grid-cols-2 gap-4 pt-2.5 border-t border-border/40 animate-in fade-in duration-200">
-                        <div>
-                          <p className="text-[9px] text-muted-foreground uppercase font-extrabold tracking-wider">Adjusted Active Notice</p>
-                          <p className="text-sm font-extrabold text-foreground mt-0.5">
-                            {adjustedNoticeDays} Working Days
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] text-muted-foreground uppercase font-extrabold tracking-wider">Leave Days Applied</p>
-                          <p className="text-sm font-extrabold text-primary mt-0.5">
-                            {Math.min(accruedLeaveBalance, noticeDays)} Days
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <FormField
                   control={form.control}
                   name="notes"
@@ -291,7 +259,7 @@ export default function ResignPage() {
                       <FormControl>
                         <Textarea
                           placeholder="Provide context regarding transition files, active project handovers, or other relevant items..."
-                          className="resize-none min-h-[110px] rounded-xl border-border/60 bg-background text-xs font-semibold focus-visible:ring-1 focus-visible:ring-primary/25 focus-visible:border-primary/50"
+                          className="resize-none min-h-[110px] rounded-xl border-border/60 bg-background text-xs focus-visible:ring-1 focus-visible:ring-primary/25 focus-visible:border-primary/50"
                           {...field}
                         />
                       </FormControl>

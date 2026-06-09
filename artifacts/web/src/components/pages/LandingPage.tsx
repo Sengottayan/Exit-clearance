@@ -30,13 +30,13 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-transparent selection:bg-primary/20 selection:text-primary overflow-hidden font-sans">
-      {/* Dynamic Background */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+    <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20 selection:text-primary overflow-hidden font-sans relative">
+      {/* Dynamic Background — positioned behind all content */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
         <CanvasParticles />
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] mix-blend-multiply opacity-70" />
-        <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[120px] mix-blend-multiply opacity-70" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[120px] mix-blend-multiply opacity-70" />
+        <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-blue-400/8 dark:bg-blue-500/12 blur-[130px] opacity-80" />
+        <div className="absolute top-[15%] right-[-10%] w-[40%] h-[40%] rounded-full bg-violet-400/8 dark:bg-purple-500/12 blur-[120px] opacity-70" />
+        <div className="absolute bottom-[-15%] left-[15%] w-[55%] h-[50%] rounded-full bg-indigo-400/8 dark:bg-indigo-500/10 blur-[150px] opacity-70" />
       </div>
 
       <header className="h-16 flex items-center justify-between px-6 lg:px-12 border-b/10 glass sticky top-0 z-50 backdrop-blur-xl bg-background/60">
