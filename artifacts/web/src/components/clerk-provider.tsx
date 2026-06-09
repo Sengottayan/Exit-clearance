@@ -1,6 +1,7 @@
 "use client";
 
 import { ClerkProvider as ClerkProviderBase } from "@clerk/nextjs";
+import { clerkGlobalAppearance } from "@/lib/clerk-appearance";
 
 export function ClerkProvider({
   children,
@@ -16,7 +17,7 @@ export function ClerkProvider({
   }
 
   return (
-    <ClerkProviderBase publishableKey={clerkPublishableKey}>
+    <ClerkProviderBase publishableKey={clerkPublishableKey} appearance={clerkGlobalAppearance}>
       {children}
     </ClerkProviderBase>
   );
