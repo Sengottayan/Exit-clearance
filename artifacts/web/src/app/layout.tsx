@@ -39,7 +39,7 @@ export default function RootLayout({
         <ClerkProvider clerkConfigured={clerkConfigured} clerkPublishableKey={clerkPublishableKey}>
           <Providers>
             {children}
-            <Toaster position="top-right" />
+            <Toaster position="bottom-right" richColors visibleToasts={1} />
           </Providers>
         </ClerkProvider>
       </body>

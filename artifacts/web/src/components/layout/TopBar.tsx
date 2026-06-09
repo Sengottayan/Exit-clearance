@@ -84,9 +84,9 @@ export function TopBar() {
         {(user.role === 'hr' || user.role === 'admin') && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="hidden md:flex items-center gap-1.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white font-bold px-4 py-5 rounded-xl shadow-md transition-all duration-300 hover:scale-102 hover:shadow-primary/20">
+              <Button size="sm" className="hidden md:flex items-center gap-1.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white font-bold h-8 px-3 rounded-lg shadow-md transition-all duration-300 hover:scale-102 hover:shadow-primary/20">
                 <Icons.Sparkles className="w-3.5 h-3.5" />
-                <span>Quick Action</span>
+                <span className="text-xs">Quick Action</span>
                 <Icons.ChevronDown className="w-3 h-3 opacity-70" />
               </Button>
             </DropdownMenuTrigger>

@@ -32,10 +32,8 @@ export function AppShell({ children, requireAuth = true }: AppShellProps) {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 overflow-x-hidden">
-          <div className="max-w-6xl mx-auto w-full">
-            {children}
-          </div>
+        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-x-hidden overflow-y-auto">
+          {children}
         </main>
         <BottomNav />
       </div>

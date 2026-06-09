@@ -8,11 +8,11 @@ BEGIN;
 -- 1. EXIT INTERVIEWS
 -- ============================================================================
 
-CREATE TABLE exit_interviews (
+CREATE TABLE org_exit_interviews (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     case_id UUID NOT NULL REFERENCES org_exit_cases(id) ON DELETE CASCADE,
-    interviewer_member_id UUID NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
+    interviewer_member_id UUID REFERENCES organization_members(id) ON DELETE SET NULL,
     rating INTEGER CHECK (rating >= 1 AND rating <= 5),
     feedback TEXT,
     recommendation TEXT,
@@ -21,11 +21,26 @@ CREATE TABLE exit_interviews (
     UNIQUE(case_id)
 );
 
+-- Migrate old interviews
+INSERT INTO org_exit_interviews (id, organization_id, case_id, rating, feedback, created_at)
+SELECT 
+    md5(ei.id)::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    md5(ei.case_id)::uuid,
+    ei.overall_rating,
+    ei.comments,
+    ei.created_at
+FROM exit_interviews ei
+JOIN org_exit_cases oec ON oec.id = md5(ei.case_id)::uuid
+ON CONFLICT DO NOTHING;
+
+ALTER TABLE exit_interviews RENAME TO legacy_exit_interviews;
+
 -- ============================================================================
 -- 2. NOTIFICATIONS & PREFERENCES
 -- ============================================================================
 
-CREATE TABLE notification_preferences (
+CREATE TABLE org_notification_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     member_id UUID NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
     email_enabled BOOLEAN NOT NULL DEFAULT true,
@@ -39,11 +54,11 @@ CREATE TABLE notification_preferences (
 );
 
 -- Automatically create default preferences for all existing members
-INSERT INTO notification_preferences (member_id)
+INSERT INTO org_notification_preferences (member_id)
 SELECT id FROM organization_members
 ON CONFLICT DO NOTHING;
 
-CREATE TABLE notifications (
+CREATE TABLE org_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Bound to user, not member, for cross-org delivery
@@ -54,6 +69,10 @@ CREATE TABLE notifications (
     is_read BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Rename old tables
+ALTER TABLE notification_preferences RENAME TO legacy_notification_preferences;
+ALTER TABLE notifications RENAME TO legacy_notifications;
 
 -- ============================================================================
 -- 3. ENHANCED AUDIT LOGS
@@ -82,12 +101,12 @@ INSERT INTO org_audit_logs (
 )
 SELECT 
     '00000000-0000-0000-0000-000000000000'::uuid,
-    user_id,
-    entity_type,
-    entity_id,
+    actor,
+    type,
+    entity,
     action,
     created_at,
-    details::jsonb, -- Using the old 'details' text column as old_value for basic preservation
+    CASE WHEN details = '' THEN '{}'::jsonb ELSE jsonb_build_object('details', details) END,
     '{}'::jsonb
 FROM audit_logs
 ON CONFLICT DO NOTHING;
@@ -98,15 +117,15 @@ ALTER TABLE audit_logs RENAME TO legacy_audit_logs;
 -- 4. ROW LEVEL SECURITY
 -- ============================================================================
 
-ALTER TABLE exit_interviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_exit_interviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_notification_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE org_audit_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Tenant Isolation on Exit Interviews" ON exit_interviews
+CREATE POLICY "Tenant Isolation on Exit Interviews" ON org_exit_interviews
 FOR ALL USING (organization_id = (auth.jwt() -> 'app_metadata' ->> 'db_org_id')::uuid);
 
-CREATE POLICY "Tenant Isolation on Preferences" ON notification_preferences
+CREATE POLICY "Tenant Isolation on Preferences" ON org_notification_preferences
 FOR ALL USING (
     member_id IN (
         SELECT id FROM organization_members
@@ -114,7 +133,7 @@ FOR ALL USING (
     )
 );
 
-CREATE POLICY "Tenant Isolation on Notifications" ON notifications
+CREATE POLICY "Tenant Isolation on Notifications" ON org_notifications
 FOR ALL USING (organization_id = (auth.jwt() -> 'app_metadata' ->> 'db_org_id')::uuid);
 
 -- Audit logs are generally read-only for standard users, but isolated nonetheless

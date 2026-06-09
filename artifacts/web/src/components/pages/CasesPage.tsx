@@ -138,7 +138,7 @@ export default function CasesPage() {
   };
 
   const activeDepartmentsList = useMemo(() => {
-    const set = new Set(cases.map(c => c.employeeDept));
+    const set = new Set(cases.map(c => c.employeeDept).filter(Boolean));
     return Array.from(set);
   }, [cases]);
 

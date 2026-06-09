@@ -136,9 +136,10 @@ SELECT
     ct.sla_due_at,
     ct.completed_at,
     ct.rejection_reason,
-    ct.escalated
+    false as escalated
 FROM clearance_tasks ct
-LEFT JOIN organization_members om ON om.user_id = ct.assigned_to
+JOIN org_exit_cases oec ON oec.id = md5(ct.case_id)::uuid
+LEFT JOIN organization_members om ON om.user_id = ct.assignee_id
 ON CONFLICT DO NOTHING;
 
 ALTER TABLE clearance_tasks RENAME TO legacy_clearance_tasks;
@@ -161,7 +162,7 @@ CREATE TABLE clearance_task_items (
 -- 4. CASE COMMENTS & AUDIT TRAILS
 -- ============================================================================
 
-CREATE TABLE case_comments (
+CREATE TABLE org_case_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     case_id UUID NOT NULL REFERENCES org_exit_cases(id) ON DELETE CASCADE,
@@ -170,6 +171,23 @@ CREATE TABLE case_comments (
     is_internal BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migrate old comments
+INSERT INTO org_case_comments (id, organization_id, case_id, member_id, comment, is_internal, created_at)
+SELECT 
+    md5(cc.id)::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    md5(cc.case_id)::uuid,
+    om.id,
+    cc.message,
+    false,
+    cc.created_at
+FROM case_comments cc
+JOIN org_exit_cases oec ON oec.id = md5(cc.case_id)::uuid
+JOIN organization_members om ON om.user_id = cc.author_id
+ON CONFLICT DO NOTHING;
+
+ALTER TABLE case_comments RENAME TO legacy_case_comments;
 
 CREATE TABLE task_assignment_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -199,7 +217,7 @@ ALTER TABLE resignation_approvals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE org_exit_cases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE org_clearance_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clearance_task_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE case_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_case_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_assignment_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_status_history ENABLE ROW LEVEL SECURITY;
 
@@ -228,7 +246,7 @@ FOR ALL USING (
     )
 );
 
-CREATE POLICY "Tenant Isolation on Comments" ON case_comments
+CREATE POLICY "Tenant Isolation on Comments" ON org_case_comments
 FOR ALL USING (organization_id = (auth.jwt() -> 'app_metadata' ->> 'db_org_id')::uuid);
 
 CREATE POLICY "Tenant Isolation on Assignment History" ON task_assignment_history

@@ -55,10 +55,11 @@ SELECT
     md5(d.id)::uuid,
     '00000000-0000-0000-0000-000000000000'::uuid,
     md5(d.case_id)::uuid,
-    d.type,
-    d.name,
-    d.url
+    d.doc_type,
+    d.file_name,
+    COALESCE(d.file_path, '')
 FROM documents d
+JOIN org_exit_cases oec ON oec.id = md5(d.case_id)::uuid
 ON CONFLICT DO NOTHING;
 
 ALTER TABLE documents RENAME TO legacy_documents;
