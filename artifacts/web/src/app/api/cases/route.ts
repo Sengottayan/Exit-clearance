@@ -41,19 +41,86 @@ export async function POST(request: NextRequest) {
   const supabase = createServerSupabase();
   const body = await request.json();
 
+  // Step 1: Upsert the employee into the users table so the FK constraint is satisfiable.
+  // This is the missing link — Clerk users don't auto-appear in our users table.
+  const { error: upsertEmployeeError } = await supabase
+    .from("users")
+    .upsert(
+      {
+        id: userId,
+        email: body.employee_email || "",
+        name: body.employee_name || "",
+        role: "employee",
+        dept: body.employee_dept || "",
+        employee_id: body.employee_id || userId.slice(0, 8).toUpperCase(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+
+  if (upsertEmployeeError) {
+    console.error("[POST /api/cases] employee upsert error:", upsertEmployeeError.message);
+    // Non-fatal — continue and try to insert the case
+  }
+
+  // Step 2: Resolve the manager.
+  // Priority: explicit manager_id in body → dept lookup in users table → system sentinel
+  let managerId: string = body.manager_id ?? "system-manager";
+  let managerName: string = body.manager_name ?? "HR Manager (System)";
+
+  if (managerId && managerId !== "system-manager") {
+    // Verify the manager_id exists in users table; if not, upsert it as well
+    const { data: managerRow } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", managerId)
+      .single();
+
+    if (!managerRow) {
+      // Manager doesn't exist in DB — look for one by department
+      const { data: deptManager } = await supabase
+        .from("users")
+        .select("id, name")
+        .eq("role", "manager")
+        .eq("dept", body.employee_dept || "")
+        .limit(1)
+        .single();
+
+      if (deptManager) {
+        managerId = deptManager.id;
+        managerName = deptManager.name;
+      } else {
+        // Use system sentinel — always exists from migration 00003
+        managerId = "system-manager";
+        managerName = "HR Manager (System)";
+      }
+    } else {
+      managerName = managerRow.name;
+    }
+  }
+
+  // Ensure system-manager sentinel exists (idempotent)
+  await supabase
+    .from("users")
+    .upsert(
+      { id: "system-manager", email: "manager@exitflow.system", name: "HR Manager (System)", role: "manager", dept: "HR", employee_id: "SYS-MGR-001" },
+      { onConflict: "id" },
+    );
+
   const caseId = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
 
   const { data, error } = await supabase
     .from("exit_cases")
     .insert({
       id: caseId,
-      employee_id: body.employee_id,
+      // Use the Clerk user ID as employee_id (the FK reference to users.id)
+      employee_id: userId,
       employee_name: body.employee_name,
       employee_email: body.employee_email,
       employee_role: body.employee_role ?? "",
       employee_dept: body.employee_dept,
-      manager_id: body.manager_id,
-      manager_name: body.manager_name ?? "",
+      manager_id: managerId,
+      manager_name: managerName,
       status: "pending_manager",
       resignation_date: body.resignation_date,
       last_working_day: body.last_working_day,
@@ -65,6 +132,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
+    console.error("[POST /api/cases] insert error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

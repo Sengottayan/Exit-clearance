@@ -29,12 +29,20 @@ function Calendar({
       }}
       classNames={{
         root: cn("w-fit", defaultClassNames.root),
-        months: cn("relative flex flex-col gap-4", defaultClassNames.months),
+        months: cn("flex flex-col gap-4", defaultClassNames.months),
         month: cn("flex w-full flex-col gap-3", defaultClassNames.month),
-        nav: cn(
-          "space-x-1 flex items-center absolute right-4 top-4 z-10",
-          defaultClassNames.nav
+        // The caption (header row) is a flex row with space-between so nav buttons
+        // sit inline with the month label — no absolute positioning needed
+        month_caption: cn(
+          "flex h-9 w-full items-center justify-between px-1 pb-1",
+          defaultClassNames.month_caption
         ),
+        caption_label: cn(
+          "text-sm font-extrabold tracking-tight text-foreground",
+          defaultClassNames.caption_label
+        ),
+        // Nav lives INSIDE the caption row — remove absolute/position
+        nav: cn("flex items-center gap-1", defaultClassNames.nav),
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 rounded-lg p-0 opacity-70 hover:opacity-100 border-border bg-transparent shadow-none"
@@ -42,10 +50,6 @@ function Calendar({
         button_next: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 rounded-lg p-0 opacity-70 hover:opacity-100 border-border bg-transparent shadow-none"
-        ),
-        month_caption: cn(
-          "flex h-7 items-center justify-start text-sm font-extrabold tracking-tight pl-1 pb-1",
-          defaultClassNames.month_caption
         ),
         weekdays: cn("flex w-full justify-between gap-1 border-b border-border/30 pb-2", defaultClassNames.weekdays),
         weekday: cn(
@@ -58,7 +62,6 @@ function Calendar({
           defaultClassNames.day
         ),
         today: cn("bg-secondary text-primary border border-primary/20 font-bold", defaultClassNames.today),
-        // Fix: disabled dates show visible muted text (not invisible opacity-20)
         outside: cn("text-muted-foreground/40 opacity-50", defaultClassNames.outside),
         disabled: cn("text-muted-foreground/40 cursor-not-allowed pointer-events-none", defaultClassNames.disabled),
         hidden: cn("invisible", defaultClassNames.hidden),

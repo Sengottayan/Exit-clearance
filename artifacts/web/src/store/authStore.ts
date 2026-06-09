@@ -8,12 +8,13 @@ interface AuthState {
   login: (emailOrId: string, password?: string) => User | null;
   loginById: (userId: string) => void;
   setClerkUser: (clerkUserId: string, role: Role, name?: string, email?: string) => void;
+  updateUserManager: (managerId: string, managerName: string) => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       login: (email, password) => {
         const normalizedInput = email.trim().toLowerCase();
@@ -31,9 +32,11 @@ export const useAuthStore = create<AuthState>()(
       },
       setClerkUser: (clerkUserId, role, name, email) => {
         const normalizedEmail = email?.trim().toLowerCase() ?? '';
+        // Try to match against mock users by email for local dev fallback
         const matchedUser = normalizedEmail
           ? MOCK_USERS.find((candidate) => candidate.email.toLowerCase() === normalizedEmail)
           : undefined;
+
         const clerkUser: User = {
           id: clerkUserId,
           email: email || matchedUser?.email || '',
@@ -41,8 +44,40 @@ export const useAuthStore = create<AuthState>()(
           role,
           dept: matchedUser?.dept || '',
           employeeId: matchedUser?.employeeId || clerkUserId.slice(0, 8).toUpperCase(),
+          managerId: matchedUser?.managerId,
+          managerName: matchedUser?.managerName,
         };
         set({ user: clerkUser });
+
+        // Asynchronously sync user to DB and fetch real manager assignment.
+        // This is fire-and-forget — it updates the store when it resolves.
+        if (typeof window !== 'undefined') {
+          fetch('/api/auth/sync-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: clerkUser.email,
+              name: clerkUser.name,
+              role: clerkUser.role,
+              dept: clerkUser.dept,
+              employeeId: clerkUser.employeeId,
+            }),
+          })
+            .then((res) => res.ok ? res.json() : null)
+            .then((profile) => {
+              if (profile?.managerId) {
+                get().updateUserManager(profile.managerId, profile.managerName ?? '');
+              }
+            })
+            .catch(() => {
+              // Silently ignore — app works fine without DB-backed manager info
+            });
+        }
+      },
+      updateUserManager: (managerId, managerName) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, managerId, managerName } : state.user,
+        }));
       },
       logout: () => set({ user: null }),
     }),

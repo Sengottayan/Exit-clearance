@@ -4,13 +4,16 @@ export type CaseStatus = 'pending_manager' | 'in_clearance' | 'completed' | 'can
 export type TaskStatus = 'pending' | 'in_progress' | 'approved' | 'rejected' | 'overdue';
 
 export interface User {
-  id: string;
+  id: string;          // Clerk user ID (primary key in DB)
   email: string;
   password?: string;
   role: Role;
   name: string;
   dept: string;
-  employeeId: string;
+  employeeId: string;  // HR system employee number (e.g. EMP-1042)
+  managerId?: string;  // Clerk user ID of the reporting manager
+  managerName?: string;
+  jobTitle?: string;
 }
 
 export interface ChecklistItem {

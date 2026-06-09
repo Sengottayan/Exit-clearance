@@ -98,7 +98,8 @@ export default function ResignPage() {
 
     try {
       const createdCase = await createCase({
-        employeeId: user.employeeId,
+        userId: user.id,              // Clerk user ID — used as employee_id FK in DB
+        employeeId: user.employeeId,  // HR number — stored for display
         employeeName: user.name,
         employeeEmail: user.email,
         employeeRole: user.role,

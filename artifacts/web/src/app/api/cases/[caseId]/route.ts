@@ -12,9 +12,11 @@ export async function GET(
   const { caseId } = await params;
   const supabase = createServerSupabase();
 
+  // Note: avoid joining author:users() — the FK alias may not exist in all environments.
+  // Comments include all their own fields; the frontend resolves author names from authStore.
   const { data, error } = await supabase
     .from("exit_cases")
-    .select("*, clearance_tasks(*), timeline_events(*), exit_interviews(*), case_comments(*, author:users(name, avatar_url)), documents(*)")
+    .select("*, clearance_tasks(*), timeline_events(*), exit_interviews(*), case_comments(*), documents(*)")
     .eq("id", caseId)
     .single();
 
@@ -22,6 +24,7 @@ export async function GET(
     if (error.code === "PGRST116") {
       return NextResponse.json({ error: "Case not found" }, { status: 404 });
     }
+    console.error("[GET /api/cases/[caseId]]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

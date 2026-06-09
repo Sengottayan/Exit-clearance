@@ -46,7 +46,6 @@ const SEED_CASES: ExitCase[] = [
       let status: TaskStatus = 'pending';
       let slaDueAt = task.slaDueAt;
       let items = [...task.checklist];
-
       if (task.deptId === 'manager') {
         status = 'approved';
         items = items.map((i) => ({ ...i, checked: true }));
@@ -69,7 +68,6 @@ const SEED_CASES: ExitCase[] = [
         status = 'approved';
         items = items.map((i) => ({ ...i, checked: true }));
       }
-
       return { ...task, id: `t-${task.deptId}-001`, status, slaDueAt, checklist: items };
     }),
     timeline: [
@@ -190,7 +188,10 @@ export const useExitStore = create<ExitStore>()(
 
       addCase: (newCase) =>
         set((state) => {
-          const id = `CASE-${new Date().getFullYear()}-${String(state.cases.length + 1).padStart(3, '0')}`;
+          // Preserve the API-assigned ID if present; otherwise generate one
+          const id = (newCase as ExitCase).id || `CASE-${new Date().getFullYear()}-${String(state.cases.length + 1).padStart(3, '0')}`;
+          // Deduplicate: if the ID already exists in the store, skip
+          if (state.cases.some((c) => c.id === id)) return state;
           const tasks = normalizeCaseTasks(newCase.tasks);
           const caseData: ExitCase = {
             ...newCase,
@@ -199,7 +200,6 @@ export const useExitStore = create<ExitStore>()(
             documents: newCase.documents ?? {},
             comments: newCase.comments ?? [],
           };
-
           notify({
             userId: newCase.managerId,
             type: 'approval',
@@ -207,7 +207,6 @@ export const useExitStore = create<ExitStore>()(
             message: `${newCase.employeeName} has submitted a resignation request.`,
             href: `/cases/${id}`,
           });
-
           return { cases: [caseData, ...state.cases] };
         }),
 
@@ -266,7 +265,6 @@ export const useExitStore = create<ExitStore>()(
               ],
             };
             updated = tryCompleteCase(updated);
-
             notify({
               userId: c.managerId,
               type: 'system',
@@ -274,7 +272,6 @@ export const useExitStore = create<ExitStore>()(
               message: `Clearance for ${c.employeeName} was approved.`,
               href: `/cases/${caseId}`,
             });
-
             if (updated.status === 'completed') {
               notify({
                 userId: 'u3',
@@ -284,7 +281,6 @@ export const useExitStore = create<ExitStore>()(
                 href: `/cases/${caseId}`,
               });
             }
-
             return updated;
           }),
         })),
@@ -298,7 +294,6 @@ export const useExitStore = create<ExitStore>()(
               return { ...t, status: 'rejected' as TaskStatus, rejectionReason: reason };
             });
             const deptLabel = DEPARTMENTS.find((d) => d.id === deptId)?.label ?? deptId;
-
             notify({
               userId: c.managerId,
               type: 'rejection',
@@ -313,7 +308,6 @@ export const useExitStore = create<ExitStore>()(
               message: `${c.employeeName}'s clearance needs attention.`,
               href: `/cases/${caseId}`,
             });
-
             return {
               ...c,
               tasks,
@@ -383,7 +377,6 @@ export const useExitStore = create<ExitStore>()(
               status: (t.deptId === 'manager' ? 'approved' : 'pending') as TaskStatus,
               completedAt: t.deptId === 'manager' ? now.toISOString() : undefined,
             }));
-
             c.tasks.forEach((t) => {
               if (t.deptId !== 'manager') {
                 notify({
@@ -395,7 +388,6 @@ export const useExitStore = create<ExitStore>()(
                 });
               }
             });
-
             return {
               ...c,
               status: 'in_clearance',

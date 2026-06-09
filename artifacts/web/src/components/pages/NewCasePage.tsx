@@ -109,7 +109,8 @@ export default function NewCasePage() {
     const finalNotes = notes ? `${notes}\n\nAsset Tracking Summary: ${assetSummary}` : `Asset Tracking Summary: ${assetSummary}`;
 
     createCase({
-      employeeId: selectedUser.employeeId,
+      userId: selectedUser.id,            // Clerk/system user ID — used as employee_id FK
+      employeeId: selectedUser.employeeId, // HR number
       employeeName: selectedUser.name,
       employeeEmail: selectedUser.email,
       employeeRole: selectedUser.role,
