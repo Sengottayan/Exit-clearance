@@ -3,9 +3,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, Redirect, useLocation } from "@/lib/wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useExitStore } from "@/store/exitStore";
+import { useCases, useCreateCase } from "@/hooks/api/useCases";
 import { EXIT_REASONS } from "@/lib/constants";
-import { getManagerForEmployee } from "@/lib/workflow";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,8 +30,8 @@ const resignSchema = z.object({
 
 export default function ResignPage() {
   const { user, isEmployee } = useAuth();
-  const cases = useExitStore(state => state.cases);
-  const addCase = useExitStore(state => state.addCase);
+  const { data: cases = [], isLoading } = useCases();
+  const { mutate: createCase } = useCreateCase();
   const [, setLocation] = useLocation();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -47,6 +46,7 @@ export default function ResignPage() {
   const noticeDays = lwd ? differenceInDays(lwd, new Date()) : 0;
 
   if (!isEmployee) return <Redirect to="/dashboard" />;
+  if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
   if (myCase) {
     toast.error("You already have an active exit process");
     return <Redirect to="/dashboard" />;
@@ -58,41 +58,22 @@ export default function ResignPage() {
 
   function onConfirm() {
     const data = form.getValues();
+    if (!user) return;
     
-    // Create new case structure
-    // Since we don't have a real backend, we construct the object here
-    // In reality, this would just be an API call
-    if (user) {
-      const manager = getManagerForEmployee(user.dept);
-      addCase({
-        employeeId: user.employeeId,
-        employeeName: user.name,
-        employeeEmail: user.email,
-        employeeRole: user.role,
-        employeeDept: user.dept,
-        managerId: manager.id,
-        managerName: manager.name,
-        status: "pending_manager",
-        resignationDate: new Date().toISOString(),
-        lastWorkingDay: data.lastWorkingDay.toISOString(),
-        noticePeriodDays: noticeDays,
-        exitReason: data.reason,
-        tasks: [],
-        timeline: [
-          {
-            id: `evt-${Date.now()}`,
-            label: 'Resignation submitted',
-            timestamp: new Date().toISOString(),
-            actor: user.name,
-            actorRole: 'employee'
-          }
-        ],
-        documents: {}
-      });
-      
-      toast.success("Resignation submitted successfully");
-      setLocation("/dashboard");
-    }
+    createCase({
+      employeeId: user.employeeId,
+      employeeName: user.name,
+      employeeEmail: user.email,
+      employeeRole: user.role,
+      employeeDept: user.dept,
+      resignationDate: new Date().toISOString(),
+      lastWorkingDay: data.lastWorkingDay.toISOString(),
+      noticePeriodDays: noticeDays,
+      exitReason: data.reason,
+    });
+    
+    toast.success("Resignation submitted successfully");
+    setLocation("/dashboard");
   }
 
   return (

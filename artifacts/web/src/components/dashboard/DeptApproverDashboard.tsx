@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useExitStore } from "@/store/exitStore";
+import { useCases } from "@/hooks/api/useCases";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/lib/wouter";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 
 export function DeptApproverDashboard() {
   const { user } = useAuth();
-  const cases = useExitStore(state => state.cases);
+  const { data: cases = [] } = useCases();
   
   const myTasks = cases.flatMap(c => {
     const task = c.tasks.find(t => t.assigneeId === user?.id || t.deptLabel === user?.dept);
@@ -34,7 +34,7 @@ export function DeptApproverDashboard() {
   const overdueCount = pendingTasks.filter(t => t.status === 'overdue').length;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-8">
+    <div className="space-y-8 animate-slide-up pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Task Inbox</h1>

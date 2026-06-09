@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Search, Download, Filter, ShieldAlert, CheckCircle2, AlertTriangle, Info, Eye, X, Terminal } from "lucide-react";
+import { Search, Download, Filter, ShieldAlert, CheckCircle2, AlertTriangle, Info, Eye, X, Terminal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { useExitStore } from "@/store/exitStore";
+import { useCases } from "@/hooks/api/useCases";
 import { buildAuditLog, exportAuditCsv } from "@/lib/audit";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -19,11 +19,20 @@ import { cn } from "@/lib/utils";
 
 export default function AuditPage() {
   const { isHR, isAdmin } = useAuth();
-  const cases = useExitStore((s) => s.cases);
+  const { data: cases = [] } = useCases();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter, severityFilter]);
+
   // Modal State
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
@@ -94,6 +103,14 @@ export default function AuditPage() {
       return matchesSearch && matchesType && matchesSeverity;
     });
   }, [allLogs, search, typeFilter, severityFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  const paginatedLogs = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredLogs.slice(start, start + pageSize);
+  }, [filteredLogs, safePage, pageSize]);
 
   const selectedEvent = useMemo(() => {
     return allLogs.find(l => l.id === selectedEventId);
@@ -260,7 +277,7 @@ export default function AuditPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredLogs.map((log) => (
+                  paginatedLogs.map((log) => (
                     <TableRow
                       key={log.id}
                       onClick={() => setSelectedEventId(log.id)}
@@ -315,7 +332,88 @@ export default function AuditPage() {
         </CardContent>
       </Card>
 
-      {/* 4. Event Detail Modal Dialog */}
+      {/* 4. Pagination Footer */}
+      {filteredLogs.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1 py-2">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="font-medium">Rows per page:</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}
+            >
+              <SelectTrigger className="h-8 w-[70px] rounded-lg text-xs bg-background border-border/60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[5, 10, 30, 50].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground/70">
+              {(safePage - 1) * pageSize + 1}&ndash;{Math.min(safePage * pageSize, filteredLogs.length)} of {filteredLogs.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              disabled={safePage <= 1}
+              onClick={() => setPage(1)}
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-1 px-2">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const startPage = Math.max(1, safePage - 2);
+                const p = startPage + i;
+                if (p > totalPages) return null;
+                return (
+                  <Button
+                    key={p}
+                    variant={p === safePage ? "default" : "ghost"}
+                    size="icon"
+                    className="h-8 w-8 rounded-lg text-xs font-bold"
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(totalPages)}
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Event Detail Modal Dialog */}
       <Dialog open={!!selectedEventId} onOpenChange={(open) => !open && setSelectedEventId(null)}>
         <DialogContent className="sm:max-w-xl bg-card border border-border/80 shadow-2xl p-6 rounded-2xl">
           {selectedEvent && (

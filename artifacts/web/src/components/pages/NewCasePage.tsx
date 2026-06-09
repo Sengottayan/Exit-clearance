@@ -32,14 +32,14 @@ import { MOCK_USERS, DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
 import { buildClearanceTasks, getManagerForEmployee } from "@/lib/workflow";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Badge } from "@/components/ui/badge";
-import { useExitStore } from "@/store/exitStore";
+import { useCreateCase } from "@/hooks/api/useCases";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 
 export default function NewCasePage() {
   const { isHR, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
-  const addCase = useExitStore(state => state.addCase);
+  const { mutate: createCase } = useCreateCase();
   const workflowTemplates = useSettingsStore((s) => s.workflowTemplates);
   const defaultTemplateId = useSettingsStore((s) => s.workflow.defaultTemplateId);
 
@@ -112,42 +112,16 @@ export default function NewCasePage() {
 
     const finalNotes = notes ? `${notes}\n\nAsset Tracking Summary: ${assetSummary}` : `Asset Tracking Summary: ${assetSummary}`;
 
-    addCase({
+    createCase({
       employeeId: selectedUser.employeeId,
       employeeName: selectedUser.name,
       employeeEmail: selectedUser.email,
       employeeRole: selectedUser.role,
       employeeDept: selectedUser.dept,
-      managerId: manager.id,
-      managerName: manager.name,
-      status: 'pending_manager',
       resignationDate: new Date().toISOString(),
       lastWorkingDay: lwd.toISOString(),
       noticePeriodDays: noticeDays,
       exitReason: reason,
-      tasks: buildClearanceTasks(selectedDepts, undefined, activeTemplate?.slaMultiplier ?? 1),
-      tags: [activeTemplate?.name ?? 'Standard Exit'],
-      timeline: [
-        {
-          id: `evt-${Date.now()}`,
-          label: 'Exit case created by HR',
-          timestamp: new Date().toISOString(),
-          actor: 'System Admin',
-          actorRole: 'admin'
-        }
-      ],
-      documents: {},
-      comments: [
-        {
-          id: `cmt-${Date.now()}`,
-          authorId: "u3",
-          authorName: "Anita Desai",
-          authorRole: "hr",
-          message: `Case created. Selected Departments: ${selectedDepts.join(", ")}. Notice period: ${noticeDays} days.`,
-          visibility: "all",
-          timestamp: new Date().toISOString()
-        }
-      ]
     });
 
     toast.success("Exit case created successfully");

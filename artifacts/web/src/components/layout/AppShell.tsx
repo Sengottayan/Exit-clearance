@@ -5,6 +5,7 @@ import { BottomNav } from "./BottomNav";
 import { CommandPalette } from "@/components/shared/CommandPalette";
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect } from "@/lib/wouter";
+import { GlobalLoading } from "@/components/shared/GlobalLoading";
 
 interface AppShellProps {
   children: ReactNode;
@@ -12,7 +13,11 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, requireAuth = true }: AppShellProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isHydrated } = useAuth();
+
+  if (!isHydrated) {
+    return <GlobalLoading />;
+  }
 
   if (requireAuth && !isAuthenticated) {
     return <Redirect to="/login" />;

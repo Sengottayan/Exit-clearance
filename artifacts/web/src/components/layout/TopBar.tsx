@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/authStore";
+import { useClerk } from "@clerk/nextjs";
 import { NotificationBell } from "@/components/shared/NotificationBell";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
@@ -19,6 +20,14 @@ export function TopBar() {
   const { user } = useAuth();
   const logout = useAuthStore(state => state.logout);
   const [, setLocation] = useLocation();
+  const { signOut } = useClerk();
+
+  async function handleLogout() {
+    logout();
+    localStorage.removeItem("exitflow-auth");
+    await signOut();
+    setLocation("/login");
+  }
 
   if (!user) return null;
 
@@ -131,7 +140,7 @@ export function TopBar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLocation("/profile")}>
               <Icons.User className="mr-2 h-4 w-4 text-muted-foreground" />
               <span>My Profile</span>
             </DropdownMenuItem>
@@ -140,7 +149,7 @@ export function TopBar() {
               <span>Preferences</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
               <Icons.LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

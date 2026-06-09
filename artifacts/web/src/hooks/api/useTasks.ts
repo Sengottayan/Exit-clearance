@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useExitStore } from "@/store/exitStore";
 import { useAuthStore } from "@/store/authStore";
-import { ClearanceTask, ChecklistItem } from "@/lib/types";
+import type { ClearanceTask, ChecklistItem } from "@/lib/types";
+import { toClearanceTask, toExitCase, mapKeys } from "@/lib/mappers";
 
 const tasksKeys = {
   all: ["tasks"] as const,
@@ -19,7 +20,7 @@ function parseTaskId(taskId: string): { caseId: string; deptId: string } {
   return { caseId, deptId };
 }
 
-function findAllTasks(): (ClearanceTask & { caseId: string; employeeName: string })[] {
+function findAllTasksFromStore(): (ClearanceTask & { caseId: string; employeeName: string })[] {
   const cases = useExitStore.getState().cases;
   const tasks: (ClearanceTask & { caseId: string; employeeName: string })[] = [];
   for (const c of cases) {
@@ -28,15 +29,6 @@ function findAllTasks(): (ClearanceTask & { caseId: string; employeeName: string
     }
   }
   return tasks;
-}
-
-function filterTasks(tasks: ReturnType<typeof findAllTasks>, filters?: Record<string, string>) {
-  if (!filters) return tasks;
-  let result = [...tasks];
-  if (filters.status) result = result.filter((t) => t.status === filters.status);
-  if (filters.assigneeId) result = result.filter((t) => t.assigneeId === filters.assigneeId);
-  if (filters.caseId) result = result.filter((t) => t.caseId === filters.caseId);
-  return result;
 }
 
 export function useTasks(filters?: Record<string, string | undefined>) {
@@ -48,7 +40,32 @@ export function useTasks(filters?: Record<string, string | undefined>) {
 
   return useQuery({
     queryKey: tasksKeys.list(effectiveFilters as unknown as Record<string, string>),
-    queryFn: () => filterTasks(findAllTasks(), effectiveFilters),
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams(effectiveFilters);
+        const qs = params.toString();
+        const res = await fetch(`/api/tasks${qs ? `?${qs}` : ""}`);
+        if (!res.ok) throw new Error("API unavailable");
+        const data: Record<string, unknown>[] = await res.json();
+        return data.map((d) => {
+          const task = toClearanceTask(d);
+          const exitCase = d.exit_cases as Record<string, unknown> | undefined;
+          return {
+            ...task,
+            caseId: d.case_id as string,
+            employeeName: (exitCase?.employee_name as string) ?? "",
+          };
+        });
+      } catch {
+        const allTasks = findAllTasksFromStore();
+        if (!effectiveFilters) return allTasks;
+        let result = [...allTasks];
+        if (effectiveFilters.status) result = result.filter((t) => t.status === effectiveFilters.status);
+        if (effectiveFilters.assigneeId) result = result.filter((t) => t.assigneeId === effectiveFilters.assigneeId);
+        if (effectiveFilters.caseId) result = result.filter((t) => t.caseId === effectiveFilters.caseId);
+        return result;
+      }
+    },
     enabled: !!user,
   });
 }
@@ -56,14 +73,33 @@ export function useTasks(filters?: Record<string, string | undefined>) {
 export function useTask(taskId: string) {
   return useQuery({
     queryKey: tasksKeys.detail(taskId),
-    queryFn: () => {
+    queryFn: async () => {
       if (!taskId) return null;
-      const { caseId, deptId } = parseTaskId(taskId);
-      const c = useExitStore.getState().cases.find((c) => c.id === caseId);
-      if (!c) return null;
-      const task = c.tasks.find((t) => t.deptId === deptId);
-      if (!task) return null;
-      return { ...task, caseId: c.id, employeeName: c.employeeName, case: c };
+      try {
+        const { caseId, deptId } = parseTaskId(taskId);
+        const params = new URLSearchParams({ caseId });
+        const res = await fetch(`/api/tasks?${params.toString()}`);
+        if (!res.ok) throw new Error("API unavailable");
+        const data: Record<string, unknown>[] = await res.json();
+        const dbTask = data.find((t) => t.dept_id === deptId);
+        if (!dbTask) return null;
+        const task = toClearanceTask(dbTask);
+        const exitCase = dbTask.exit_cases as Record<string, unknown> | undefined;
+        const fullCase = exitCase ? toExitCase(exitCase) : undefined;
+        return {
+          ...task,
+          caseId: dbTask.case_id as string,
+          employeeName: (exitCase?.employee_name as string) ?? "",
+          case: fullCase,
+        };
+      } catch {
+        const { caseId, deptId } = parseTaskId(taskId);
+        const c = useExitStore.getState().cases.find((c) => c.id === caseId);
+        if (!c) return null;
+        const task = c.tasks.find((t) => t.deptId === deptId);
+        if (!task) return null;
+        return { ...task, caseId: c.id, employeeName: c.employeeName, case: c };
+      }
     },
     enabled: !!taskId,
   });
@@ -74,7 +110,16 @@ export function useApproveTask() {
   return useMutation({
     mutationFn: async ({ taskId, notes }: { taskId: string; notes?: string }) => {
       const { caseId, deptId } = parseTaskId(taskId);
-      useExitStore.getState().approveTask(caseId, deptId, notes);
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+      } catch {
+        useExitStore.getState().approveTask(caseId, deptId, notes);
+      }
       return { caseId, deptId };
     },
     onSuccess: (result) => {
@@ -89,7 +134,16 @@ export function useRejectTask() {
   return useMutation({
     mutationFn: async ({ taskId, reason }: { taskId: string; reason: string }) => {
       const { caseId, deptId } = parseTaskId(taskId);
-      useExitStore.getState().rejectTask(caseId, deptId, reason);
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/reject`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+      } catch {
+        useExitStore.getState().rejectTask(caseId, deptId, reason);
+      }
       return { caseId, deptId };
     },
     onSuccess: () => {
@@ -104,7 +158,16 @@ export function useSaveTaskDraft() {
   return useMutation({
     mutationFn: async ({ taskId, checklist }: { taskId: string; checklist: ChecklistItem[] }) => {
       const { caseId, deptId } = parseTaskId(taskId);
-      useExitStore.getState().saveTaskDraft(caseId, deptId, checklist);
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/save-draft`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ checklist }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+      } catch {
+        useExitStore.getState().saveTaskDraft(caseId, deptId, checklist);
+      }
       return { caseId, deptId };
     },
     onSuccess: (result) => {
@@ -117,7 +180,16 @@ export function useCheckItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, deptId, itemId, checked }: { caseId: string; deptId: string; itemId: string; checked: boolean }) => {
-      useExitStore.getState().checkItem(caseId, deptId, itemId, checked);
+      try {
+        const res = await fetch(`/api/tasks/${deriveTaskId(caseId, deptId)}/check-item`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId, checked }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+      } catch {
+        useExitStore.getState().checkItem(caseId, deptId, itemId, checked);
+      }
       return { caseId, deptId };
     },
     onSuccess: (result) => {
@@ -130,7 +202,16 @@ export function useSetItemInput() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, deptId, itemId, inputValue }: { caseId: string; deptId: string; itemId: string; inputValue: string }) => {
-      useExitStore.getState().setItemInput(caseId, deptId, itemId, inputValue);
+      try {
+        const res = await fetch(`/api/tasks/${deriveTaskId(caseId, deptId)}/set-item-input`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId, inputValue }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+      } catch {
+        useExitStore.getState().setItemInput(caseId, deptId, itemId, inputValue);
+      }
       return { caseId, deptId };
     },
     onSuccess: (result) => {
@@ -138,3 +219,5 @@ export function useSetItemInput() {
     },
   });
 }
+
+

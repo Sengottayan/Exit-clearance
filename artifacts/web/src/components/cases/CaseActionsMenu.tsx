@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { MoreHorizontal, CalendarIcon, AlertTriangle, XCircle, FileText } from "lucide-react";
 import { ExitCase } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
-import { useExitStore } from "@/store/exitStore";
+import { useCancelCase, useExtendLastWorkingDay, useEscalateCase } from "@/hooks/api/useCases";
+import { useGenerateDocument } from "@/hooks/api/useDocuments";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,10 @@ interface CaseActionsMenuProps {
 
 export function CaseActionsMenu({ exitCase }: CaseActionsMenuProps) {
   const { user, isHR, isAdmin, isManager } = useAuth();
-  const { cancelCase, extendLastWorkingDay, escalateCase, generateDocument } = useExitStore();
+  const { mutate: cancelCase } = useCancelCase();
+  const { mutate: extendLastWorkingDay } = useExtendLastWorkingDay();
+  const { mutate: escalateCase } = useEscalateCase();
+  const { mutate: generateDocument } = useGenerateDocument();
 
   const [dialog, setDialog] = useState<DialogType>(null);
   const [reason, setReason] = useState("");
@@ -52,7 +56,7 @@ export function CaseActionsMenu({ exitCase }: CaseActionsMenuProps) {
       toast.error("Cancellation reason is required");
       return;
     }
-    cancelCase(exitCase.id, reason.trim(), actor);
+    cancelCase({ caseId: exitCase.id, reason: reason.trim(), actor });
     setDialog(null);
     setReason("");
     toast.success("Exit case cancelled");
@@ -63,7 +67,7 @@ export function CaseActionsMenu({ exitCase }: CaseActionsMenuProps) {
       toast.error("Escalation reason is required");
       return;
     }
-    escalateCase(exitCase.id, reason.trim(), actor);
+    escalateCase({ caseId: exitCase.id, reason: reason.trim(), actor });
     setDialog(null);
     setReason("");
     toast.success("Case escalated to HR");
@@ -74,15 +78,15 @@ export function CaseActionsMenu({ exitCase }: CaseActionsMenuProps) {
       toast.error("Please select a new last working day");
       return;
     }
-    extendLastWorkingDay(exitCase.id, newLwd.toISOString(), actor);
+    extendLastWorkingDay({ caseId: exitCase.id, newDate: newLwd.toISOString(), actor });
     setDialog(null);
     setNewLwd(undefined);
     toast.success("Last working day updated");
   };
 
   const handleIssueDocs = () => {
-    if (!exitCase.documents.relievingLetter) generateDocument(exitCase.id, "relievingLetter");
-    if (!exitCase.documents.experienceCertificate) generateDocument(exitCase.id, "experienceCertificate");
+    if (!exitCase.documents.relievingLetter) generateDocument({ caseId: exitCase.id, docType: "relievingLetter" });
+    if (!exitCase.documents.experienceCertificate) generateDocument({ caseId: exitCase.id, docType: "experienceCertificate" });
     setIssueDocsOpen(false);
     toast.success("Documents issued successfully");
   };

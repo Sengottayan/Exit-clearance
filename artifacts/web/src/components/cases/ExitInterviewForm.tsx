@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
-import { useExitStore } from "@/store/exitStore";
+import { useSaveExitInterview } from "@/hooks/api/useCases";
 import { toast } from "sonner";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ExitInterviewForm({ exitCase, readOnly = false }: { exitCase: ExitCase, readOnly?: boolean }) {
-  const saveInterview = useExitStore(state => state.saveExitInterview);
+  const { mutate: saveInterview } = useSaveExitInterview();
   const interview = exitCase.exitInterview;
   const isCompleted = !!interview;
 
@@ -37,14 +37,17 @@ export function ExitInterviewForm({ exitCase, readOnly = false }: { exitCase: Ex
   }
 
   const handleSave = () => {
-    saveInterview(exitCase.id, {
-      overallRating: ratings.overall,
-      managementRating: ratings.management,
-      cultureRating: ratings.culture,
-      reason: text.reason,
-      improvements: text.improvements,
-      wouldRejoin: true,
-      comments: text.comments,
+    saveInterview({
+      caseId: exitCase.id,
+      interview: {
+        overallRating: ratings.overall,
+        managementRating: ratings.management,
+        cultureRating: ratings.culture,
+        reason: text.reason,
+        improvements: text.improvements,
+        wouldRejoin: true,
+        comments: text.comments,
+      },
     });
     toast.success("Exit interview saved.");
   };

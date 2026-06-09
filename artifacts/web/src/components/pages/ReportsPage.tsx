@@ -26,14 +26,14 @@ import {
   FileBox,
 } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useExitStore } from "@/store/exitStore";
+import { useCases } from "@/hooks/api/useCases";
 import { computeExitTrend, computeExitReasons, computeTurnaround, computeSLAPerformance } from "@/lib/analytics";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function ReportsPage() {
   const { isHR, isAdmin } = useAuth();
-  const cases = useExitStore((s) => s.cases);
+  const { data: cases = [] } = useCases();
   const [days, setDays] = useState("90");
   const [exporting, setExporting] = useState(false);
   const [exportHistory, setExportHistory] = useState([

@@ -6,6 +6,7 @@ import * as Icons from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
+import { useClerk } from "@clerk/nextjs";
 import { NotificationBell } from "@/components/shared/NotificationBell";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import {
@@ -21,10 +22,18 @@ export function Sidebar() {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const logout = useAuthStore(state => state.logout);
+  const { signOut } = useClerk();
 
   if (!user) return null;
 
   const navItems = NAV_CONFIG[user.role] || [];
+
+  async function handleLogout() {
+    logout();
+    localStorage.removeItem("exitflow-auth");
+    await signOut();
+    setLocation("/login");
+  }
 
   return (
     <aside className="hidden md:flex flex-col w-[260px] bg-sidebar border-r border-sidebar-border h-[100dvh] text-sidebar-foreground sticky top-0 shadow-lg shadow-black/10 z-20 transition-all duration-300">
@@ -45,9 +54,13 @@ export function Sidebar() {
             WORKSPACE NAVIGATION
           </p>
           <nav className="space-y-1.5">
-            {navItems.map((item) => {
-              const Icon = Icons[item.icon as keyof typeof Icons] as React.ElementType;
-              const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href));
+            {(() => {
+              const exactMatch = navItems.find(i => location === i.href);
+              return navItems.map((item) => {
+                const Icon = Icons[item.icon as keyof typeof Icons] as React.ElementType;
+                const isActive = exactMatch
+                  ? exactMatch.href === item.href
+                  : (item.href !== '/' && location.startsWith(item.href + '/'));
               return (
                 <Link 
                   key={`${item.href}-${item.label}`} 
@@ -66,7 +79,7 @@ export function Sidebar() {
                   <span>{item.label}</span>
                 </Link>
               );
-            })}
+            })})()}
           </nav>
         </div>
       </div>
@@ -98,7 +111,7 @@ export function Sidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLocation("/profile")}>
               <Icons.User className="mr-2 h-4 w-4 text-muted-foreground" />
               <span>Profile Details</span>
             </DropdownMenuItem>
@@ -107,7 +120,7 @@ export function Sidebar() {
               <span>Preferences</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
               <Icons.LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

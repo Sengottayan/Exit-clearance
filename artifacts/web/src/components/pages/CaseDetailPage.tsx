@@ -1,4 +1,4 @@
-import { useExitStore } from "@/store/exitStore";
+import { useCase, useApproveResignation } from "@/hooks/api/useCases";
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect, useParams } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -25,10 +25,10 @@ import { EXIT_REASONS } from "@/lib/constants";
 export default function CaseDetailPage() {
   const { id } = useParams();
   const { user, isHR, isAdmin, isManager, isEmployee } = useAuth();
-  const store = useExitStore();
   const [approveOpen, setApproveOpen] = useState(false);
 
-  const exitCase = store.cases.find((c) => c.id === id);
+  const { data: exitCase } = useCase(id ?? "");
+  const { mutate: approveResignation } = useApproveResignation();
 
   if (!exitCase) {
     return <div className="p-8 text-center">Case not found</div>;
@@ -44,13 +44,13 @@ export default function CaseDetailPage() {
   const exitReasonLabel = EXIT_REASONS.find((r) => r.value === exitCase.exitReason)?.label ?? exitCase.exitReason;
 
   const handleApproveResignation = () => {
-    store.approveResignation(exitCase.id, user?.name ?? "");
+    approveResignation({ caseId: exitCase.id, actor: user?.name ?? "" });
     setApproveOpen(false);
     toast.success("Resignation approved — clearance process started");
   };
 
   return (
-    <div className="animate-in fade-in duration-500 pb-12">
+    <div className="animate-slide-up pb-12">
       <PageHeader
         title={isOwnCase ? "My Exit Process" : exitCase.employeeName}
         breadcrumbs={[

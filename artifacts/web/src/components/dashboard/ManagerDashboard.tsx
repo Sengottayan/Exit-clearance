@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useExitStore } from "@/store/exitStore";
+import { useCases } from "@/hooks/api/useCases";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CaseTable } from "@/components/cases/CaseTable";
 import { AlertCircle, CheckCircle2, Users, FileSignature, ClipboardList, ArrowRight } from "lucide-react";
@@ -11,7 +11,7 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 
 export function ManagerDashboard() {
   const { user } = useAuth();
-  const cases = useExitStore(state => state.cases);
+  const { data: cases = [] } = useCases();
   
   const teamCases = cases.filter(c => c.managerId === user?.id);
   const pendingApprovals = teamCases.filter(c => c.status === 'pending_manager');
@@ -20,7 +20,7 @@ export function ManagerDashboard() {
   const hasNoActivity = teamCases.length === 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-8">
+    <div className="space-y-8 animate-slide-up pb-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Manager Dashboard</h1>
         <p className="text-muted-foreground font-medium mt-1">{user?.dept} Department</p>

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
-import { auth } from "@clerk/nextjs/server";
+import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { userId } = await getOptionalAuth();
+  if (!userId) return unauthorized();
 
   const supabase = createServerSupabase();
   const { searchParams } = new URL(request.url);

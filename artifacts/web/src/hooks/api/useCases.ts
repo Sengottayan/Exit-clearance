@@ -1,9 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useExitStore } from "@/store/exitStore";
-import { useAuthStore } from "@/store/authStore";
-import { ExitCase, CaseComment, ExitInterview } from "@/lib/types";
+import type { ExitCase, CaseComment, ExitInterview } from "@/lib/types";
+import { toExitCase, mapKeys } from "@/lib/mappers";
 import { buildClearanceTasks, getManagerForEmployee } from "@/lib/workflow";
 import { DEPARTMENTS } from "@/lib/constants";
+
+interface ApiCaseComment {
+  id: string;
+  author_id: string;
+  author_name: string;
+  author_role: string;
+  message: string;
+  timestamp: string;
+  visibility: string;
+}
 
 const casesKeys = {
   all: ["cases"] as const,
@@ -13,7 +23,12 @@ const casesKeys = {
   comments: (caseId: string) => ["cases", "comments", caseId] as const,
 };
 
-function filterCases(cases: ExitCase[], filters?: Record<string, string>): ExitCase[] {
+function useApiAvailable(): boolean {
+  return typeof window !== "undefined" && !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+}
+
+function getFallbackCases(filters?: Record<string, string>): ExitCase[] {
+  const cases = useExitStore.getState().cases;
   if (!filters) return cases;
   let result = [...cases];
   if (filters.status) result = result.filter((c) => c.status === filters.status);
@@ -33,14 +48,39 @@ function filterCases(cases: ExitCase[], filters?: Record<string, string>): ExitC
 export function useCases(filters?: Record<string, string>) {
   return useQuery({
     queryKey: casesKeys.list(filters),
-    queryFn: () => filterCases(useExitStore.getState().cases, filters),
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filters?.status) params.set("status", filters.status);
+        if (filters?.search) params.set("search", filters.search);
+        const qs = params.toString();
+        const res = await fetch(`/api/cases${qs ? `?${qs}` : ""}`);
+        if (!res.ok) throw new Error("API unavailable");
+        const data: Record<string, unknown>[] = await res.json();
+        return data.map(toExitCase);
+      } catch {
+        return getFallbackCases(filters);
+      }
+    },
   });
 }
 
 export function useCase(caseId: string) {
   return useQuery({
     queryKey: casesKeys.detail(caseId),
-    queryFn: () => useExitStore.getState().cases.find((c) => c.id === caseId) ?? null,
+    queryFn: async () => {
+      try {
+        const res = await fetch(`/api/cases/${caseId}`);
+        if (!res.ok) {
+          if (res.status === 404) return null;
+          throw new Error("API unavailable");
+        }
+        const data: Record<string, unknown> = await res.json();
+        return toExitCase(data);
+      } catch {
+        return useExitStore.getState().cases.find((c) => c.id === caseId) ?? null;
+      }
+    },
     enabled: !!caseId,
   });
 }
@@ -59,27 +99,49 @@ export function useCreateCase() {
       noticePeriodDays: number;
       exitReason: string;
     }) => {
-      const manager = getManagerForEmployee(input.employeeDept);
-      const tasks = buildClearanceTasks(DEPARTMENTS.map((d) => d.id), new Date(input.resignationDate));
-      const newCase: Omit<ExitCase, "id"> = {
-        ...input,
-        managerId: manager.id,
-        managerName: manager.name,
-        status: "pending_manager",
-        tasks,
-        timeline: [
-          {
-            id: `evt-${Date.now()}`,
-            label: "Resignation submitted",
-            timestamp: new Date().toISOString(),
-            actor: input.employeeName,
-            actorRole: "employee",
-          },
-        ],
-        documents: {},
-      };
-      useExitStore.getState().addCase(newCase);
-      return useExitStore.getState().cases[0];
+      try {
+        const body = {
+          employee_id: input.employeeId,
+          employee_name: input.employeeName,
+          employee_email: input.employeeEmail,
+          employee_role: input.employeeRole,
+          employee_dept: input.employeeDept,
+          resignation_date: input.resignationDate,
+          last_working_day: input.lastWorkingDay,
+          notice_period_days: input.noticePeriodDays,
+          exit_reason: input.exitReason,
+        };
+        const res = await fetch("/api/cases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        const data: Record<string, unknown> = await res.json();
+        return toExitCase(data);
+      } catch {
+        const manager = getManagerForEmployee(input.employeeDept);
+        const tasks = buildClearanceTasks(DEPARTMENTS.map((d) => d.id), new Date(input.resignationDate));
+        const newCase: Omit<ExitCase, "id"> = {
+          ...input,
+          managerId: manager.id,
+          managerName: manager.name,
+          status: "pending_manager",
+          tasks,
+          timeline: [
+            {
+              id: `evt-${Date.now()}`,
+              label: "Resignation submitted",
+              timestamp: new Date().toISOString(),
+              actor: input.employeeName,
+              actorRole: "employee",
+            },
+          ],
+          documents: {},
+        };
+        useExitStore.getState().addCase(newCase as ExitCase);
+        return useExitStore.getState().cases[0];
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: casesKeys.all });
@@ -91,8 +153,19 @@ export function useApproveResignation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, actor }: { caseId: string; actor: string }) => {
-      useExitStore.getState().approveResignation(caseId, actor);
-      return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/approve-resignation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actor }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        const data = await res.json();
+        return data;
+      } catch {
+        useExitStore.getState().approveResignation(caseId, actor);
+        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
@@ -105,8 +178,18 @@ export function useCancelCase() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, reason, actor }: { caseId: string; reason: string; actor: string }) => {
-      useExitStore.getState().cancelCase(caseId, reason, actor);
-      return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/cancel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason, actor }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        return await res.json();
+      } catch {
+        useExitStore.getState().cancelCase(caseId, reason, actor);
+        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
@@ -119,8 +202,18 @@ export function useExtendLastWorkingDay() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, newDate, actor }: { caseId: string; newDate: string; actor: string }) => {
-      useExitStore.getState().extendLastWorkingDay(caseId, newDate, actor);
-      return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/extend`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_date: newDate, actor }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        return await res.json();
+      } catch {
+        useExitStore.getState().extendLastWorkingDay(caseId, newDate, actor);
+        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
@@ -133,8 +226,18 @@ export function useEscalateCase() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, reason, actor }: { caseId: string; reason: string; actor: string }) => {
-      useExitStore.getState().escalateCase(caseId, reason, actor);
-      return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/escalate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason, actor }),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        return await res.json();
+      } catch {
+        useExitStore.getState().escalateCase(caseId, reason, actor);
+        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+      }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
@@ -146,7 +249,16 @@ export function useEscalateCase() {
 export function useCaseComments(caseId: string) {
   return useQuery({
     queryKey: casesKeys.comments(caseId),
-    queryFn: () => useExitStore.getState().cases.find((c) => c.id === caseId)?.comments ?? [],
+    queryFn: async () => {
+      try {
+        const res = await fetch(`/api/cases/${caseId}/comments`);
+        if (!res.ok) throw new Error("API unavailable");
+        const data: Record<string, unknown>[] = await res.json();
+        return data.map(mapKeys<CaseComment>);
+      } catch {
+        return useExitStore.getState().cases.find((c) => c.id === caseId)?.comments ?? [];
+      }
+    },
     enabled: !!caseId,
   });
 }
@@ -155,8 +267,25 @@ export function useAddComment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, comment }: { caseId: string; comment: Omit<CaseComment, "id" | "timestamp"> }) => {
-      useExitStore.getState().addComment(caseId, comment);
-      return useExitStore.getState().cases.find((c) => c.id === caseId)?.comments;
+      try {
+        const body = {
+          author_id: comment.authorId,
+          author_name: comment.authorName,
+          author_role: comment.authorRole,
+          message: comment.message,
+          visibility: comment.visibility,
+        };
+        const res = await fetch(`/api/cases/${caseId}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        return await res.json();
+      } catch {
+        useExitStore.getState().addComment(caseId, comment);
+        return useExitStore.getState().cases.find((c) => c.id === caseId)?.comments;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: casesKeys.comments(variables.caseId) });
@@ -168,8 +297,27 @@ export function useSaveExitInterview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, interview }: { caseId: string; interview: ExitInterview }) => {
-      useExitStore.getState().saveExitInterview(caseId, interview);
-      return useExitStore.getState().cases.find((c) => c.id === caseId)?.exitInterview ?? null;
+      try {
+        const body = {
+          overall_rating: interview.overallRating,
+          management_rating: interview.managementRating,
+          culture_rating: interview.cultureRating,
+          reason: interview.reason,
+          improvements: interview.improvements,
+          would_rejoin: interview.wouldRejoin,
+          comments: interview.comments,
+        };
+        const res = await fetch(`/api/cases/${caseId}/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        return await res.json();
+      } catch {
+        useExitStore.getState().saveExitInterview(caseId, interview);
+        return useExitStore.getState().cases.find((c) => c.id === caseId)?.exitInterview ?? null;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: casesKeys.detail(variables.caseId) });

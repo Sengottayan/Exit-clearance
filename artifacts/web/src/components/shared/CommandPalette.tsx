@@ -12,14 +12,14 @@ import {
 } from "@/components/ui/command";
 import { NAV_CONFIG } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
-import { useExitStore } from "@/store/exitStore";
+import { useCases } from "@/hooks/api/useCases";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const cases = useExitStore((s) => s.cases);
+  const { data: cases = [] } = useCases();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

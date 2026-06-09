@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { ClerkProvider } from "@/components/clerk-provider";
 import { Toaster } from "sonner";
+import { isValidClerkPublishableKey } from "@/lib/clerk-utils";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,6 +21,9 @@ export const metadata: Metadata = {
   description: "Streamline employee offboarding and clearance workflows",
 };
 
+const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const clerkConfigured = isValidClerkPublishableKey(clerkPublishableKey);
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,7 +36,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ClerkProvider>
+        <ClerkProvider clerkConfigured={clerkConfigured} clerkPublishableKey={clerkPublishableKey}>
           <Providers>
             {children}
             <Toaster position="top-right" />

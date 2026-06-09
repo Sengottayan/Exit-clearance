@@ -1,4 +1,4 @@
-import { useExitStore } from "@/store/exitStore";
+import { useTask, useApproveTask, useRejectTask, useSaveTaskDraft, useCheckItem, useSetItemInput } from "@/hooks/api/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link, useParams, useLocation } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -19,7 +19,6 @@ export default function TaskDetailPage() {
   const { taskId } = useParams();
   const { user, isDeptApprover, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
-  const store = useExitStore();
   
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -30,8 +29,10 @@ export default function TaskDetailPage() {
   if (!taskId) return <Redirect to="/tasks" />;
 
   const [caseId, deptId] = taskId.split("__");
-  const exitCase = store.cases.find(c => c.id === caseId);
-  const task = exitCase?.tasks.find(t => t.deptId === deptId);
+  const { data: resolvedTask } = useTask(taskId ?? "");
+
+  const exitCase = resolvedTask?.case;
+  const task = resolvedTask;
 
   if (!exitCase || !task) {
     return (
@@ -49,16 +50,22 @@ export default function TaskDetailPage() {
 
   const allMandatoryChecked = task.checklist.every(item => !item.isMandatory || item.checked);
 
+  const { mutate: checkItem } = useCheckItem();
+  const { mutate: setItemInput } = useSetItemInput();
+  const { mutate: saveTaskDraft } = useSaveTaskDraft();
+  const { mutate: approveTask } = useApproveTask();
+  const { mutate: rejectTask } = useRejectTask();
+
   const handleCheck = (itemId: string, checked: boolean) => {
-    store.checkItem(caseId, deptId, itemId, checked);
+    checkItem({ caseId, deptId, itemId, checked });
   };
 
   const handleInput = (itemId: string, value: string) => {
-    store.setItemInput(caseId, deptId, itemId, value);
+    setItemInput({ caseId, deptId, itemId, inputValue: value });
   };
 
   const handleSaveDraft = () => {
-    store.saveTaskDraft(caseId, deptId, task.checklist);
+    saveTaskDraft({ taskId: taskId ?? "", checklist: task.checklist });
     toast.success("Draft saved successfully");
   };
 
@@ -72,7 +79,7 @@ export default function TaskDetailPage() {
   };
 
   const handleApproveConfirm = () => {
-    store.approveTask(caseId, deptId);
+    approveTask({ taskId: taskId ?? "" });
     setApproveOpen(false);
     toast.success("Clearance approved successfully");
     setLocation("/tasks");
@@ -83,14 +90,14 @@ export default function TaskDetailPage() {
       toast.error("Rejection reason is required");
       return;
     }
-    store.rejectTask(caseId, deptId, rejectReason);
+    rejectTask({ taskId: taskId ?? "", reason: rejectReason });
     setRejectOpen(false);
     toast.info("Clearance rejected");
     setLocation("/tasks");
   };
 
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in duration-500 pb-24">
+    <div className="max-w-3xl mx-auto animate-slide-up pb-24">
       <PageHeader 
         title={`${task.deptLabel} Clearance`}
         breadcrumbs={[{ label: "Tasks", href: "/tasks" }, { label: exitCase.employeeName }]}
@@ -174,12 +181,9 @@ export default function TaskDetailPage() {
       />
 
       {rejectOpen && (
-        <div className="fixed z-[100] inset-0 flex items-center justify-center pointer-events-none">
-          {/* Inject text area into the dialog via a hack or we just build a custom dialog here. Let's use a standard Dialog for rejection input instead of ConfirmDialog to have an input field. */}
-        </div>
+        <div className="fixed z-[100] inset-0 flex items-center justify-center pointer-events-none" />
       )}
       
-      {/* Custom Rejection Dialog */}
       {rejectOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <Card className="w-full max-w-md shadow-lg border-2 animate-in zoom-in-95">

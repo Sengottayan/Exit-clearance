@@ -1,5 +1,5 @@
-import { useExitStore } from "@/store/exitStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useCases } from "@/hooks/api/useCases";
 import { Redirect, Link } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { resolveTaskStatus } from "@/lib/workflow";
 
 export default function TasksPage() {
   const { user, isDeptApprover, isAdmin } = useAuth();
-  const cases = useExitStore(state => state.cases);
+  const { data: cases = [] } = useCases();
 
   if (!isDeptApprover && !isAdmin) return <Redirect to="/dashboard" />;
 
@@ -100,7 +100,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-slide-up">
       <PageHeader 
         title="My Tasks" 
         action={<div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">{pending.length} pending</div>}

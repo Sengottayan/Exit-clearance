@@ -2,14 +2,22 @@
 
 import { ClerkProvider as ClerkProviderBase } from "@clerk/nextjs";
 
-const hasClerkKey =
-  typeof process !== "undefined" &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-export function ClerkProvider({ children }: { children: React.ReactNode }) {
-  if (!hasClerkKey) {
+export function ClerkProvider({
+  children,
+  clerkConfigured,
+  clerkPublishableKey,
+}: {
+  children: React.ReactNode;
+  clerkConfigured: boolean;
+  clerkPublishableKey?: string;
+}) {
+  if (!clerkConfigured) {
     return <>{children}</>;
   }
 
-  return <ClerkProviderBase>{children}</ClerkProviderBase>;
+  return (
+    <ClerkProviderBase publishableKey={clerkPublishableKey}>
+      {children}
+    </ClerkProviderBase>
+  );
 }

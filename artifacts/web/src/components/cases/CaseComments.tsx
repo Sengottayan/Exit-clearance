@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { MessageSquare, Lock } from "lucide-react";
 import { ExitCase, CommentVisibility, Role } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
-import { useExitStore } from "@/store/exitStore";
+import { useAddComment } from "@/hooks/api/useCases";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,7 @@ function canPostInternal(viewerRole: Role): boolean {
 
 export function CaseComments({ exitCase }: CaseCommentsProps) {
   const { user } = useAuth();
-  const addComment = useExitStore((s) => s.addComment);
+  const { mutate: addComment } = useAddComment();
   const [message, setMessage] = useState("");
   const [visibility, setVisibility] = useState<CommentVisibility>("all");
 
@@ -49,12 +49,15 @@ export function CaseComments({ exitCase }: CaseCommentsProps) {
       toast.error("Comment cannot be empty");
       return;
     }
-    addComment(exitCase.id, {
-      authorId: user.id,
-      authorName: user.name,
-      authorRole: user.role,
-      message: message.trim(),
-      visibility: canPostInternal(user.role) ? visibility : "all",
+    addComment({
+      caseId: exitCase.id,
+      comment: {
+        authorId: user.id,
+        authorName: user.name,
+        authorRole: user.role,
+        message: message.trim(),
+        visibility: canPostInternal(user.role) ? visibility : "all",
+      },
     });
     setMessage("");
     toast.success("Comment added");

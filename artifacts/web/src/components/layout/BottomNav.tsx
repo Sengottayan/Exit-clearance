@@ -16,9 +16,13 @@ export function BottomNav() {
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 h-[68px] bg-background/90 backdrop-blur-md border-t flex items-center justify-around px-2 z-40 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
-      {items.map((item) => {
-        const Icon = Icons[item.icon as keyof typeof Icons] as React.ElementType;
-        const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href));
+      {(() => {
+        const exactMatch = items.find(i => location === i.href);
+        return items.map((item) => {
+          const Icon = Icons[item.icon as keyof typeof Icons] as React.ElementType;
+          const isActive = exactMatch
+            ? exactMatch.href === item.href
+            : (item.href !== '/' && location.startsWith(item.href + '/'));
         
         return (
           <Link 
@@ -36,7 +40,7 @@ export function BottomNav() {
             <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
           </Link>
         );
-      })}
+      });})()}
     </div>
   );
 }

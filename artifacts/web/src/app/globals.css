@@ -295,3 +295,32 @@
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
+
+/* Hide Clerk development mode badge */
+.clerk-dev-banner,
+.clerk-dev-badge,
+[data-clerk-id="dev-mode-warning"],
+.cl-dev-mode-warning {
+  display: none !important;
+}
+
+/* Clerk input field visibility */
+.clerk-card [data-field-name="password"] input,
+.clerk-card [data-field-name="emailAddress"] input,
+.clerk-sign-in input[type="email"],
+.clerk-sign-in input[type="password"],
+.clerk-sign-in input[name="emailAddress"],
+.clerk-sign-in input[name="password"] {
+  background: #e2e8f0 !important;
+  border: 1.5px solid #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* Clerk password toggle button */
+.clerk-card button[aria-label*="password"],
+.clerk-card button[aria-label*="Show"],
+.clerk-card button[aria-label*="Hide"],
+.clerk-card [data-field-name="password"] button {
+  color: #64748b !important;
+  opacity: 1 !important;
+}

@@ -3,7 +3,7 @@ import { ExitCase } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Lock, Upload, Paperclip } from "lucide-react";
-import { useExitStore } from "@/store/exitStore";
+import { useGenerateDocument, useUploadDocument, useUploadAttachment } from "@/hooks/api/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -11,9 +11,9 @@ import { DEPARTMENTS } from "@/lib/constants";
 
 export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
   const { user, isHR, isAdmin, isEmployee } = useAuth();
-  const generateDocument = useExitStore((s) => s.generateDocument);
-  const uploadDocument = useExitStore((s) => s.uploadDocument);
-  const uploadAttachment = useExitStore((s) => s.uploadAttachment);
+  const { mutate: generateDocument } = useGenerateDocument();
+  const { mutate: uploadDocument } = useUploadDocument();
+  const { mutate: uploadAttachment } = useUploadAttachment();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,7 +26,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
   const canUpload = (isEmployee && isOwnCase) || isHR || isAdmin;
 
   const handleGenerate = (type: "relievingLetter" | "experienceCertificate") => {
-    generateDocument(exitCase.id, type);
+    generateDocument({ caseId: exitCase.id, docType: type });
     toast.success(`${type === "relievingLetter" ? "Relieving Letter" : "Experience Certificate"} generated.`);
   };
 
@@ -35,10 +35,10 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
     if (!file) return;
 
     if (type === "resignation") {
-      uploadDocument(exitCase.id, "resignationLetter", file.name);
+      uploadDocument({ caseId: exitCase.id, docType: "resignationLetter", fileName: file.name });
       toast.success("Resignation letter uploaded");
     } else {
-      uploadAttachment(exitCase.id, file.name, user?.name ?? "User");
+      uploadAttachment({ caseId: exitCase.id, fileName: file.name, actor: user?.name ?? "User" });
       toast.success("Attachment uploaded");
     }
     e.target.value = "";
@@ -57,7 +57,7 @@ export function DocumentsTab({ exitCase }: { exitCase: ExitCase }) {
                 e.preventDefault();
                 const file = e.dataTransfer.files?.[0];
                 if (file) {
-                  uploadAttachment(exitCase.id, file.name, user?.name ?? "User");
+                  uploadAttachment({ caseId: exitCase.id, fileName: file.name, actor: user?.name ?? "User" });
                   toast.success("Attachment uploaded");
                 }
               }}

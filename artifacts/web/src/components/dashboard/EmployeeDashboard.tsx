@@ -1,5 +1,5 @@
-import { useExitStore } from "@/store/exitStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useCases } from "@/hooks/api/useCases";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SLARiskChip } from "@/components/shared/SLARiskChip";
@@ -17,7 +17,7 @@ import { resolveTaskStatus } from "@/lib/workflow";
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
-  const cases = useExitStore(state => state.cases);
+  const { data: cases = [] } = useCases();
   const myCase = cases.find(c => c.employeeId === user?.employeeId);
 
   if (!myCase) {
@@ -65,7 +65,7 @@ export function EmployeeDashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-8">
+    <div className="space-y-8 animate-slide-up pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>

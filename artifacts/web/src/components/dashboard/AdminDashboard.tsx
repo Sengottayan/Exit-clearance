@@ -1,4 +1,4 @@
-import { useExitStore } from "@/store/exitStore";
+import { useCases } from "@/hooks/api/useCases";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CaseTable } from "@/components/cases/CaseTable";
 import { Users, FileText, Settings, Activity, ShieldCheck, Database, ArrowRight } from "lucide-react";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export function AdminDashboard() {
-  const cases = useExitStore(state => state.cases);
+  const { data: cases = [] } = useCases();
   
   const activeCases = cases.filter(c => c.status !== 'completed' && c.status !== 'cancelled').length;
   const completedCases = cases.filter(c => c.status === 'completed').length;
@@ -18,7 +18,7 @@ export function AdminDashboard() {
   const slaCompliance = totalTasks > 0 ? Math.round(((totalTasks - overdueTasks) / totalTasks) * 100) : 100;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-8">
+    <div className="space-y-8 animate-slide-up pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">System Admin</h1>

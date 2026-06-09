@@ -1,5 +1,6 @@
-import { useExitStore } from "@/store/exitStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useCases, useAddComment } from "@/hooks/api/useCases";
+import { useUploadAttachment } from "@/hooks/api/useDocuments";
 import { Redirect, Link } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CaseTable } from "@/components/cases/CaseTable";
@@ -23,11 +24,9 @@ import { DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
 
 export default function CasesPage() {
   const { user, isHR, isAdmin, isManager, isEmployee } = useAuth();
-  const cases = useExitStore(state => state.cases);
-  const addComment = useExitStore(state => state.addComment);
-  const approveTask = useExitStore(state => state.approveTask);
-  const rejectTask = useExitStore(state => state.rejectTask);
-  const uploadAttachment = useExitStore(state => state.uploadAttachment);
+  const { data: cases = [], isLoading } = useCases();
+  const { mutate: addComment } = useAddComment();
+  const { mutate: uploadAttachment } = useUploadAttachment();
   
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState("");
@@ -41,6 +40,7 @@ export default function CasesPage() {
   const [newCommentText, setNewCommentText] = useState("");
 
   if (isEmployee) {
+    if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
     const myCase = cases.find(c => c.employeeId === user?.employeeId);
     if (myCase) return <Redirect to={`/cases/${myCase.id}`} />;
     return <Redirect to="/resign" />;
@@ -114,12 +114,15 @@ export default function CasesPage() {
 
   const handleAddComment = () => {
     if (!selectedCaseId || !newCommentText.trim() || !user) return;
-    addComment(selectedCaseId, {
-      authorId: user.id,
-      authorName: user.name,
-      authorRole: user.role,
-      message: newCommentText,
-      visibility: "all",
+    addComment({
+      caseId: selectedCaseId,
+      comment: {
+        authorId: user.id,
+        authorName: user.name,
+        authorRole: user.role,
+        message: newCommentText,
+        visibility: "all",
+      },
     });
     setNewCommentText("");
     toast.success("Comment posted");
@@ -135,7 +138,7 @@ export default function CasesPage() {
   const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedCaseId || !e.target.files || e.target.files.length === 0 || !user) return;
     const file = e.target.files[0];
-    uploadAttachment(selectedCaseId, file.name, user.name);
+    uploadAttachment({ caseId: selectedCaseId, fileName: file.name, actor: user.name });
     toast.success(`Uploaded attachment: ${file.name}`);
   };
 
@@ -145,7 +148,7 @@ export default function CasesPage() {
   }, [cases]);
 
   return (
-    <div className="animate-in fade-in duration-500 space-y-6 pb-12">
+    <div className="animate-slide-up space-y-6 pb-12">
       <PageHeader 
         title={isManagerOnly ? "Team Exits" : "Exit Cases"}
         description={isManagerOnly ? "View and manage exit processes for your direct reports." : "Manage case lifecycles, assign checklists, and audit offboard compliance."}
