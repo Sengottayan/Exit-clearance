@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
-import { differenceInDays } from "date-fns";
+import { differenceInCalendarDays } from "date-fns";
 import { Mail, Briefcase, Calendar, Hash, AlertTriangle } from "lucide-react";
 import { CaseTimeline } from "@/components/cases/CaseTimeline";
 import { ClearanceAccordion } from "@/components/cases/ClearanceAccordion";
@@ -21,6 +21,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EXIT_REASONS } from "@/lib/constants";
+import { isCaseOwnedByUser } from "@/lib/employee-case";
 
 export default function CaseDetailPage() {
   const { id } = useParams();
@@ -34,13 +35,13 @@ export default function CaseDetailPage() {
     return <div className="p-8 text-center">Case not found</div>;
   }
 
-  const isOwnCase = user?.employeeId === exitCase.employeeId;
+  const isOwnCase = isCaseOwnedByUser(exitCase, user);
   const canView = isHR || isAdmin || (isManager && exitCase.managerId === user?.id) || (isEmployee && isOwnCase);
 
   if (!canView) return <Redirect to="/dashboard" />;
 
   const lwd = new Date(exitCase.lastWorkingDay);
-  const noticeDays = differenceInDays(lwd, new Date(exitCase.resignationDate));
+  const noticeDays = differenceInCalendarDays(lwd, new Date(exitCase.resignationDate));
   const exitReasonLabel = EXIT_REASONS.find((r) => r.value === exitCase.exitReason)?.label ?? exitCase.exitReason;
 
   const handleApproveResignation = () => {

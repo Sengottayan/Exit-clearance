@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ExitCase, TaskStatus, ChecklistItem, ExitInterview, CaseComment } from '@/lib/types';
-import { differenceInDays } from 'date-fns';
+import { differenceInCalendarDays } from 'date-fns';
 import { DEPARTMENTS } from '@/lib/constants';
 import { addHours, format } from 'date-fns';
 import { buildClearanceTasks, normalizeCaseTasks, tryCompleteCase } from '@/lib/workflow';
@@ -498,7 +498,7 @@ export const useExitStore = create<ExitStore>()(
         set((state) => ({
           cases: state.cases.map((c) => {
             if (c.id !== caseId) return c;
-            const noticePeriodDays = differenceInDays(new Date(newDate), new Date(c.resignationDate));
+            const noticePeriodDays = differenceInCalendarDays(new Date(newDate), new Date(c.resignationDate));
             notify({
               userId: c.managerId,
               type: 'system',

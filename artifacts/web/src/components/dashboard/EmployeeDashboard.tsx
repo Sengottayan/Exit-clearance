@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SLARiskChip } from "@/components/shared/SLARiskChip";
 import { CaseTimeline } from "@/components/cases/CaseTimeline";
 import { formatDate } from "@/lib/utils";
-import { differenceInDays } from "date-fns";
+import { differenceInCalendarDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { FileText, CheckCircle2, Circle, AlertCircle, Clock, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,17 +14,20 @@ import { ExternalLink } from "lucide-react";
 import { FileSignature } from "lucide-react";
 import { ProgressRing } from "@/components/shared/ProgressRing";
 import { resolveTaskStatus } from "@/lib/workflow";
+import { getActiveEmployeeCase, getLatestEmployeeCase } from "@/lib/employee-case";
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
   const { data: cases = [] } = useCases();
-  const myCase = cases.find(c => c.employeeId === user?.employeeId);
+  const activeCase = getActiveEmployeeCase(cases, user);
+  const latestCase = getLatestEmployeeCase(cases, user);
+  const firstName = user?.name?.split(" ")[0] ?? "there";
 
-  if (!myCase) {
+  if (!activeCase) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Good morning, {firstName}</h1>
           <p className="text-muted-foreground font-medium mt-1">{user?.role.replace('_', ' ')} · {user?.dept}</p>
         </div>
         <Card className="border-dashed bg-muted/20 border-2 shadow-none">
@@ -36,20 +39,31 @@ export function EmployeeDashboard() {
             <p className="text-muted-foreground mt-2 max-w-sm text-sm">
               You do not have an active resignation or exit process. Your employment status is active.
             </p>
-            <Link href="/resign">
-              <Button className="mt-6" size="lg">
-                <FileSignature className="w-4 h-4 mr-2" />
-                Start Resignation Process
-              </Button>
-            </Link>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Link href="/resign">
+                <Button size="lg">
+                  <FileSignature className="w-4 h-4 mr-2" />
+                  Start Resignation Process
+                </Button>
+              </Link>
+              {latestCase && (
+                <Link href={`/cases/${latestCase.id}`}>
+                  <Button size="lg" variant="outline">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View Previous Case
+                  </Button>
+                </Link>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  const myCase = activeCase;
   const lwd = new Date(myCase.lastWorkingDay);
-  const daysRemaining = differenceInDays(lwd, new Date());
+  const daysRemaining = differenceInCalendarDays(lwd, new Date());
   const approvedCount = myCase.tasks.filter((t) => resolveTaskStatus(t) === 'approved').length;
   const clearanceProgress = myCase.tasks.length > 0 ? (approvedCount / myCase.tasks.length) * 100 : 0;
   const nextPendingTask = myCase.tasks.find((t) => !['approved', 'rejected'].includes(resolveTaskStatus(t)));
@@ -68,7 +82,7 @@ export function EmployeeDashboard() {
     <div className="space-y-8 animate-slide-up pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Good morning, {user?.name.split(' ')[0]}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Good morning, {firstName}</h1>
           <p className="text-muted-foreground font-medium mt-1">{user?.dept} Department</p>
         </div>
         <Link href={`/cases/${myCase.id}`}>

@@ -8,7 +8,7 @@ import { MOCK_USERS, ROLE_LABELS } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { GlobalLoading } from "@/components/shared/GlobalLoading";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import type { Role } from "@/lib/types";
 
 function FeatureCard({
@@ -124,11 +124,19 @@ const clerkAppearance = {
       padding: "0.75rem 0.875rem",
       background: "#e2e8f0",
       color: "#0f172a",
+      caretColor: "#0f172a",
       boxShadow: "none",
       outline: "none",
     },
     formFieldInput__password: {
       paddingRight: "2.5rem",
+    },
+    formFieldInput__code: {
+      background: "#e2e8f0",
+      color: "#0f172a",
+      caretColor: "#0f172a",
+      fontVariantNumeric: "tabular-nums",
+      letterSpacing: "0.12em",
     },
     socialButtons: {
       display: "none",
@@ -151,8 +159,6 @@ const clerkAppearance = {
     footerActionText: { color: "#64748b" },
     formFieldErrorText: { color: "hsl(350, 89%, 60%)" },
     formFieldSuccessText: { color: "#059669" },
-    alternativeMethods: { display: "none" },
-    footerAction: { display: "none" },
     developmentModeWarning: { display: "none" },
     badge: { display: "none" },
     devModeWarning: { display: "none" },
@@ -162,8 +168,6 @@ const clerkAppearance = {
       color: "#64748b",
       right: "0.75rem",
     },
-    identityPreview: { display: "none" },
-    formFieldRow__identifier: { display: "none" },
   },
 } as const;
 
@@ -174,7 +178,7 @@ function ClerkAuthPanel() {
   const existingUser = useAuthStore((state) => state.user);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !clerkUser || !orgRole) return;
+    if (!isLoaded || !isSignedIn || !clerkUser) return;
 
     const role = mapClerkRole(orgRole);
     const name = clerkUser.fullName || clerkUser.firstName || "";

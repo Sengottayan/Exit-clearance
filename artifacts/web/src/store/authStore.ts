@@ -13,10 +13,15 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       login: (email, password) => {
-        const found = MOCK_USERS.find(u => u.email === email && (password === undefined || u.password === password));
+        const normalizedInput = email.trim().toLowerCase();
+        const found = MOCK_USERS.find(
+          (u) =>
+            (u.email.toLowerCase() === normalizedInput || u.employeeId.toLowerCase() === normalizedInput) &&
+            (password === undefined || u.password === password),
+        );
         if (found) { set({ user: found as User }); return found as User; }
         return null;
       },
@@ -25,13 +30,17 @@ export const useAuthStore = create<AuthState>()(
         if (found) set({ user: found as User });
       },
       setClerkUser: (clerkUserId, role, name, email) => {
+        const normalizedEmail = email?.trim().toLowerCase() ?? '';
+        const matchedUser = normalizedEmail
+          ? MOCK_USERS.find((candidate) => candidate.email.toLowerCase() === normalizedEmail)
+          : undefined;
         const clerkUser: User = {
           id: clerkUserId,
-          email: email || '',
-          name: name || '',
+          email: email || matchedUser?.email || '',
+          name: name || matchedUser?.name || '',
           role,
-          dept: '',
-          employeeId: clerkUserId.slice(0, 8).toUpperCase(),
+          dept: matchedUser?.dept || '',
+          employeeId: matchedUser?.employeeId || clerkUserId.slice(0, 8).toUpperCase(),
         };
         set({ user: clerkUser });
       },

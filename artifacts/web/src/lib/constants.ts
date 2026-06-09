@@ -98,7 +98,7 @@ export const ROLE_LABELS: Record<string, string> = {
 export const NAV_CONFIG = {
   employee: [
     { icon: 'LayoutDashboard', label: 'My Exit Status',     href: '/dashboard' },
-    { icon: 'FolderOpen',      label: 'My Exit Case',       href: '/cases' },
+    { icon: 'FolderOpen',      label: 'My Exit Case',       href: '/my-exit-case' },
     { icon: 'FileSignature',   label: 'Submit Resignation', href: '/resign' },
   ],
   manager: [

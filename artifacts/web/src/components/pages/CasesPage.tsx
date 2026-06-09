@@ -6,13 +6,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { CaseTable } from "@/components/cases/CaseTable";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Search, Filter, RefreshCw, X, FileText, CheckCircle2, AlertTriangle, MessageSquare, Clipboard, Users, Landmark, Monitor, HelpCircle, User, Calendar, ShieldCheck, Mail, ArrowRight, Upload, Clock, Activity, Download, Send } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlusCircle, Search, X, FileText, CheckCircle2, AlertTriangle, Clipboard, Users, Landmark, Monitor, User, ShieldCheck, Mail, Upload, Clock, Activity, Download, Send } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { resolveTaskStatus } from "@/lib/workflow";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Progress } from "@/components/ui/progress";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -20,7 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { buildAuditLog } from "@/lib/audit";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
+import { EXIT_REASONS } from "@/lib/constants";
+import { getActiveEmployeeCase, getLatestEmployeeCase } from "@/lib/employee-case";
+import type { CaseAttachment } from "@/lib/types";
 
 export default function CasesPage() {
   const { user, isHR, isAdmin, isManager, isEmployee } = useAuth();
@@ -39,17 +41,10 @@ export default function CasesPage() {
   const [drawerTab, setDrawerTab] = useState<'workflow' | 'documents' | 'comments' | 'audit'>('workflow');
   const [newCommentText, setNewCommentText] = useState("");
 
-  if (isEmployee) {
-    if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
-    const myCase = cases.find(c => c.employeeId === user?.employeeId);
-    if (myCase) return <Redirect to={`/cases/${myCase.id}`} />;
-    return <Redirect to="/resign" />;
-  }
-
-  if (!isHR && !isAdmin && !isManager) return <Redirect to="/dashboard" />;
-
   const isManagerOnly = isManager && !isHR && !isAdmin;
   const baseCases = isManagerOnly ? cases.filter(c => c.managerId === user?.id) : cases;
+  const activeCase = getActiveEmployeeCase(cases, user);
+  const latestCase = getLatestEmployeeCase(cases, user);
 
   // Overview metrics
   const totalCount = baseCases.length;
@@ -146,6 +141,15 @@ export default function CasesPage() {
     const set = new Set(cases.map(c => c.employeeDept));
     return Array.from(set);
   }, [cases]);
+
+  if (isEmployee) {
+    if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>;
+    if (activeCase) return <Redirect to={`/cases/${activeCase.id}`} />;
+    if (latestCase) return <Redirect to={`/cases/${latestCase.id}`} />;
+    return <Redirect to="/resign" />;
+  }
+
+  if (!isHR && !isAdmin && !isManager) return <Redirect to="/dashboard" />;
 
   return (
     <div className="animate-slide-up space-y-6 pb-12">
@@ -405,7 +409,6 @@ export default function CasesPage() {
                       {selectedCase.tasks.map(task => {
                         const isOverdue = resolveTaskStatus(task) === 'overdue';
                         const isApproved = task.status === 'approved';
-                        const isPending = task.status === 'pending' || task.status === 'in_progress';
                         
                         return (
                           <div
@@ -478,7 +481,7 @@ export default function CasesPage() {
 
                       {/* Attachments checklist list */}
                       <div className="space-y-2 mt-4">
-                        {selectedCase.documents.attachments?.map((file: any) => (
+                        {selectedCase.documents.attachments?.map((file: CaseAttachment) => (
                           <div key={file.id} className="p-3 border border-border/60 bg-background/60 rounded-xl flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               <FileText className="w-4 h-4 text-primary shrink-0" />

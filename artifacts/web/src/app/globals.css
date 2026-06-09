@@ -284,11 +284,23 @@
   }
 
   .animate-slide-up {
-    animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .animate-pulse-soft {
     animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-slide-up,
+    .animate-pulse-soft,
+    .animate-shimmer {
+      animation: none !important;
+      transform: none !important;
+      opacity: 1 !important;
+    }
   }
   
   .transition-all-300 {
@@ -307,13 +319,18 @@
 /* Clerk input field visibility */
 .clerk-card [data-field-name="password"] input,
 .clerk-card [data-field-name="emailAddress"] input,
+.clerk-card [data-field-name="code"] input,
 .clerk-sign-in input[type="email"],
 .clerk-sign-in input[type="password"],
+.clerk-sign-in input[name="code"],
+.clerk-sign-in input[autocomplete="one-time-code"],
 .clerk-sign-in input[name="emailAddress"],
 .clerk-sign-in input[name="password"] {
   background: #e2e8f0 !important;
   border: 1.5px solid #94a3b8 !important;
   color: #0f172a !important;
+  caret-color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
 /* Clerk password toggle button */
@@ -323,4 +340,17 @@
 .clerk-card [data-field-name="password"] button {
   color: #64748b !important;
   opacity: 1 !important;
+}
+
+/* Keep Clerk verification-code steps readable when SignIn switches from password to OTP/email-code */
+.clerk-card [data-field-name="code"],
+.clerk-card [data-field-name="code"] * {
+  color: #0f172a !important;
+}
+
+.clerk-card [data-field-name="code"] input,
+.clerk-card [data-field-name="code"] [role="textbox"],
+.clerk-card [data-field-name="code"] [data-input-otp-slot] {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
 }
