@@ -2,11 +2,11 @@ import { NextResponse, NextRequest } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
-export async function GET(request: NextRequest, { params }: { params: { deptId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ deptId: string }> }) {
   const { userId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
-  const deptId = params.deptId;
+  const { deptId } = await params;
   const supabase = createServerSupabase();
 
   const { data, error } = await supabase
@@ -23,11 +23,11 @@ export async function GET(request: NextRequest, { params }: { params: { deptId: 
   return NextResponse.json(data);
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { deptId: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ deptId: string }> }) {
   const { userId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
-  const deptId = params.deptId;
+  const { deptId } = await params;
   const body = await request.json(); // Expected: { items: ChecklistTemplate[] }
 
   const supabase = createServerSupabase();

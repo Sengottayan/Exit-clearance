@@ -2,11 +2,11 @@ import { NextResponse, NextRequest } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
-  const id = params.id;
+  const { id } = await params;
   const body = await request.json();
 
   const supabase = createServerSupabase();
@@ -30,12 +30,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return NextResponse.json(data);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
-  const id = params.id;
-
+  const { id } = await params;
   const supabase = createServerSupabase();
 
   // For safety, instead of fully deleting the user which might break foreign keys, 
