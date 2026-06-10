@@ -11,7 +11,7 @@ export async function GET() {
 
   // ── 1. Seed Users ──────────────────────────────────────────────────────────
   const { error: usersErr } = await supabase.from("users").upsert([
-    { id: "usr_mgr_004", email: "aryan.kapoor@offboardiq.com",   role: "manager",  name: "Aryan Kapoor",    dept: "Sales",       employee_id: "MGR-2004" },
+    { id: "usr_mgr_004", email: "aryan.kapoor@offboardiq.com",   role: "manager",  name: "Aryan Kapoor",    dept: "Sales",       employee_id: "MGR-2004", manager_id: null },
     { id: "usr_emp_101", email: "deepa.rajan@offboardiq.com",    role: "employee", name: "Deepa Rajan",     dept: "Sales",       employee_id: "EMP-3001", manager_id: "usr_mgr_004" },
     { id: "usr_emp_102", email: "sameer.khan@offboardiq.com",    role: "employee", name: "Sameer Khan",     dept: "Sales",       employee_id: "EMP-3002", manager_id: "usr_mgr_004" },
     { id: "usr_emp_103", email: "lakshmi.nair@offboardiq.com",   role: "employee", name: "Lakshmi Nair",    dept: "Sales",       employee_id: "EMP-3003", manager_id: "usr_mgr_004" },
@@ -32,7 +32,7 @@ export async function GET() {
   const ago  = (n: number) => new Date(now.getTime() - n * 86400000).toISOString();
   const ahead = (n: number) => new Date(now.getTime() + n * 86400000).toISOString();
 
-  const { error: casesErr } = await supabase.from("exit_cases").upsert([
+  const { error: casesErr } = await supabase.from("legacy_exit_cases").upsert([
     { id: "EXIT-MGR-2001", employee_id: "usr_emp_101", employee_name: "Deepa Rajan",    employee_email: "deepa.rajan@offboardiq.com",    employee_role: "Sales Executive",     employee_dept: "Sales",       manager_id: "usr_mgr_004", manager_name: "Aryan Kapoor", manager_email: "aryan.kapoor@offboardiq.com", status: "pending_manager", resignation_date: ago(2),  last_working_day: ahead(28), notice_period_days: 30, exit_reason: "better_opportunity" },
     { id: "EXIT-MGR-2002", employee_id: "usr_emp_102", employee_name: "Sameer Khan",    employee_email: "sameer.khan@offboardiq.com",    employee_role: "Account Manager",     employee_dept: "Sales",       manager_id: "usr_mgr_004", manager_name: "Aryan Kapoor", manager_email: "aryan.kapoor@offboardiq.com", status: "pending_manager", resignation_date: ago(4),  last_working_day: ahead(26), notice_period_days: 30, exit_reason: "compensation" },
     { id: "EXIT-MGR-2003", employee_id: "usr_emp_110", employee_name: "Vijay Kumar",    employee_email: "vijay.kumar@offboardiq.com",    employee_role: "Sales Coordinator",   employee_dept: "Sales",       manager_id: "usr_mgr_004", manager_name: "Aryan Kapoor", manager_email: "aryan.kapoor@offboardiq.com", status: "pending_manager", resignation_date: ago(6),  last_working_day: ahead(24), notice_period_days: 30, exit_reason: "work_environment" },
@@ -49,27 +49,27 @@ export async function GET() {
   results.cases = casesErr ? { error: casesErr.message } : { ok: true };
 
   // ── 3. Seed Clearance Tasks ────────────────────────────────────────────────
-  const { error: tasksErr } = await supabase.from("clearance_tasks").upsert([
+  const { error: tasksErr } = await supabase.from("legacy_clearance_tasks").upsert([
     // EXIT-MGR-2004 — on track
-    { id: "ct-2004-mgr", case_id: "EXIT-MGR-2004", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(17),  completed_at: ago(16),  checklist: [] },
-    { id: "ct-2004-it",  case_id: "EXIT-MGR-2004", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "approved", sla_hours: 24, sla_due_at: ago(15),  completed_at: ago(14),  checklist: [] },
-    { id: "ct-2004-fin", case_id: "EXIT-MGR-2004", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "pending",  sla_hours: 48, sla_due_at: ahead(5), completed_at: null,     checklist: [] },
-    { id: "ct-2004-hr",  case_id: "EXIT-MGR-2004", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "pending",  sla_hours: 72, sla_due_at: ahead(8), completed_at: null,     checklist: [] },
+    { id: "ct-2004-mgr", case_id: "EXIT-MGR-2004", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(17),  completed_at: ago(16) },
+    { id: "ct-2004-it",  case_id: "EXIT-MGR-2004", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "approved", sla_hours: 24, sla_due_at: ago(15),  completed_at: ago(14) },
+    { id: "ct-2004-fin", case_id: "EXIT-MGR-2004", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "pending",  sla_hours: 48, sla_due_at: ahead(5), completed_at: null },
+    { id: "ct-2004-hr",  case_id: "EXIT-MGR-2004", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "pending",  sla_hours: 72, sla_due_at: ahead(8), completed_at: null },
     // EXIT-MGR-2006 — 1 overdue
-    { id: "ct-2006-mgr", case_id: "EXIT-MGR-2006", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(27),  completed_at: ago(26),  checklist: [] },
-    { id: "ct-2006-it",  case_id: "EXIT-MGR-2006", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "approved", sla_hours: 24, sla_due_at: ago(24),  completed_at: ago(23),  checklist: [] },
-    { id: "ct-2006-fin", case_id: "EXIT-MGR-2006", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "pending",  sla_hours: 48, sla_due_at: ago(5),   completed_at: null,     checklist: [] },
-    { id: "ct-2006-hr",  case_id: "EXIT-MGR-2006", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "pending",  sla_hours: 72, sla_due_at: ahead(3), completed_at: null,     checklist: [] },
+    { id: "ct-2006-mgr", case_id: "EXIT-MGR-2006", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(27),  completed_at: ago(26) },
+    { id: "ct-2006-it",  case_id: "EXIT-MGR-2006", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "approved", sla_hours: 24, sla_due_at: ago(24),  completed_at: ago(23) },
+    { id: "ct-2006-fin", case_id: "EXIT-MGR-2006", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "pending",  sla_hours: 48, sla_due_at: ago(5),   completed_at: null },
+    { id: "ct-2006-hr",  case_id: "EXIT-MGR-2006", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "pending",  sla_hours: 72, sla_due_at: ahead(3), completed_at: null },
     // EXIT-MGR-2007 — multiple overdue
-    { id: "ct-2007-mgr", case_id: "EXIT-MGR-2007", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(32),  completed_at: ago(30),  checklist: [] },
-    { id: "ct-2007-it",  case_id: "EXIT-MGR-2007", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "pending",  sla_hours: 24, sla_due_at: ago(10),  completed_at: null,     checklist: [] },
-    { id: "ct-2007-fin", case_id: "EXIT-MGR-2007", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "pending",  sla_hours: 48, sla_due_at: ago(8),   completed_at: null,     checklist: [] },
-    { id: "ct-2007-hr",  case_id: "EXIT-MGR-2007", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "pending",  sla_hours: 72, sla_due_at: ago(3),   completed_at: null,     checklist: [] },
+    { id: "ct-2007-mgr", case_id: "EXIT-MGR-2007", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(32),  completed_at: ago(30) },
+    { id: "ct-2007-it",  case_id: "EXIT-MGR-2007", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "pending",  sla_hours: 24, sla_due_at: ago(10),  completed_at: null },
+    { id: "ct-2007-fin", case_id: "EXIT-MGR-2007", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "pending",  sla_hours: 48, sla_due_at: ago(8),   completed_at: null },
+    { id: "ct-2007-hr",  case_id: "EXIT-MGR-2007", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "pending",  sla_hours: 72, sla_due_at: ago(3),   completed_at: null },
     // EXIT-MGR-2009 — completed
-    { id: "ct-2009-mgr", case_id: "EXIT-MGR-2009", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(57),  completed_at: ago(56),  checklist: [] },
-    { id: "ct-2009-it",  case_id: "EXIT-MGR-2009", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "approved", sla_hours: 24, sla_due_at: ago(55),  completed_at: ago(54),  checklist: [] },
-    { id: "ct-2009-fin", case_id: "EXIT-MGR-2009", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "approved", sla_hours: 48, sla_due_at: ago(50),  completed_at: ago(49),  checklist: [] },
-    { id: "ct-2009-hr",  case_id: "EXIT-MGR-2009", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "approved", sla_hours: 72, sla_due_at: ago(45),  completed_at: ago(44),  checklist: [] },
+    { id: "ct-2009-mgr", case_id: "EXIT-MGR-2009", dept_id: "manager", dept_label: "Manager Clearance", assignee_id: "usr_mgr_004", assignee_name: "Aryan Kapoor", status: "approved", sla_hours: 48, sla_due_at: ago(57),  completed_at: ago(56) },
+    { id: "ct-2009-it",  case_id: "EXIT-MGR-2009", dept_id: "it",      dept_label: "IT",                assignee_id: "usr_it_001",  assignee_name: "Kiran Patel",  status: "approved", sla_hours: 24, sla_due_at: ago(55),  completed_at: ago(54) },
+    { id: "ct-2009-fin", case_id: "EXIT-MGR-2009", dept_id: "finance",  dept_label: "Finance",           assignee_id: "usr_fin_001", assignee_name: "Sunita Rao",   status: "approved", sla_hours: 48, sla_due_at: ago(50),  completed_at: ago(49) },
+    { id: "ct-2009-hr",  case_id: "EXIT-MGR-2009", dept_id: "hr",       dept_label: "HR",                assignee_id: "usr_hr_001",  assignee_name: "Anita Desai",  status: "approved", sla_hours: 72, sla_due_at: ago(45),  completed_at: ago(44) },
   ], { onConflict: "id" });
   results.tasks = tasksErr ? { error: tasksErr.message } : { ok: true };
 

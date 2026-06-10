@@ -49,6 +49,8 @@ export function useCases(filters?: Record<string, string>) {
       const params = new URLSearchParams();
       if (filters?.status) params.set("status", filters.status);
       if (filters?.search) params.set("search", filters.search);
+      if (filters?.manager_id) params.set("manager_id", filters.manager_id);
+      if (filters?.department) params.set("department", filters.department);
       const qs = params.toString();
       const res = await fetch(`/api/cases${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("API unavailable");
@@ -165,17 +167,20 @@ export function useApproveResignation() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ actor }),
         });
-        if (!res.ok) throw new Error("API unavailable");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to approve resignation");
+        }
         const data = await res.json();
-        return data;
-      } catch {
-        useExitStore.getState().approveResignation(caseId, actor);
-        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+        return toExitCase(data);
+      } catch (err: any) {
+        throw err;
       }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: casesKeys.list() });
+      queryClient.invalidateQueries({ queryKey: casesKeys.metrics() });
     },
   });
 }
@@ -190,16 +195,20 @@ export function useCancelCase() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason, actor }),
         });
-        if (!res.ok) throw new Error("API unavailable");
-        return await res.json();
-      } catch {
-        useExitStore.getState().cancelCase(caseId, reason, actor);
-        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to cancel case");
+        }
+        const data = await res.json();
+        return toExitCase(data);
+      } catch (err: any) {
+        throw err;
       }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: casesKeys.list() });
+      queryClient.invalidateQueries({ queryKey: casesKeys.metrics() });
     },
   });
 }
@@ -214,16 +223,20 @@ export function useExtendLastWorkingDay() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ new_date: newDate, actor }),
         });
-        if (!res.ok) throw new Error("API unavailable");
-        return await res.json();
-      } catch {
-        useExitStore.getState().extendLastWorkingDay(caseId, newDate, actor);
-        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to extend last working day");
+        }
+        const data = await res.json();
+        return toExitCase(data);
+      } catch (err: any) {
+        throw err;
       }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: casesKeys.list() });
+      queryClient.invalidateQueries({ queryKey: casesKeys.metrics() });
     },
   });
 }
@@ -238,16 +251,20 @@ export function useEscalateCase() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason, actor }),
         });
-        if (!res.ok) throw new Error("API unavailable");
-        return await res.json();
-      } catch {
-        useExitStore.getState().escalateCase(caseId, reason, actor);
-        return useExitStore.getState().cases.find((c) => c.id === caseId)!;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to escalate case");
+        }
+        const data = await res.json();
+        return toExitCase(data);
+      } catch (err: any) {
+        throw err;
       }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(casesKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: casesKeys.list() });
+      queryClient.invalidateQueries({ queryKey: casesKeys.metrics() });
     },
   });
 }

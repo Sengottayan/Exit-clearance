@@ -34,7 +34,7 @@ export async function POST(
 
   // Update task in DB
   const { data: updatedTask, error: updateError } = await supabase
-    .from("clearance_tasks")
+    .from("legacy_clearance_tasks")
     .update({ 
       assignee_id: assignee.id,
       assignee_name: assignee.name

@@ -5,7 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { formatDate } from "@/lib/utils";
 import { differenceInCalendarDays, formatDistanceToNow } from "date-fns";
-import { Check, MessageSquare, ChevronRight, Clock, Loader2, CheckCircle2, AlertTriangle, Circle } from "lucide-react";
+import {
+  Check, MessageSquare, ChevronRight, Clock, Loader2, CheckCircle2,
+  AlertTriangle, Circle, MapPin, Mail, Building2, Briefcase,
+  UserCheck, Hash, Send, Calendar, User, FileText
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EXIT_REASONS } from "@/lib/constants";
@@ -28,7 +32,7 @@ function computeActiveStep(status: string, tasks: any[]): number {
   if (status === "pending_manager") return 1;
   // In clearance — calculate from task completion
   if (tasks.length === 0) return 2;
-  const completedCount = tasks.filter((t) => t.status === "approved" || t.status === "completed").length;
+  const completedCount = tasks.filter((t) => t.status === "approved").length;
   const ratio = completedCount / tasks.length;
   if (ratio >= 0.75) return 4;
   if (ratio >= 0.5)  return 3;
@@ -38,7 +42,7 @@ function computeActiveStep(status: string, tasks: any[]): number {
 function computeProgress(tasks: any[], status: string): number {
   if (status === "completed") return 100;
   if (tasks.length === 0) return 0;
-  const done = tasks.filter((t) => t.status === "approved" || t.status === "completed").length;
+  const done = tasks.filter((t) => t.status === "approved").length;
   return Math.round((done / tasks.length) * 100);
 }
 
@@ -119,9 +123,26 @@ export default function CaseDetailPage({
   const activeStep  = computeActiveStep(exitCase.status, tasks);
   const statusCfg   = STATUS_LABELS[exitCase.status] ?? STATUS_LABELS.in_clearance;
 
+  const completedCount  = tasks.filter((t) => t.status === "approved").length;
+  const inProgressCount = tasks.filter((t) => t.status === "in_progress").length;
+  const pendingCount    = tasks.filter((t) => t.status === "pending").length;
+  const overdueCount    = tasks.filter((t) => {
+    const due = t.slaDueAt ? new Date(t.slaDueAt) : null;
+    return t.status !== "approved" && due && due < new Date();
+  }).length;
+
+  const formatPercent = (count: number, total: number): string => {
+    if (total === 0) return "0%";
+    const val = (count / total) * 100;
+    return Number.isInteger(val) ? `${val}%` : `${val.toFixed(1)}%`;
+  };
+
   const handleApprove = () => {
     approveResignation({ caseId: exitCase.id, actor: user?.name ?? "" }, {
-      onSuccess: () => toast.success("Resignation approved — clearance process started"),
+      onSuccess: () => {
+        toast.success("Resignation approved — clearance process started");
+        setActiveTab("clearance");
+      },
       onError: () => toast.error("Failed to approve. Please try again."),
     });
   };
@@ -165,14 +186,14 @@ export default function CaseDetailPage({
         )}
 
         {/* Case Header */}
-        <div className="flex justify-between items-start mb-8 flex-wrap gap-4">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#3b82f6] flex items-center justify-center text-lg font-bold text-white shrink-0">
+            <div className="w-12 h-12 rounded-full bg-[#3146C4] flex items-center justify-center text-lg font-bold text-white shrink-0">
               {exitCase.employeeName.split(" ").map((n: string) => n[0]).join("").toUpperCase()}
             </div>
             <div>
               <h1 className="text-2xl font-bold">{exitCase.employeeName}</h1>
-              <p className="text-sm text-[#8e9bb0] mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {exitCase.id} • {exitCase.employeeDept} • {exitCase.employeeRole}
               </p>
             </div>
@@ -184,66 +205,88 @@ export default function CaseDetailPage({
               {statusCfg.label}
             </span>
             {/* Real progress bar */}
-            <div className="flex items-center gap-2">
-              <span className="text-[#3b82f6] font-bold text-sm">{progress}%</span>
+            <div className="flex items-center gap-3">
+              <span className="text-blue-400 font-bold text-sm">{progress}%</span>
               <div className="w-32 h-1.5 bg-[#1e2536] rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${progress === 100 ? "bg-[#10b981]" : "bg-[#3b82f6]"}`}
+                  className={`h-full rounded-full transition-all ${progress === 100 ? "bg-[#10b981]" : "bg-blue-500"}`}
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-xs text-[#8e9bb0]">Overall Progress</span>
+              <span className="text-xs text-muted-foreground">Overall Progress</span>
             </div>
           </div>
         </div>
 
-        {/* 4-Column Meta */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 bg-[#121622] rounded-xl border border-[#1e2536] p-5">
-          <div>
-            <p className="text-[10px] text-[#8e9bb0] uppercase tracking-wider mb-1">Last Working Day</p>
-            <p className="text-sm font-semibold">{formatDate(exitCase.lastWorkingDay)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-[#8e9bb0] uppercase tracking-wider mb-1">Resignation Date</p>
-            <p className="text-sm font-semibold">{formatDate(exitCase.resignationDate)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-[#8e9bb0] uppercase tracking-wider mb-1">Exit Reason</p>
-            <p className="text-sm font-semibold">{exitReason}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-[#8e9bb0] uppercase tracking-wider mb-1">Notice Period</p>
-            <p className="text-sm font-semibold">{noticeDays} Days</p>
-          </div>
-        </div>
-
-        {/* Horizontal Stepper driven by actual progress */}
-        <div className="flex items-center justify-between mb-10 relative px-4">
-          <div className="absolute top-3 left-8 right-8 h-[2px] bg-[#1e2536]" />
-          <div
-            className="absolute top-3 left-8 h-[2px] bg-[#3b82f6] transition-all duration-700"
-            style={{ width: `${((activeStep - 1) / (STEPS.length - 1)) * 100}%` }}
-          />
-
-          {STEPS.map((step, i) => {
-            const stepNum = i + 1;
-            const isDone    = stepNum < activeStep;
-            const isActive  = stepNum === activeStep;
+        {/* 5-Column Meta Info Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8 bg-[#121622]/40 border border-[#1e2536] p-4 rounded-xl">
+          {[
+            { icon: Calendar, label: "Last Working Day", value: formatDate(exitCase.lastWorkingDay) },
+            { icon: Calendar, label: "Resignation Date", value: formatDate(exitCase.resignationDate) },
+            { icon: Briefcase, label: "Exit Reason", value: exitReason },
+            { icon: Clock, label: "Notice Period", value: `${noticeDays} Days` },
+            { icon: User, label: "Reporting Manager", value: exitCase.managerName || "Manager" },
+          ].map((item, index) => {
+            const Icon = item.icon;
             return (
-              <div key={step} className="flex flex-col items-center gap-2 relative z-10 bg-[#0b1120] px-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white transition-all ${
-                  isDone   ? "bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.4)]" :
-                  isActive ? "bg-[#3b82f6] shadow-[0_0_12px_rgba(59,130,246,0.5)]" :
-                             "bg-[#1e2536]"
-                }`}>
-                  {isDone ? <Check className="w-3.5 h-3.5" /> : <span className="text-xs font-bold">{stepNum}</span>}
+              <div key={index} className="flex items-center gap-3 bg-[#1e2536]/20 border border-[#1e2536]/30 p-3 rounded-lg">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-[#1e2536] bg-[#1e2536]/50 text-indigo-400">
+                  <Icon className="w-4.5 h-4.5" />
                 </div>
-                <span className={`text-xs font-medium ${isDone ? "text-[#10b981]" : isActive ? "text-[#3b82f6]" : "text-[#8e9bb0]"}`}>
-                  {step}
-                </span>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider leading-none">{item.label}</p>
+                  <p className="text-xs font-semibold text-white mt-1.5 leading-tight">{item.value}</p>
+                </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Horizontal Progress Stepper */}
+        <div className="mb-8 bg-[#121622]/30 border border-[#1e2536]/80 p-5 rounded-2xl">
+          <div className="flex items-center w-full">
+            {STEPS.map((step, i) => {
+              const stepNum = i + 1;
+              const isDone = stepNum < activeStep;
+              const isActive = stepNum === activeStep;
+
+              return (
+                <div key={step} className="relative flex flex-col items-center flex-1">
+                  {/* Connection line to next step (behind the circles) */}
+                  {i < STEPS.length - 1 && (
+                    <div className="absolute top-4 left-[50%] right-[-50%] h-[2px] z-0">
+                      {stepNum < activeStep - 1 ? (
+                        <div className="h-full w-full bg-[#10b981]" />
+                      ) : stepNum === activeStep - 1 ? (
+                        <div className="h-full w-full bg-[#2563eb]" />
+                      ) : (
+                        <div className="h-full w-full border-t-2 border-dashed border-[#1e2536]" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step circle */}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white z-10 transition-all ${
+                    isDone ? "bg-[#10b981] text-white" :
+                    isActive ? "bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)] border border-blue-500" :
+                    "bg-[#1e2536] text-[#8e9bb0]"
+                  }`}>
+                    {isDone ? <Check className="w-4 h-4" /> : <span className="text-xs font-bold">{stepNum}</span>}
+                  </div>
+
+                  {/* Step labels */}
+                  <div className="text-center mt-2 z-10">
+                    <p className={`text-xs font-semibold ${isDone ? "text-[#10b981]" : isActive ? "text-[#60a5fa]" : "text-[#8e9bb0]"}`}>
+                      {step}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">
+                      {isDone ? "Completed" : isActive ? "In Progress" : "Pending"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -253,7 +296,7 @@ export default function CaseDetailPage({
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`pb-3 text-sm font-semibold transition-colors border-b-2 capitalize ${
-                activeTab === tab ? "border-[#3b82f6] text-[#3b82f6]" : "border-transparent text-[#8e9bb0] hover:text-white"
+                activeTab === tab ? "border-blue-500 text-blue-500" : "border-transparent text-muted-foreground hover:text-white"
               }`}
             >
               {tab === "overview" ? "Case Overview" : "Approvals & Activity"}
@@ -263,87 +306,94 @@ export default function CaseDetailPage({
 
         {/* ── Case Overview Tab ── */}
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Employee details */}
-            <div className="lg:col-span-2">
-              <h3 className="text-sm font-semibold text-white mb-4">Exit Details</h3>
-              <div className="bg-[#121622] rounded-xl border border-[#1e2536] p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                {[
-                  { label: "Employee ID",        value: exitCase.employeeId   },
-                  { label: "Department",         value: exitCase.employeeDept },
-                  { label: "Email",              value: exitCase.employeeEmail },
-                  { label: "Role",               value: exitCase.employeeRole  },
-                  { label: "Reporting Manager",  value: exitCase.managerName   },
-                  { label: "Case Created",       value: formatDate(exitCase.resignationDate) },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p className="text-xs text-[#8e9bb0] mb-1">{label}</p>
-                    <p className="text-sm font-medium text-white">{value || "—"}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Clearance Tasks summary */}
-              {tasks.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-white mb-4">Clearance Status</h3>
-                  <div className="bg-[#121622] rounded-xl border border-[#1e2536] overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-[#1e2536] bg-[#0f111a]/50">
-                          <th className="px-4 py-3 text-left text-[#8e9bb0] font-semibold">Department</th>
-                          <th className="px-4 py-3 text-left text-[#8e9bb0] font-semibold">Assignee</th>
-                          <th className="px-4 py-3 text-left text-[#8e9bb0] font-semibold">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#1e2536]">
-                        {tasks.map((t) => {
-                          const statusCls = {
-                            approved:    "text-[#34d399] bg-[#10b981]/10",
-                            completed:   "text-[#34d399] bg-[#10b981]/10",
-                            pending:     "text-[#fbbf24] bg-[#f59e0b]/10",
-                            in_progress: "text-[#60a5fa] bg-[#3b82f6]/10",
-                            rejected:    "text-[#f87171] bg-[#ef4444]/10",
-                            overdue:     "text-[#f87171] bg-[#ef4444]/10",
-                          }[t.status] ?? "text-[#8e9bb0] bg-[#1e2536]";
-                          return (
-                            <tr key={t.id} className="hover:bg-[#1a202f]">
-                              <td className="px-4 py-3 text-white font-medium">{t.deptLabel}</td>
-                              <td className="px-4 py-3 text-[#8e9bb0]">{t.assigneeName}</td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-medium capitalize ${statusCls}`}>
-                                  {t.status.replace("_", " ")}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Employee details */}
+              <div className="lg:col-span-2 space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-white mb-4">Exit Details</h3>
+                  <div className="bg-[#121622]/40 rounded-xl border border-[#1e2536] p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                    {[
+                      { icon: Hash, label: "Employee ID", value: exitCase.employeeId },
+                      { icon: Mail, label: "Email", value: exitCase.employeeEmail },
+                      { icon: Building2, label: "Department", value: exitCase.employeeDept },
+                      { icon: Briefcase, label: "Role", value: exitCase.employeeRole },
+                      { icon: Clock, label: "Employee Type", value: "Full Time" },
+                      { icon: MapPin, label: "Location", value: "Bangalore, India" },
+                      { icon: Calendar, label: "Case Created", value: exitCase.createdAt ? new Date(exitCase.createdAt).toLocaleString("en-US", { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : formatDate(exitCase.resignationDate) },
+                      { icon: UserCheck, label: "Created By", value: exitCase.managerName || "Manager" },
+                    ].map(({ icon: Icon, label, value }) => (
+                      <div key={label} className="flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-[#1e2536]/50 border border-[#1e2536] flex items-center justify-center text-muted-foreground shrink-0 mt-0.5">
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider leading-none">{label}</p>
+                          <p className="text-xs font-semibold text-white mt-1.5">{value || "—"}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Right: Action Card */}
-            {(exitCase.status === "pending_manager" || exitCase.status === "in_clearance") && isManager && (
+                {/* Clearance Tasks Summary Table (optional detail) */}
+                {tasks.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-4">Clearance Status</h3>
+                    <div className="bg-[#121622]/40 rounded-xl border border-[#1e2536] overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-[#1e2536] bg-[#0f111a]/50">
+                            <th className="px-4 py-3 text-left text-muted-foreground font-semibold">Department</th>
+                            <th className="px-4 py-3 text-left text-muted-foreground font-semibold">Assignee</th>
+                            <th className="px-4 py-3 text-left text-muted-foreground font-semibold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#1e2536]">
+                          {tasks.map((t) => {
+                            const statusCls = {
+                              approved:    "text-[#34d399] bg-[#10b981]/10 border-[#10b981]/20",
+                              completed:   "text-[#34d399] bg-[#10b981]/10 border-[#10b981]/20",
+                              pending:     "text-[#fbbf24] bg-[#f59e0b]/10 border-[#f59e0b]/20",
+                              in_progress: "text-[#60a5fa] bg-[#3b82f6]/10 border-[#3b82f6]/20",
+                              rejected:    "text-[#f87171] bg-[#ef4444]/10 border-[#ef4444]/20",
+                              overdue:     "text-[#f87171] bg-[#ef4444]/10 border-[#ef4444]/20",
+                            }[t.status] ?? "text-muted-foreground bg-[#1e2536] border-transparent";
+                            return (
+                              <tr key={t.id} className="hover:bg-[#1a202f]/40">
+                                <td className="px-4 py-3 text-white font-medium">{t.deptLabel}</td>
+                                <td className="px-4 py-3 text-muted-foreground">{t.assigneeName}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2.5 py-0.5 rounded text-[10px] font-semibold border capitalize ${statusCls}`}>
+                                    {t.status.replace("_", " ")}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Action Card */}
               <div className="lg:col-span-1">
-                <h3 className="text-sm font-semibold text-white mb-4">
-                  {exitCase.status === "pending_manager" ? "Pending Manager Approval" : "Case Actions"}
-                </h3>
-                <div className="bg-[#121622] rounded-xl border border-[#1e2536] p-6">
-                  <p className="text-[#8e9bb0] text-xs mb-6 leading-relaxed">
+                <h3 className="text-sm font-semibold text-white mb-4">Case Actions</h3>
+                <div className="bg-[#121622]/40 border border-[#1e2536] p-6 rounded-2xl">
+                  <p className="text-muted-foreground text-xs mb-6 leading-relaxed">
                     {exitCase.status === "pending_manager"
                       ? "Review the resignation details and approve to begin clearance across all departments."
                       : "Monitor clearance progress and request additional information if needed."}
                   </p>
 
                   <div className="space-y-3">
-                    {exitCase.status === "pending_manager" && (
+                    {exitCase.status === "pending_manager" && isManager && (
                       <button
                         onClick={handleApprove}
                         disabled={isApproving}
-                        className="w-full py-2.5 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                        className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 shadow-lg shadow-blue-500/20"
                       >
                         {isApproving ? (
                           <><Loader2 className="w-4 h-4 animate-spin" /> Approving…</>
@@ -356,7 +406,7 @@ export default function CaseDetailPage({
                     {!showInfoForm ? (
                       <button
                         onClick={() => setShowInfoForm(true)}
-                        className="w-full py-2.5 rounded-lg border border-[#1e2536] bg-transparent hover:bg-[#1e2536] text-[#8e9bb0] hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                        className="w-full py-3 rounded-lg bg-[#3146C4] hover:bg-[#2539a8] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-500/10"
                       >
                         <MessageSquare className="w-4 h-4" /> Request More Information
                       </button>
@@ -367,7 +417,7 @@ export default function CaseDetailPage({
                           value={infoRequest}
                           onChange={(e) => setInfoRequest(e.target.value)}
                           placeholder="Describe what information you need…"
-                          className="w-full bg-[#0b1120] border border-[#1e2536] text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#3b82f6] placeholder-[#8e9bb0] resize-none"
+                          className="w-full bg-[#0b1120] border border-[#1e2536] text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#3b82f6] placeholder-muted-foreground resize-none"
                         />
                         <div className="flex gap-2">
                           <button
@@ -379,17 +429,25 @@ export default function CaseDetailPage({
                           </button>
                           <button
                             onClick={() => { setShowInfoForm(false); setInfoRequest(""); }}
-                            className="px-3 py-2 rounded-lg border border-[#1e2536] text-[#8e9bb0] hover:text-white text-xs transition-colors"
+                            className="px-3 py-2 rounded-lg border border-[#1e2536] text-muted-foreground hover:text-white text-xs transition-colors"
                           >
                             Cancel
                           </button>
                         </div>
                       </div>
                     )}
+
+                    <button
+                      onClick={() => toast.info("Reminder notification sent to assignee")}
+                      className="w-full py-3 rounded-lg border border-[#1e2536] bg-transparent hover:bg-[#1e2536] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-gray-400" /> Send Reminder
+                    </button>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+
           </div>
         )}
 
@@ -398,7 +456,7 @@ export default function CaseDetailPage({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <h3 className="text-sm font-semibold text-white mb-4">Activity Timeline</h3>
-              <div className="bg-[#121622] rounded-xl border border-[#1e2536] p-6">
+              <div className="bg-[#121622]/40 rounded-xl border border-[#1e2536] p-6">
                 {timeline.length === 0 ? (
                   <div className="text-center py-8">
                     <Clock className="w-8 h-8 text-[#8e9bb0] mx-auto mb-2" />
@@ -418,7 +476,7 @@ export default function CaseDetailPage({
 
             <div className="lg:col-span-1">
               <h3 className="text-sm font-semibold text-white mb-4">Clearance Summary</h3>
-              <div className="bg-[#121622] rounded-xl border border-[#1e2536] p-5 space-y-3">
+              <div className="bg-[#121622]/40 rounded-xl border border-[#1e2536] p-5 space-y-3">
                 {[
                   { label: "Total Departments",   value: tasks.length },
                   { label: "Approved",             value: tasks.filter((t) => (t.status as string) === "approved" || (t.status as string) === "completed").length, color: "text-[#34d399]" },

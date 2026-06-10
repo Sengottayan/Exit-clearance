@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
 
   // During migration phase, we use the legacy backward-compatibility view
   let query = supabase
-    .from("exit_cases")
-    .select("*, clearance_tasks(*), timeline_events(*), exit_interviews(*)", { count: "exact" })
+    .from("legacy_exit_cases")
+    .select("*, clearance_tasks:legacy_clearance_tasks(*), timeline_events(*), exit_interviews:legacy_exit_interviews(*)", { count: "exact" })
     .order(sort, { ascending: order === "asc" });
 
   if (MULTI_TENANT_ENABLED && orgId) {
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
   // 2. Duplicate Prevention
   const { data: existingCases } = await supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .select("id")
     .eq("employee_id", targetEmployeeId)
     .not("status", "in", '("completed", "cancelled")');
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
   const caseId = `EXIT-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
 
   const { data: newCase, error } = await supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .insert({
       id: caseId,
       employee_id: targetEmployeeId,
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const { error: tasksErr } = await supabase.from("clearance_tasks").insert(tasksToInsert);
+    const { error: tasksErr } = await supabase.from("legacy_clearance_tasks").insert(tasksToInsert);
     if (tasksErr) console.error("Error inserting tasks:", tasksErr.message);
 
     await supabase.from("timeline_events").insert({

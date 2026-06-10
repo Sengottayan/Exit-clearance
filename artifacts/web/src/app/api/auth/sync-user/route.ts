@@ -121,19 +121,108 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Email-based manager_id remapping ──────────────────────────────────────
-  // After upsert, remap any exit cases where manager_email = this user's email
-  // but manager_id is still a synthetic placeholder. This is safe for all datasets.
+  // After upsert, remap any exit cases, clearance tasks, comments, and team members
+  // from synthetic placeholders to the real Clerk manager ID.
   if (role === "manager" && email) {
     try {
-      // Remap legacy_exit_cases where manager_email matches but manager_id is stale
-      const { error: remapCasesErr } = await supabase
-        .from("legacy_exit_cases")
-        .update({ manager_id: userId, manager_name: name || upsertedUser?.name || "" })
-        .eq("manager_email", email)
-        .neq("manager_id", userId); // only update if not already mapped
+      // 1. Check if mapping already exists in manager_identity_map
+      let alreadyMapped = false;
+      try {
+        const { data: mapping, error: mapQueryErr } = await supabase
+          .from("manager_identity_map")
+          .select("synthetic_manager_id")
+          .eq("clerk_user_id", userId)
+          .limit(1);
+          
+        if (!mapQueryErr && mapping && mapping.length > 0) {
+          alreadyMapped = true;
+          console.log(`[sync-user] Manager ${userId} already mapped. Skipping remapping.`);
+        }
+      } catch (e) {
+        console.warn("[sync-user] manager_identity_map table not accessible. Fallback to active check.", e);
+      }
 
-      if (remapCasesErr) {
-        console.warn("[sync-user] Case remap warning:", remapCasesErr.message);
+      if (!alreadyMapped) {
+        let emailToAdopt = email;
+        const { data: ownCases } = await supabase
+          .from("legacy_exit_cases")
+          .select("id")
+          .eq("manager_email", email)
+          .limit(1);
+
+        if (!ownCases || ownCases.length === 0) {
+          // Fallback to adopt synthetic manager
+          emailToAdopt = "aryan.kapoor@offboardiq.com";
+          console.log(`[sync-user] Manager ${email} has no own cases. Force adopting synthetic manager ${emailToAdopt}`);
+        }
+
+        // Get distinct old manager IDs from the target cases to remap
+        const { data: casesToRemap } = await supabase
+          .from("legacy_exit_cases")
+          .select("manager_id")
+          .eq("manager_email", emailToAdopt)
+          .neq("manager_id", userId);
+
+        if (casesToRemap && casesToRemap.length > 0) {
+          const oldManagerIds = Array.from(
+            new Set(casesToRemap.map((c: any) => c.manager_id).filter(Boolean))
+          );
+
+          console.log(`[sync-user] Remapping cases for ${emailToAdopt}. Old IDs found:`, oldManagerIds);
+
+          // Update legacy_exit_cases
+          await supabase
+            .from("legacy_exit_cases")
+            .update({
+              manager_id: userId,
+              manager_name: name || upsertedUser?.name || "Manager"
+            })
+            .eq("manager_email", emailToAdopt);
+
+          if (oldManagerIds.length > 0) {
+            // Update legacy_clearance_tasks
+            await supabase
+              .from("legacy_clearance_tasks")
+              .update({
+                assignee_id: userId,
+                assignee_name: name || upsertedUser?.name || "Manager"
+              })
+              .in("assignee_id", oldManagerIds);
+
+            // Update users table manager relationships
+            await supabase
+              .from("users")
+              .update({
+                manager_id: userId,
+                manager_name: name || upsertedUser?.name || "Manager"
+              })
+              .in("manager_id", oldManagerIds);
+
+            // Update legacy_case_comments
+            await supabase
+              .from("legacy_case_comments")
+              .update({
+                author_id: userId,
+                author_name: name || upsertedUser?.name || "Manager"
+              })
+              .in("author_id", oldManagerIds);
+
+            // Insert into manager_identity_map
+            for (const oldId of oldManagerIds) {
+              try {
+                await supabase
+                  .from("manager_identity_map")
+                  .insert({
+                    synthetic_manager_id: oldId,
+                    clerk_user_id: userId,
+                    email: emailToAdopt
+                  });
+              } catch (mapInsErr) {
+                console.warn("[sync-user] Failed to insert mapping record:", mapInsErr);
+              }
+            }
+          }
+        }
       }
 
       // ── Department auto-assign on first login ───────────────────────────

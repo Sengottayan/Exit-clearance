@@ -27,51 +27,18 @@ export async function GET(request: NextRequest) {
         .single();
       managerEmail = userRow?.email ?? null;
     } catch { /* ignore */ }
-
+    
     // ── 1. Fetch all cases for this manager ─────────────────────────────────────
     // Strategy: primary query by manager_id (Clerk ID after remap).
     // Fallback: if no results, query by manager_email (catches pre-remap synthetic data).
     let { data: cases, error } = await supabase
-      .from("exit_cases")
-      .select("id, status, created_at, last_working_day, clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
+      .from("legacy_exit_cases")
+      .select("id, status, created_at, last_working_day, clearance_tasks:legacy_clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
       .eq("manager_id", managerId)
       .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Fallback: if no cases found by ID, try email-based lookup (or adopt synthetic dev data)
-    if (!cases || cases.length === 0) {
-      // If we have their real email, try that. If not (or if still 0), adopt the synthetic test manager's cases.
-      const fallbackEmail = managerEmail || "aryan.kapoor@offboardiq.com";
-      let { data: emailCases } = await supabase
-        .from("exit_cases")
-        .select("id, status, created_at, last_working_day, clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
-        .eq("manager_email", fallbackEmail)
-        .order("created_at", { ascending: false });
-        
-      if (!emailCases || emailCases.length === 0) {
-         // Force adopt synthetic manager if even their own email yielded nothing
-         const { data: devCases } = await supabase
-          .from("exit_cases")
-          .select("id, status, created_at, last_working_day, clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
-          .eq("manager_email", "aryan.kapoor@offboardiq.com")
-          .order("created_at", { ascending: false });
-         emailCases = devCases;
-         managerEmail = "aryan.kapoor@offboardiq.com";
-      }
-      
-      if (emailCases && emailCases.length > 0) {
-        cases = emailCases;
-        // Trigger background remap for next time
-        supabase
-          .from("legacy_exit_cases")
-          .update({ manager_id: managerId })
-          .eq("manager_email", managerEmail)
-          .neq("manager_id", managerId)
-          .then(({ error }) => { if (error) console.error("Remap error:", error); });
-      }
     }
 
     cases = cases ?? [];
@@ -172,7 +139,7 @@ export async function GET(request: NextRequest) {
 
     // ── 5. Recent Pending Approvals (top 5, newest first) ───────────────────────
     const { data: pendingCases, error: pendingError } = await supabase
-      .from("exit_cases")
+      .from("legacy_exit_cases")
       .select("id, employee_name, employee_dept, employee_role, created_at")
       .eq("manager_id", managerId)
       .eq("status", "pending_manager")

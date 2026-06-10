@@ -62,7 +62,10 @@ function StatusPill({ status }: { status: string }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function CasesPage() {
   const { user, isManager, isHR, isAdmin } = useAuth();
-  const { data: dbCases = [], isLoading } = useCases();
+  const isManagerOnly = isManager && !isHR && !isAdmin;
+  const { data: dbCases = [], isLoading } = useCases(
+    isManagerOnly && user?.id ? { manager_id: user.id } : undefined
+  );
 
   // ── Filter state ─────────────────────────────────────────────────────────────
   const [tabFilter,    setTabFilter]    = useState("all");
@@ -77,7 +80,6 @@ export default function CasesPage() {
 
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
-  const isManagerOnly = isManager && !isHR && !isAdmin;
   const rowsPerPage = 10;
 
   // Manager can see cases by their Clerk ID OR their email (handles pre-remap synthetic data)
@@ -132,6 +134,26 @@ export default function CasesPage() {
 
     return result;
   }, [dbCases, tabFilter, deptFilter, reasonFilter, slaFilter, search, sortCol, sortDir, isManagerOnly, user?.id]);
+
+  // ── Metrics Calculation ────────────────────────────────────────────────────────
+  const metrics = useMemo(() => {
+    const baseCases = isManagerOnly ? dbCases.filter(managerCasePredicate) : dbCases;
+    let total = baseCases.length;
+    let pending = 0;
+    let inClearance = 0;
+    let overdue = 0;
+
+    for (const c of baseCases) {
+      if (c.status === "pending_manager") pending++;
+      else if (c.status === "in_clearance") inClearance++;
+      
+      if (computeSLA(c) === "overdue" || computeSLA(c) === "at_risk") {
+        overdue++;
+      }
+    }
+
+    return { total, pending, inClearance, overdue };
+  }, [dbCases, isManagerOnly, user?.id]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCases.length / rowsPerPage));
   const pagedCases = filteredCases.slice((page - 1) * rowsPerPage, page * rowsPerPage);
@@ -200,6 +222,49 @@ export default function CasesPage() {
             ? "View and manage exit processes for your direct reports."
             : "Manage case lifecycles, assign checklists, and track offboard compliance."}
         </p>
+      </div>
+
+      {/* Metrics Section */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-gradient-to-br from-[#121622] to-[#0f111a] border border-[#1e2536] rounded-xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Search className="w-16 h-16 text-white" />
+          </div>
+          <p className="text-xs font-medium text-[#8e9bb0] mb-2 uppercase tracking-wider">Total Exits</p>
+          <div className="flex items-end gap-3">
+            <span className="text-3xl font-bold text-white leading-none">{metrics.total}</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-[#121622] to-[#0f111a] border border-[#f59e0b]/20 rounded-xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <AlertCircle className="w-16 h-16 text-[#fbbf24]" />
+          </div>
+          <p className="text-xs font-medium text-[#fbbf24] mb-2 uppercase tracking-wider">Pending Approval</p>
+          <div className="flex items-end gap-3">
+            <span className="text-3xl font-bold text-white leading-none">{metrics.pending}</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-[#121622] to-[#0f111a] border border-[#3b82f6]/20 rounded-xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Loader2 className="w-16 h-16 text-[#60a5fa]" />
+          </div>
+          <p className="text-xs font-medium text-[#60a5fa] mb-2 uppercase tracking-wider">In Clearance</p>
+          <div className="flex items-end gap-3">
+            <span className="text-3xl font-bold text-white leading-none">{metrics.inClearance}</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-[#121622] to-[#0f111a] border border-[#ef4444]/20 rounded-xl p-5 shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <AlertCircle className="w-16 h-16 text-[#f87171]" />
+          </div>
+          <p className="text-xs font-medium text-[#f87171] mb-2 uppercase tracking-wider">At Risk / Overdue</p>
+          <div className="flex items-end gap-3">
+            <span className="text-3xl font-bold text-white leading-none">{metrics.overdue}</span>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

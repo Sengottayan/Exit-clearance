@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
   const caseId = searchParams.get("caseId");
 
   let query = supabase
-    .from("clearance_tasks")
-    .select("*, exit_cases!inner(*)")
+    .from("legacy_clearance_tasks")
+    .select("*, exit_cases:legacy_exit_cases!inner(*)")
     .order("sla_due_at", { ascending: true });
 
   if (status) query = query.eq("status", status);

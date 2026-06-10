@@ -84,6 +84,7 @@ export interface ExitInterview {
 
 export interface ExitCase {
   id: string;
+  createdAt?: string;
   employeeId: string;
   employeeName: string;
   employeeEmail: string;

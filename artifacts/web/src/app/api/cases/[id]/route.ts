@@ -19,8 +19,8 @@ export async function GET(
   const supabase = createServerSupabase();
 
   let query = supabase
-    .from("exit_cases")
-    .select("*, clearance_tasks(*), timeline_events(*), exit_interviews(*), case_comments(*), documents(*)")
+    .from("legacy_exit_cases")
+    .select("*, clearance_tasks:legacy_clearance_tasks(*), timeline_events(*), exit_interviews:legacy_exit_interviews(*), case_comments:legacy_case_comments(*), documents:legacy_documents(*)")
     .eq("id", id);
 
   if (MULTI_TENANT_ENABLED && orgId) {
@@ -81,7 +81,7 @@ export async function PATCH(
   }
 
   let query = supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .update(updateData)
     .eq("id", id);
     

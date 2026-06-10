@@ -59,7 +59,7 @@ export async function POST(
 
   // 1. Fetch Exit Case & Employee Data
   const { data: exitCase, error: caseErr } = await supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .select("*, users!employee_id(name, email, role, dept)")
     .eq("id", caseId)
     .single();
@@ -69,7 +69,7 @@ export async function POST(
   }
 
   // 2. Fetch Tasks to verify all mandatory are completed
-  const { data: tasks } = await supabase.from("clearance_tasks").select("*").eq("case_id", caseId);
+  const { data: tasks } = await supabase.from("legacy_clearance_tasks").select("*").eq("case_id", caseId);
   const pendingTasks = (tasks || []).filter(t => t.status !== "approved");
   if (pendingTasks.length > 0) {
     return NextResponse.json({ error: "Cannot generate document until all clearance tasks are approved." }, { status: 400 });
@@ -124,7 +124,7 @@ export async function POST(
 
   // 5. Save metadata to Documents table
   const { data: docRecord, error: docErr } = await supabase
-    .from("documents")
+    .from("legacy_documents")
     .insert({
       case_id: caseId,
       doc_type: docType === "relievingLetter" ? "relieving_letter" : "experience_certificate",

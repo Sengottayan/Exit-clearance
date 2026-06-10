@@ -56,11 +56,11 @@ export async function GET(req: NextRequest) {
   const since = subDays(new Date(), days).toISOString();
 
   let query = supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .select(`
       id, status, exit_reason, employee_dept, employee_name, resignation_date,
       last_working_day, notice_period_days, created_at, updated_at,
-      clearance_tasks ( id, status, sla_due_at, completed_at )
+      clearance_tasks:legacy_clearance_tasks ( id, status, sla_due_at, completed_at )
     `)
     .gte("created_at", since)
     .order("created_at", { ascending: false });
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
   if (!cases || cases.length === 0) {
     // Fetch department list to give synthetic engine org-aware distribution
     const { data: depts } = await supabase
-      .from("exit_cases")
+      .from("legacy_exit_cases")
       .select("employee_dept")
       .not("employee_dept", "is", null);
 
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
 
   // Previous period case count for delta calculations
   const { data: prevCases } = await supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .select("id, status")
     .gte("created_at", prevSince)
     .lt("created_at", prevUntil);

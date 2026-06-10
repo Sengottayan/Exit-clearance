@@ -9,7 +9,7 @@ export async function GET() {
 
   const supabase = createServerSupabase();
   const { data: cases, error } = await supabase
-    .from("exit_cases")
+    .from("legacy_exit_cases")
     .select("resignation_date, status")
     .order("resignation_date", { ascending: true });
 
