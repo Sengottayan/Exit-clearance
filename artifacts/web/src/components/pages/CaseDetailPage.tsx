@@ -8,7 +8,7 @@ import { differenceInCalendarDays, formatDistanceToNow } from "date-fns";
 import {
   Check, MessageSquare, ChevronRight, Clock, Loader2, CheckCircle2,
   AlertTriangle, Circle, MapPin, Mail, Building2, Briefcase,
-  UserCheck, Hash, Send, Calendar, User, FileText
+  UserCheck, Hash, Send, Calendar, User, FileText, ArrowLeft
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -171,12 +171,12 @@ export default function CaseDetailPage({
       <div className="mb-6">
         {/* Back link */}
         {onBack ? (
-          <button onClick={onBack} className="text-sm font-semibold text-[#8e9bb0] hover:text-white mb-6 flex items-center gap-1 transition-colors">
-            ← Back to Team Exits
+          <button onClick={onBack} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#121622]/60 hover:bg-[#1a202f] border border-[#1e2536] text-xs font-bold text-[#8e9bb0] hover:text-white transition-all shadow-sm mb-6">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Team Exits
           </button>
         ) : (
-          <Link href="/cases" className="text-sm font-semibold text-[#8e9bb0] hover:text-white mb-6 inline-flex items-center gap-1 transition-colors">
-            ← Back to Team Exits
+          <Link href="/cases" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#121622]/60 hover:bg-[#1a202f] border border-[#1e2536] text-xs font-bold text-[#8e9bb0] hover:text-white transition-all shadow-sm mb-6">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Team Exits
           </Link>
         )}
 
