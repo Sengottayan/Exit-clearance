@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useCases } from "@/hooks/api/useCases";
+import { useCases, useCancelCase } from "@/hooks/api/useCases";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SLARiskChip } from "@/components/shared/SLARiskChip";
@@ -23,10 +23,14 @@ import { resolveTaskStatus } from "@/lib/workflow";
 import { getActiveEmployeeCase, getLatestEmployeeCase } from "@/lib/employee-case";
 import { useState, useEffect } from "react";
 import { ProfileCompletionModal } from "@/components/shared/ProfileCompletionModal";
+import { EmployeeTimeline } from "@/components/dashboard/EmployeeTimeline";
+import { ExitSuccessState } from "@/components/dashboard/ExitSuccessState";
+import { toast } from "sonner";
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
   const { data: cases, isLoading } = useCases();
+  const { mutate: cancelCase, isPending: isCancelling } = useCancelCase();
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
@@ -74,6 +78,26 @@ export function EmployeeDashboard() {
     );
   }
 
+  if (myCase.status === "completed") {
+    return <ExitSuccessState employeeName={firstName} caseId={myCase.id} />;
+  }
+
+  const handleWithdraw = () => {
+    if (confirm("Are you sure you want to withdraw your resignation? This action cannot be undone.")) {
+      cancelCase(
+        { caseId: myCase.id, reason: "Withdrawn by employee", actor: user?.name || "Employee" },
+        {
+          onSuccess: () => {
+            toast.success("Resignation withdrawn successfully");
+          },
+          onError: (err: any) => {
+            toast.error(err.message || "Failed to withdraw resignation");
+          }
+        }
+      );
+    }
+  };
+
   const lwd = new Date(myCase.lastWorkingDay);
   const today = new Date();
   const daysRemaining = differenceInCalendarDays(lwd, today);
@@ -102,7 +126,20 @@ export function EmployeeDashboard() {
             </div>
             
             <CardContent className="p-6">
-              <p className="text-sm text-slate-400 mb-8">Here's your exit clearance overview</p>
+              <div className="flex items-center justify-between mb-8">
+                <p className="text-sm text-slate-400">Here's your exit clearance overview</p>
+                {myCase.status === "pending_manager" && (
+                  <Button 
+                    onClick={handleWithdraw}
+                    disabled={isCancelling}
+                    variant="destructive" 
+                    size="sm" 
+                    className="font-bold shadow-md hover:bg-red-600/90"
+                  >
+                    Withdraw Resignation
+                  </Button>
+                )}
+              </div>
               
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                 {/* Employee Info */}
@@ -274,19 +311,9 @@ export function EmployeeDashboard() {
               <h3 className="text-sm font-bold text-white">Activity Timeline</h3>
               <Link href={`/cases/${myCase.id}?tab=timeline`} className="text-xs text-blue-400 hover:text-blue-300 font-medium">View all</Link>
             </div>
-            <CardContent className="p-5 flex-1 overflow-y-auto custom-scrollbar">
-              <div className="space-y-5">
-                {myCase.timeline?.slice(0, 4).map((event, idx) => (
-                  <div key={event.id} className="relative pl-4 border-l border-white/10 last:border-transparent pb-1">
-                    <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-blue-500 ring-4 ring-[#121927]" />
-                    <p className="text-[10px] text-slate-500 mb-1">{formatDate(event.timestamp)}</p>
-                    <p className="text-xs font-semibold text-slate-200">{event.label}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">{event.actor} - {event.actorRole.replace('_', ' ')}</p>
-                  </div>
-                ))}
-                {!myCase.timeline?.length && (
-                  <p className="text-xs text-slate-500">No activity recorded yet.</p>
-                )}
+            <CardContent className="p-0 flex-1 overflow-y-auto custom-scrollbar">
+              <div className="p-5">
+                <EmployeeTimeline events={myCase.timeline || []} />
               </div>
             </CardContent>
           </Card>

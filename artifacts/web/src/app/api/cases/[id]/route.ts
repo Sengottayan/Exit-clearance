@@ -46,6 +46,10 @@ export async function GET(
   const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
   const isAdminOrHR = user?.role === "admin" || user?.role === "hr";
 
+  if (user?.role === "employee" && data.employee_id !== userId) {
+    return NextResponse.json({ error: "Forbidden: You do not have permission to view this case" }, { status: 403 });
+  }
+
   if (!isAdminOrHR) {
     const { data: assignments } = await supabase
       .from("department_assignments")

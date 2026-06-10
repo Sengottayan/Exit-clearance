@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AlertTriangle, CalendarIcon, ExternalLink, ShieldAlert, FileText, CheckCircle2, ArrowRight } from "lucide-react";
 import { differenceInCalendarDays, format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { getActiveEmployeeCase, getLatestEmployeeCase } from "@/lib/employee-case";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,24 @@ export default function ResignPage() {
     mode: "onChange",
     defaultValues: { acknowledged: false, notes: "" },
   });
+
+  useEffect(() => {
+    const saved = localStorage.getItem("resign_draft");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.lastWorkingDay) parsed.lastWorkingDay = new Date(parsed.lastWorkingDay);
+        form.reset({ ...parsed, acknowledged: false }); // Force re-acknowledge
+      } catch (e) {}
+    }
+  }, [form]);
+
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      localStorage.setItem("resign_draft", JSON.stringify(value));
+    });
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
 
   const lwd = useWatch({ control: form.control, name: "lastWorkingDay" });
   const noticeDays = lwd ? differenceInCalendarDays(lwd, new Date()) : 0;
@@ -111,6 +129,7 @@ export default function ResignPage() {
       });
 
       setConfirmOpen(false);
+      localStorage.removeItem("resign_draft");
       toast.success("Resignation submitted successfully");
       setLocation(`/cases/${createdCase.id}`);
     } catch {

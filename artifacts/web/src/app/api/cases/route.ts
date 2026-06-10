@@ -60,19 +60,23 @@ export async function GET(request: NextRequest) {
   // Apply pagination
   query = query.range(offset, offset + limit - 1);
 
+  // --- VISIBILITY RULES ENFORCEMENT ---
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const isAdminOrHR = user?.role === "admin" || user?.role === "hr";
+
+  if (user?.role === "employee") {
+    query = query.eq("employee_id", userId);
+  }
+
   const { data, error, count } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // --- VISIBILITY RULES ENFORCEMENT ---
-  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
-  const isAdminOrHR = user?.role === "admin" || user?.role === "hr";
-
   if (data) {
     let userDeptAssignments: string[] = [];
-    if (!isAdminOrHR) {
+    if (!isAdminOrHR && user?.role !== "employee") {
       const { data: assignments } = await supabase
         .from("department_assignments")
         .select("department")
@@ -88,7 +92,7 @@ export async function GET(request: NextRequest) {
 
       if (!isAdminOrHR && data[i].clearance_tasks) {
         data[i].clearance_tasks = data[i].clearance_tasks.map((task: any) => {
-          if (!userDeptAssignments.includes(task.dept_id)) {
+          if (user?.role === "employee" || !userDeptAssignments.includes(task.dept_id)) {
             return { ...task, notes: null };
           }
           return task;
@@ -97,10 +101,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Return paginated response if limit is strictly applied, but UI currently expects array.
-  // For backward compatibility, if pagination is implicit, just return data.
-  // We'll return the data array directly to not break useCases map function,
-  // but future UI refactors can use a metadata wrapper.
   return NextResponse.json(data);
 }
 
@@ -118,6 +118,15 @@ export async function POST(request: NextRequest) {
   const targetEmployeeId = body.userId;
   if (!targetEmployeeId) {
     return NextResponse.json({ error: "Missing employee ID" }, { status: 400 });
+  }
+
+  // Server-side validation for Last Working Day manipulation
+  const requestedLwd = new Date(body.last_working_day);
+  const resignationDate = new Date(body.resignation_date);
+  const noticeDaysProvided = Math.max(0, Math.ceil((requestedLwd.getTime() - resignationDate.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  if (noticeDaysProvided < 0) {
+     return NextResponse.json({ error: "Last working day cannot be in the past" }, { status: 400 });
   }
 
   // 1. Validate Employee Exists & Role

@@ -53,7 +53,7 @@ export default function SettingsDepartmentsPage() {
       id: activeDept.id,
       updates: {
         slaHours: parseInt(formData.slaHours, 10) || activeDept.slaHours,
-        defaultAssignee: formData.assignee === "unassigned" ? null : formData.assignee,
+        defaultAssignee: formData.assignee === "unassigned" ? undefined : formData.assignee,
         isMandatory: formData.mandatory,
       }
     }, {

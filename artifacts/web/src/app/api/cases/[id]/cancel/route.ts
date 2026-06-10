@@ -14,6 +14,24 @@ export async function POST(
   const { reason = "No reason provided", actor = "HR" } = await request.json().catch(() => ({}));
 
   try {
+    const { data: existingCase } = await supabase.from("legacy_exit_cases").select("employee_id, employee_name, status").eq("id", caseId).single();
+    
+    if (!existingCase) {
+      return NextResponse.json({ error: "Case not found" }, { status: 404 });
+    }
+
+    const { data: userRow } = await supabase.from("users").select("role").eq("id", userId).single();
+    const role = userRow?.role || "employee";
+
+    if (role === "employee") {
+      if (existingCase.employee_id !== userId) {
+        return NextResponse.json({ error: "Forbidden: You do not own this case" }, { status: 403 });
+      }
+      if (existingCase.status !== "pending_manager") {
+        return NextResponse.json({ error: "Cannot withdraw resignation after it has been approved" }, { status: 400 });
+      }
+    }
+
     const { error: caseErr } = await supabase
       .from("legacy_exit_cases")
       .update({
@@ -34,8 +52,8 @@ export async function POST(
         id: eventId,
         case_id: caseId,
         label: `Case cancelled: ${reason}`,
-        actor,
-        actor_role: "hr",
+        actor: role === "employee" ? existingCase.employee_name || actor : actor,
+        actor_role: role,
         is_pending: false,
         timestamp: new Date().toISOString(),
       });

@@ -87,6 +87,7 @@ export const NAV_CONFIG = {
     { icon: 'LayoutDashboard', label: 'My Exit Status',     href: '/dashboard' },
     { icon: 'FolderOpen',      label: 'My Exit Case',       href: '/my-exit-case' },
     { icon: 'FileSignature',   label: 'Submit Resignation', href: '/resign' },
+    { icon: 'Bell',            label: 'Notifications',      href: '/notifications' },
   ],
   manager: [
     { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },

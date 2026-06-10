@@ -50,6 +50,8 @@ export interface TimelineEvent {
   actor: string;
   actorRole: string;
   isPending?: boolean;
+  status?: string;
+  message?: string;
 }
 
 export type CommentVisibility = 'all' | 'internal';
