@@ -46,7 +46,7 @@ export async function POST(
   }
 
   // Fetch the user's details for the audit log
-  const { data: userRow } = await supabase.from("users").select("name, role").eq("id", userId).single();
+  // (already fetched above)
 
   await logAuditAndTimeline({
     caseId,

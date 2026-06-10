@@ -22,6 +22,9 @@ import {
 import { MOCK_USERS, DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useCreateCase } from "@/hooks/api/useCases";
+import { useUsers } from "@/hooks/api/useUsers";
+import { useWorkflowPreview } from "@/hooks/api/useSettings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { getManagerForEmployee } from "@/lib/workflow";
@@ -242,8 +245,9 @@ function SidePanel({ step, selectedUser, lwd, reason, selectedDepts }: any) {
 export default function NewCasePage() {
   const { isHR, isAdmin, user } = useAuth();
   const [, setLocation] = useLocation();
-  const { mutate: createCase } = useCreateCase();
+  const { mutate: createCase, isPending: isCreating } = useCreateCase();
   const defaultTemplateId = useSettingsStore(s => s.workflow.defaultTemplateId);
+  const [successData, setSuccessData] = useState<any>(null);
 
   const [step, setStep] = useState(1);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -268,20 +272,42 @@ export default function NewCasePage() {
   // Step 4
   const [assets] = useState(DEFAULT_ASSETS);
 
-  if (!isHR && !isAdmin) return <Link href="/dashboard" />;
+  const { data: dbUsersResp, isLoading: isLoadingUsers } = useUsers({ role: "employee", status: "active", search, limit: 20 });
+  const dbUsers = dbUsersResp?.data || [];
+  const isDemoUsers = !isLoadingUsers && dbUsers.length === 0;
 
-  const searchResults = search
+  const searchResults = isDemoUsers
     ? MOCK_USERS.filter(u => u.role === "employee" &&
         (u.name.toLowerCase().includes(search.toLowerCase()) ||
          u.email?.toLowerCase().includes(search.toLowerCase()) ||
          u.employeeId.toLowerCase().includes(search.toLowerCase()))
       )
-    : MOCK_USERS.filter(u => u.role === "employee").slice(0, 5);
+    : dbUsers;
+
+  const { data: wfPreview } = useWorkflowPreview();
+  const dbWorkflowSteps = wfPreview?.steps || [];
+  const isDemoWorkflow = dbWorkflowSteps.length === 0;
+  const workflowPreviewSteps = isDemoWorkflow ? DEFAULT_CLEARANCE : dbWorkflowSteps.map((s: any) => ({
+    id: s.department,
+    label: s.department + " Clearance",
+    desc: `SLA: ${s.slaHours} Hours`,
+    assignee: s.approver,
+    role: "Approver",
+    required: s.required,
+    color: "bg-primary",
+    initials: s.approver.substring(0, 2).toUpperCase()
+  }));
+
+  if (!isHR && !isAdmin) return <Link href="/dashboard" />;
 
   const handleNext = () => setStep(s => Math.min(s + 1, 5));
   const handlePrev = () => setStep(s => Math.max(s - 1, 1));
 
   const handleCreate = () => {
+    if (isDemoUsers) {
+      toast.error("Case creation is disabled in Demo Mode. Create real employees first.");
+      return;
+    }
     if (!selectedUser || !lwd || !reason) {
       toast.error("Please fill in all mandatory details");
       return;
@@ -297,9 +323,14 @@ export default function NewCasePage() {
       lastWorkingDay: lwd.toISOString(),
       noticePeriodDays: noticeDays,
       exitReason: reason,
+    }, {
+      onSuccess: (data) => {
+        setSuccessData(data);
+      },
+      onError: (err) => {
+        toast.error(err.message);
+      }
     });
-    toast.success("Exit case created successfully");
-    setLocation("/cases");
   };
 
   const canNext = step === 1 ? !!selectedUser : step === 2 ? !!lwd && !!reason : true;
@@ -364,6 +395,15 @@ export default function NewCasePage() {
                 <p className="text-xs text-muted-foreground mt-1">Choose the employee who is initiating the offboarding process.</p>
               </div>
               <div className="p-6 flex-1 space-y-4">
+                {isDemoUsers && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 px-4 py-3 rounded-xl flex items-start gap-3 mb-2 animate-in fade-in duration-500">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-extrabold text-sm uppercase tracking-wider mb-0.5">⚠ Demo Mode</h4>
+                      <p className="text-xs opacity-90 leading-relaxed">Using mock employee directory because no active employees exist in the database. Case creation is disabled in demo mode.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="relative flex-1">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
@@ -384,10 +424,10 @@ export default function NewCasePage() {
                 )}
 
                 <div className="space-y-0 border border-border/40 rounded-xl overflow-hidden">
-                  {searchResults.map((u, idx) => (
-                    <div
-                      key={u.id}
-                      onClick={() => setSelectedUser(u)}
+                  {searchResults.map((u: any, idx: number) => (
+                      <div
+                        key={u.id}
+                        onClick={() => setSelectedUser(u)}
                       className={cn(
                         "flex items-center gap-4 px-4 py-3.5 cursor-pointer transition-colors border-b border-border/30 last:border-b-0",
                         selectedUser?.id === u.id ? "bg-primary/5 border-l-2 border-l-primary" : "hover:bg-muted/20"
@@ -587,9 +627,18 @@ export default function NewCasePage() {
                   <RotateCcw className="w-3.5 h-3.5" /> Use Default Workflow
                 </Button>
               </div>
-              <div className="flex-1 divide-y divide-border/40">
-                {clearanceItems.map((item, idx) => (
-                  <div key={item.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/10 transition-colors">
+              {isDemoWorkflow && (
+                <div className="mx-6 mt-6 mb-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 px-4 py-3 rounded-xl flex items-start gap-3 animate-in fade-in duration-500">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-extrabold text-sm uppercase tracking-wider mb-0.5">⚠ Demo Mode: Default Workflow</h4>
+                    <p className="text-xs opacity-90 leading-relaxed">Showing standard clearance steps because no custom workflow template is configured for this organization.</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex-1 divide-y divide-border/40 mt-2">
+                {workflowPreviewSteps.map((item: any, idx: number) => (
+                  <div key={item.id || idx} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/10 transition-colors">
                     <GripVertical className="w-4 h-4 text-muted-foreground/30 shrink-0" />
                     <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", item.color + "/20")}>
                       <Shield className={cn("w-4 h-4", item.color.replace("bg-", "text-"))} />
@@ -611,8 +660,8 @@ export default function NewCasePage() {
                       {item.required ? "Required" : "Optional"}
                     </span>
                     <Switch
-                      checked={item.enabled}
-                      onCheckedChange={v => setClearanceItems(prev => prev.map((c, i) => i === idx ? { ...c, enabled: v } : c))}
+                      checked={item.enabled ?? true}
+                      disabled={true}
                     />
                     <ChevronDown className="w-4 h-4 text-muted-foreground/40 shrink-0" />
                   </div>
@@ -636,6 +685,13 @@ export default function NewCasePage() {
                   <Button className="h-9 px-4 rounded-xl text-xs font-semibold bg-primary gap-1.5">
                     <Upload className="w-3.5 h-3.5" /> Bulk Import
                   </Button>
+                </div>
+              </div>
+              <div className="mx-6 mt-6 mb-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 px-4 py-3 rounded-xl flex items-start gap-3 animate-in fade-in duration-500">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-extrabold text-sm uppercase tracking-wider mb-0.5">⚠ Asset Tracking Module Not Configured Yet</h4>
+                  <p className="text-xs opacity-90 leading-relaxed">Asset tracking functionality is coming soon. The data below is a placeholder preview of the upcoming interface.</p>
                 </div>
               </div>
               <div className="overflow-x-auto flex-1">
@@ -896,6 +952,62 @@ export default function NewCasePage() {
           selectedDepts={[]}
         />
       </div>
+
+      <Dialog open={!!successData} onOpenChange={(open) => {
+        if (!open) {
+          setSuccessData(null);
+          setLocation("/cases");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mb-4 mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-center text-xl">Exit Case Created</DialogTitle>
+            <DialogDescription className="text-center text-xs">
+              The case has been successfully initiated and workflow tasks have been generated.
+            </DialogDescription>
+          </DialogHeader>
+          {successData && (
+            <div className="space-y-3 my-4">
+              <div className="flex justify-between border-b border-border/40 pb-2 text-sm">
+                <span className="text-muted-foreground">Case ID</span>
+                <span className="font-mono font-medium text-foreground">{successData.caseId}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-2 text-sm">
+                <span className="text-muted-foreground">Employee</span>
+                <span className="font-medium text-foreground">{successData.employee}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-2 text-sm">
+                <span className="text-muted-foreground">Workflow Applied</span>
+                <span className="font-medium text-foreground">{successData.workflow}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-2 text-sm">
+                <span className="text-muted-foreground">Tasks Generated</span>
+                <span className="font-medium text-emerald-500">{successData.stepsGenerated} Tasks</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Expected Completion</span>
+                <span className="font-medium text-foreground">
+                  {format(new Date(successData.expectedCompletionDate), "MMM dd, yyyy")}
+                </span>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="sm:justify-center flex-col sm:flex-col gap-2 mt-2">
+            <Button className="w-full h-10 rounded-xl" onClick={() => setLocation(`/cases/${successData?.caseId}`)}>
+              View Case Details
+            </Button>
+            <Button variant="outline" className="w-full h-10 rounded-xl border-border/60" onClick={() => {
+              setSuccessData(null);
+              setLocation("/cases");
+            }}>
+              Return to Cases list
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

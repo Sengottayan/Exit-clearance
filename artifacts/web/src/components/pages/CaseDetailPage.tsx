@@ -254,7 +254,7 @@ export default function CaseDetailPage() {
 
           {!isEmployee && (
             <TabsContent value="comments" className="mt-0">
-              <CaseComments caseId={exitCase.id} />
+              <CaseComments exitCase={exitCase} />
             </TabsContent>
           )}
 

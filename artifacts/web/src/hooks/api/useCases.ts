@@ -113,8 +113,8 @@ export function useCreateCase() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
-      userId: string;         // Clerk user ID — used as employee_id FK
-      employeeId: string;     // HR system number — stored as employee_name label
+      userId: string;
+      employeeId: string;
       employeeName: string;
       employeeEmail: string;
       employeeRole: string;
@@ -124,110 +124,33 @@ export function useCreateCase() {
       noticePeriodDays: number;
       exitReason: string;
     }) => {
-      // Resolve manager — try DB first, fall back to mock constant
-      let resolvedManagerId = "system-manager";
-      let resolvedManagerName = "HR Manager (System)";
-
-      try {
-        const mgRes = await fetch(`/api/employee/profile?dept=${encodeURIComponent(input.employeeDept)}`);
-        if (mgRes.ok) {
-          const mgData = await mgRes.json();
-          if (mgData?.managerId) {
-            resolvedManagerId = mgData.managerId;
-            resolvedManagerName = mgData.managerName ?? resolvedManagerName;
-          }
-        }
-      } catch {
-        // Fall back to mock lookup
-        const mockManager = getManagerForEmployee(input.employeeDept);
-        resolvedManagerId = mockManager.id;
-        resolvedManagerName = mockManager.name;
-      }
-
-      try {
-        const body = {
-          // employee_id in body is the HR number; the API uses the Clerk userId from the session
+      const res = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: input.userId,
           employee_id: input.employeeId,
           employee_name: input.employeeName,
           employee_email: input.employeeEmail,
           employee_role: input.employeeRole,
           employee_dept: input.employeeDept,
-          manager_id: resolvedManagerId,
-          manager_name: resolvedManagerName,
           resignation_date: input.resignationDate,
           last_working_day: input.lastWorkingDay,
           notice_period_days: input.noticePeriodDays,
           exit_reason: input.exitReason,
-        };
-        const res = await fetch("/api/cases", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error("API unavailable");
-        const data: Record<string, unknown> = await res.json();
-        const createdCase = toExitCase(data);
+        }),
+      });
 
-        // Immediately seed both local store and query cache
-        const store = useExitStore.getState();
-        if (!store.cases.some((c) => c.id === createdCase.id)) {
-          const tasks = buildClearanceTasks(DEPARTMENTS.map((d) => d.id), new Date(input.resignationDate));
-          const localCase: ExitCase = {
-            ...createdCase,
-            managerId: resolvedManagerId,
-            managerName: resolvedManagerName,
-            tasks,
-            timeline: [
-              {
-                id: `evt-${Date.now()}`,
-                label: "Resignation submitted",
-                timestamp: new Date().toISOString(),
-                actor: input.employeeName,
-                actorRole: "employee",
-              },
-            ],
-            documents: {},
-          };
-          useExitStore.getState().addCase(localCase);
-        }
-
-        return createdCase;
-      } catch {
-        // Full offline fallback
-        const tasks = buildClearanceTasks(DEPARTMENTS.map((d) => d.id), new Date(input.resignationDate));
-        const newCase: Omit<ExitCase, "id"> = {
-          employeeId: input.employeeId,
-          employeeName: input.employeeName,
-          employeeEmail: input.employeeEmail,
-          employeeRole: input.employeeRole,
-          employeeDept: input.employeeDept,
-          managerId: resolvedManagerId,
-          managerName: resolvedManagerName,
-          status: "pending_manager",
-          resignationDate: input.resignationDate,
-          lastWorkingDay: input.lastWorkingDay,
-          noticePeriodDays: input.noticePeriodDays,
-          exitReason: input.exitReason,
-          tasks,
-          timeline: [
-            {
-              id: `evt-${Date.now()}`,
-              label: "Resignation submitted",
-              timestamp: new Date().toISOString(),
-              actor: input.employeeName,
-              actorRole: "employee",
-            },
-          ],
-          documents: {},
-        };
-        useExitStore.getState().addCase(newCase as ExitCase);
-        return useExitStore.getState().cases[0];
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "API Error" }));
+        throw new Error(err.error || "Failed to create exit case");
       }
+
+      return res.json();
     },
-    onSuccess: (data) => {
-      if (!data?.id) return;
-      queryClient.setQueryData(casesKeys.detail(data.id), data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: casesKeys.list() });
+      queryClient.invalidateQueries({ queryKey: casesKeys.metrics() });
     },
   });
 }

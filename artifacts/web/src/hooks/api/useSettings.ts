@@ -7,6 +7,7 @@ const settingsKeys = {
   departments: ["settings", "departments"] as const,
   checklistTemplates: (deptId: string) => ["settings", "checklist-templates", deptId] as const,
   workflows: ["settings", "workflows"] as const,
+  workflowPreview: ["settings", "workflow-preview"] as const,
 };
 
 export function useDepartments() {
@@ -203,6 +204,17 @@ export function useUpdateWorkflowSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "workflow"] });
+    },
+  });
+}
+
+export function useWorkflowPreview() {
+  return useQuery({
+    queryKey: settingsKeys.workflowPreview,
+    queryFn: async () => {
+      const res = await fetch("/api/workflows/preview");
+      if (!res.ok) throw new Error("API unavailable");
+      return await res.json();
     },
   });
 }
