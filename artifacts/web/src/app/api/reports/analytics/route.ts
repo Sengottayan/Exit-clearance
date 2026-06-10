@@ -42,6 +42,22 @@ export async function GET(req: NextRequest) {
   const { userId, orgId } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
+  const supabase = createServerSupabase();
+
+  // 1. Fetch user role and assignments for authorization
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const role = user?.role || "employee";
+
+  let assignedDepts: string[] = [];
+  if (role === "dept_approver") {
+    const { data: assignments } = await supabase
+      .from("department_assignments")
+      .select("department")
+      .eq("user_id", userId)
+      .eq("is_active", true);
+    assignedDepts = assignments?.map((a) => a.department) || [];
+  }
+
   const { searchParams } = req.nextUrl;
   const dateRangeRaw = searchParams.get("dateRange") ?? "Last 90 Days";
   const department   = searchParams.get("department") ?? "all";
@@ -49,8 +65,6 @@ export async function GET(req: NextRequest) {
 
   const dateRange = asDateRange(dateRangeRaw);
   const days = dateRangeToDays(dateRangeRaw);
-
-  const supabase = createServerSupabase();
 
   // ── 1. Fetch exit cases (legacy compatibility view) ───────────────────────
   const since = subDays(new Date(), days).toISOString();
@@ -60,10 +74,18 @@ export async function GET(req: NextRequest) {
     .select(`
       id, status, exit_reason, employee_dept, employee_name, resignation_date,
       last_working_day, notice_period_days, created_at, updated_at,
-      clearance_tasks:legacy_clearance_tasks ( id, status, sla_due_at, completed_at )
+      clearance_tasks:legacy_clearance_tasks!inner ( id, status, sla_due_at, completed_at, dept_id )
     `)
     .gte("created_at", since)
     .order("created_at", { ascending: false });
+
+  // Role-based access control for dept_approver
+  if (role === "dept_approver" && assignedDepts.length > 0) {
+    query = query.in("clearance_tasks.dept_id", assignedDepts);
+  } else if (role === "dept_approver" && assignedDepts.length === 0) {
+    // If they have no assigned departments, they shouldn't see anything
+    return NextResponse.json({ error: "No departments assigned" }, { status: 403 });
+  }
 
   if (department !== "all") {
     query = query.ilike("employee_dept", `%${department}%`);

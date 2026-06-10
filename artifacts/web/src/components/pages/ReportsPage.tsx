@@ -69,6 +69,7 @@ export default function ReportsPage() {
   const { isHR, isAdmin, isDeptApprover } = useAuth();
   const { data: profile } = useUserProfile();
   const [activeTab, setActiveTab] = useState("Overview");
+  const [trendGrouping, setTrendGrouping] = useState("Weekly");
 
   // For dept_approver: lock to assigned departments only (no cross-dept data)
   const departmentAssignments = profile?.departmentAssignments ?? [];
@@ -112,6 +113,32 @@ export default function ReportsPage() {
   const departments = data?.departments ?? [];
   const insights    = data?.insights    ?? [];
   const isSynthetic = data?.source === "synthetic";
+
+  // Group exit trend data
+  const groupedExitTrend = useMemo(() => {
+    if (!exitTrend || exitTrend.length === 0) return [];
+    if (trendGrouping === "Daily") return exitTrend;
+    
+    const chunkSize = trendGrouping === "Weekly" ? 7 : 30;
+    const result = [];
+    for (let i = 0; i < exitTrend.length; i += chunkSize) {
+      const chunk = exitTrend.slice(i, i + chunkSize);
+      const sum = chunk.reduce((acc: number, curr: any) => acc + curr.value, 0);
+      result.push({
+        date: chunk[0].date,
+        value: sum
+      });
+    }
+    return result;
+  }, [exitTrend, trendGrouping]);
+
+  // Tab visibility
+  const showAll = activeTab === "Overview";
+  const showTrend = showAll || activeTab === "Exit Volume";
+  const showSLA = showAll || activeTab === "SLA Performance";
+  const showReasons = showAll || activeTab === "Reasons Analysis";
+  const showDept = showAll || activeTab === "Department Analysis";
+  const showManager = activeTab === "Manager Performance";
 
   // Compliant percentage for SLA donut centre label
   const slaCompliantPct = useMemo(() => {
@@ -324,43 +351,54 @@ export default function ReportsPage() {
         </div>
 
         {/* Charts Row 1 */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* Exit Trend */}
-          <div className="col-span-3 bg-card border border-border/50 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-1">
-              <div>
-                <h3 className="text-sm font-extrabold text-foreground">Exit Trend</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Exit cases created over time</p>
+        {(showTrend || showSLA) && (
+          <div className={`grid gap-4 ${showAll ? "grid-cols-5" : "grid-cols-1"}`}>
+            {/* Exit Trend */}
+            {showTrend && (
+              <div className={`${showAll ? "col-span-3" : "col-span-1"} bg-card border border-border/50 rounded-2xl p-5`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-foreground">Exit Trend</h3>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Exit cases created over time</p>
+                  </div>
+                  <Select value={trendGrouping} onValueChange={setTrendGrouping}>
+                    <SelectTrigger className="h-7 px-3 rounded-lg text-[11px] font-semibold border-border/60 bg-background w-auto gap-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Daily" className="text-[11px]">Daily</SelectItem>
+                      <SelectItem value="Weekly" className="text-[11px]">Weekly</SelectItem>
+                      <SelectItem value="Monthly" className="text-[11px]">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="h-[200px] mt-4">
+                  {isLoading ? (
+                    <Skeleton className="h-full w-full" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={groupedExitTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="exitGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} interval={0} angle={-30} dy={8} height={45} />
+                        <YAxis tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} fill="url(#exitGrad)" dot={{ r: 3, fill: "#6366f1", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               </div>
-              <Button variant="outline" size="sm" className="h-7 px-3 rounded-lg text-[11px] font-semibold border-border/60 bg-background gap-1">
-                Weekly <ChevronDown className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="h-[200px] mt-4">
-              {isLoading ? (
-                <Skeleton className="h-full w-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={exitTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="exitGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} interval={0} angle={-30} dy={8} height={45} />
-                    <YAxis tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} fill="url(#exitGrad)" dot={{ r: 3, fill: "#6366f1", strokeWidth: 0 }} activeDot={{ r: 5 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
+            )}
 
-          {/* SLA Compliance */}
-          <div className="col-span-2 bg-card border border-border/50 rounded-2xl p-5">
+            {/* SLA Compliance */}
+            {showSLA && (
+              <div className={`${showAll ? "col-span-2" : "col-span-1"} bg-card border border-border/50 rounded-2xl p-5`}>
             <div className="mb-1">
               <h3 className="text-sm font-extrabold text-foreground">SLA Compliance Rate</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">Overall SLA compliance status</p>
@@ -407,12 +445,16 @@ export default function ReportsPage() {
               </div>
             )}
           </div>
-        </div>
+        )}
+      </div>
+      )}
 
-        {/* Charts Row 2 */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* Exit Reasons Breakdown */}
-          <div className="col-span-2 bg-card border border-border/50 rounded-2xl p-5">
+      {/* Charts Row 2 */}
+      {(showReasons || showDept) && (
+        <div className={`grid gap-4 mt-4 ${showAll ? "grid-cols-5" : "grid-cols-1"}`}>
+            {/* Exit Reasons Breakdown */}
+            {showReasons && (
+              <div className={`${showAll ? "col-span-2" : "col-span-1"} bg-card border border-border/50 rounded-2xl p-5`}>
             <div className="flex items-center justify-between mb-1">
               <div>
                 <h3 className="text-sm font-extrabold text-foreground">Exit Reasons Breakdown</h3>
@@ -466,9 +508,11 @@ export default function ReportsPage() {
               </div>
             )}
           </div>
-
-          {/* Department-wise Exit Volume */}
-          <div className="col-span-3 bg-card border border-border/50 rounded-2xl p-5">
+        )}
+        
+        {/* Department-wise Exit Volume */}
+          {showDept && (
+            <div className={`${showAll ? "col-span-3" : "col-span-1"} bg-card border border-border/50 rounded-2xl p-5`}>
             <div className="flex items-center justify-between mb-1">
               <div>
                 <h3 className="text-sm font-extrabold text-foreground">Department-wise Exit Volume</h3>
@@ -498,7 +542,22 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
+          )}
         </div>
+        )}
+
+        {/* Manager Performance (WIP) */}
+        {showManager && (
+          <div className="mt-4 bg-card border border-border/50 rounded-2xl p-5 flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <BarChart2 className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-extrabold text-foreground">Manager Performance</h3>
+            <p className="text-sm text-muted-foreground mt-2 text-center max-w-sm">
+              This report is currently being generated. Check back later for detailed managerial insights.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── Right sidebar ─────────────────────────────────────────────────── */}

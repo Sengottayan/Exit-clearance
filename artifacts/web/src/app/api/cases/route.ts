@@ -66,6 +66,37 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // --- VISIBILITY RULES ENFORCEMENT ---
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const isAdminOrHR = user?.role === "admin" || user?.role === "hr";
+
+  if (data) {
+    let userDeptAssignments: string[] = [];
+    if (!isAdminOrHR) {
+      const { data: assignments } = await supabase
+        .from("department_assignments")
+        .select("department")
+        .eq("user_id", userId);
+      userDeptAssignments = assignments?.map((a: any) => a.department) || [];
+    }
+
+    const { calculateWorkflowStage } = await import("@/lib/workflow-server");
+
+    for (let i = 0; i < data.length; i++) {
+      // Calculate backend workflow stage for every case
+      data[i].workflow_stage = calculateWorkflowStage(data[i].status, data[i].clearance_tasks || []);
+
+      if (!isAdminOrHR && data[i].clearance_tasks) {
+        data[i].clearance_tasks = data[i].clearance_tasks.map((task: any) => {
+          if (!userDeptAssignments.includes(task.dept_id)) {
+            return { ...task, notes: null };
+          }
+          return task;
+        });
+      }
+    }
+  }
+
   // Return paginated response if limit is strictly applied, but UI currently expects array.
   // For backward compatibility, if pagination is implicit, just return data.
   // We'll return the data array directly to not break useCases map function,

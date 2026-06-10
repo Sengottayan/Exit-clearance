@@ -56,34 +56,10 @@ export default function TasksPage() {
   const inProgress = withResolvedStatus.filter(t => t.displayStatus === 'in_progress');
   const completed  = withResolvedStatus.filter(t => ['approved', 'rejected'].includes(t.displayStatus));
 
-  // ── Dynamic KPI calculations ───────────────────────────────────────────────
-  // SLA On-Time %:   completed tasks where completedAt ≤ slaDueAt / total completed
-  // Overdue %:       active tasks where slaDueAt < now() / total
-  // At Risk %:       100 - onTime% - overdue% (min 0)
-  // Avg Completion:  mean of (completedAt − startedAt) in days
-  const onTimeTasks = completed.filter(t => t.completedAt && t.slaDueAt && new Date(t.completedAt) <= new Date(t.slaDueAt));
-  const overdueActive = pending.filter(t => t.slaDueAt && isPast(parseISO(t.slaDueAt)));
-  const total = withResolvedStatus.length;
-  const onTimePct  = completed.length > 0 ? Math.round((onTimeTasks.length / completed.length) * 100) : 0;
-  const overduePct = total > 0 ? Math.round((overdueActive.length / total) * 100) : 0;
-  const atRiskPct  = Math.max(0, 100 - onTimePct - overduePct);
-  const compTimes  = completed
-    .filter(t => t.completedAt && t.startedAt)
-    .map(t => Math.abs(differenceInDays(new Date(t.completedAt!), new Date(t.startedAt!))));
-  const avgCompletionDays = compTimes.length > 0
-    ? (compTimes.reduce((a, b) => a + b, 0) / compTimes.length).toFixed(1)
-    : '–';
   const completedToday = completed.filter(t => t.completedAt && isToday(parseISO(t.completedAt))).length;
 
-  const performance = {
-    onTime:         onTimePct,
-    atRisk:         atRiskPct,
-    overdue:        overduePct,
-    completedCount: completed.length,
-    overdueCount:   overdueActive.length,
-    avgSla:         onTimePct,
-    avgCompletion:  avgCompletionDays,
-  };
+  const { calcPerformance } = require('@/lib/workflow');
+  const performance = calcPerformance(withResolvedStatus);
 
   // ── Tab task map (for pagination total) ───────────────────────────────────
   const tabTasksMap = {

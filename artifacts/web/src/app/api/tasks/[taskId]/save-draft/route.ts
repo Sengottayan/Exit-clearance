@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { useExitStore } from "@/store/exitStore";
+import { createServerSupabase } from "@/lib/supabase-server";
+import { getOptionalAuth, unauthorized, forbidden, verifyTaskAccess } from "@/lib/api-auth";
 import { ChecklistItem } from "@/lib/types";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
+  const { userId } = await getOptionalAuth();
+  if (!userId) return unauthorized();
+
   const { taskId } = await params;
   const [caseId, deptId] = taskId.split("__");
 
@@ -13,14 +17,24 @@ export async function POST(
     return NextResponse.json({ error: "Invalid task ID format" }, { status: 400 });
   }
 
-  const exitCase = useExitStore.getState().cases.find((c) => c.id === caseId);
-  if (!exitCase) {
-    return NextResponse.json({ error: "Not Found" }, { status: 404 });
-  }
+  const hasAccess = await verifyTaskAccess(userId, deptId);
+  if (!hasAccess) return forbidden();
 
   const { checklist } = await req.json();
-  useExitStore.getState().saveTaskDraft(caseId, deptId, checklist as ChecklistItem[]);
-  const updated = useExitStore.getState().cases.find((c) => c.id === caseId);
-  const task = updated?.tasks.find((t) => t.deptId === deptId);
-  return NextResponse.json(task);
+  const supabase = createServerSupabase();
+
+  const { data: updatedTask, error: updateError } = await supabase
+    .from("legacy_clearance_tasks")
+    .update({ checklist })
+    .eq("case_id", caseId)
+    .eq("dept_id", deptId)
+    .select()
+    .single();
+
+  if (updateError || !updatedTask) {
+    console.error("Save draft error:", updateError);
+    return NextResponse.json({ error: "Failed to save draft or task not found" }, { status: 500 });
+  }
+
+  return NextResponse.json(updatedTask);
 }

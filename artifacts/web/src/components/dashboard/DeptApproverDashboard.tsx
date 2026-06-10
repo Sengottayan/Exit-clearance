@@ -10,14 +10,15 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowUp, ArrowDown, ArrowRight, CheckCircle2, ClipboardCheck, Clock,
-  MoreVertical, List, ChevronDown, Grid3X3, AlertCircle,
+  MoreVertical, List, ChevronDown, Grid3X3, AlertCircle, Eye, Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GlobalLoading } from "@/components/shared/GlobalLoading";
 import { PaginationFooter } from "@/components/shared/PaginationFooter";
@@ -25,41 +26,7 @@ import { TASK_METADATA } from "@/lib/constants";
 import { ProgressRing } from "@/components/shared/ProgressRing";
 import { isPast, isToday, isThisWeek, parseISO, differenceInDays } from "date-fns";
 
-// ── KPI Definitions ────────────────────────────────────────────────────────────
-// SLA On-Time %:   completed tasks where completedAt ≤ slaDueAt / total completed
-// Overdue %:       active tasks where slaDueAt < now()           / (active + completed)
-// At Risk %:       100 - onTime% - overdue%                      (min 0)
-// Avg Completion:  mean of (completedAt − startedAt) in days
-function calcPerformance(allTasks: any[]) {
-  const completed = allTasks.filter((t) => ["approved", "rejected"].includes(t.status));
-  const active    = allTasks.filter((t) => ["pending", "in_progress", "overdue"].includes(t.status));
-
-  const onTimeTasks   = completed.filter((t) => t.completedAt && t.slaDueAt && new Date(t.completedAt) <= new Date(t.slaDueAt));
-  const overdueActive = active.filter((t) => t.slaDueAt && isPast(parseISO(t.slaDueAt)));
-
-  const total      = completed.length + active.length;
-  const onTimePct  = completed.length > 0 ? Math.round((onTimeTasks.length / completed.length) * 100) : 0;
-  const overduePct = total > 0          ? Math.round((overdueActive.length / total) * 100)            : 0;
-  const atRiskPct  = Math.max(0, 100 - onTimePct - overduePct);
-
-  const completionTimes = completed
-    .filter((t) => t.completedAt && t.startedAt)
-    .map((t) => Math.abs(differenceInDays(new Date(t.completedAt), new Date(t.startedAt))));
-  const avgCompletion =
-    completionTimes.length > 0
-      ? (completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length).toFixed(1)
-      : "–";
-
-  return {
-    onTime:        onTimePct,
-    atRisk:        atRiskPct,
-    overdue:       overduePct,
-    completedCount: completed.length,
-    overdueCount:  overdueActive.length,
-    avgCompletion,
-  };
-}
-
+import { calcPerformance } from "@/lib/workflow";
 const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
 // ── Task-level SLA helpers ─────────────────────────────────────────────────────
@@ -143,14 +110,26 @@ function TaskRow({ task }: { task: any }) {
       </TableCell>
       <TableCell className="py-4 text-right">
         <div className="flex items-center justify-end gap-2">
-          <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
-            <Button size="sm" className="h-8 bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-4 rounded-md">
-              Review
-            </Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-            <MoreVertical className="w-4 h-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem asChild>
+                <Link href={`/tasks/${task.caseId}__${task.deptId}`} className="flex items-center gap-2 cursor-pointer">
+                  <Eye className="w-3.5 h-3.5" />
+                  View Task
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="flex items-center gap-2 text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer">
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </TableCell>
     </TableRow>
@@ -211,12 +190,19 @@ function TaskCard({ task }: { task: any }) {
             />
           </div>
         </div>
-        {/* Action */}
-        <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
-          <Button size="sm" className="w-full h-8 bg-indigo-500 hover:bg-indigo-600 text-white text-xs rounded-md">
-            Review Task
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Link href={`/tasks/${task.caseId}__${task.deptId}`} className="flex-1">
+            <Button size="sm" variant="outline" className="w-full h-8 text-xs rounded-md border-border/50 gap-1.5 hover:bg-muted/50">
+              <Eye className="w-3.5 h-3.5" />
+              View
+            </Button>
+          </Link>
+          <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs rounded-md text-red-500 hover:bg-red-500/10 hover:text-red-500 gap-1.5">
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
           </Button>
-        </Link>
+        </div>
       </CardContent>
     </Card>
   );

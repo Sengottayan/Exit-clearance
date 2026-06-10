@@ -26,3 +26,33 @@ export async function getOptionalAuth(): Promise<{ userId: string | null; orgId:
 export function unauthorized(): NextResponse {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
+
+export function forbidden(): NextResponse {
+  return NextResponse.json({ error: "Forbidden: You do not have permission to perform this action" }, { status: 403 });
+}
+
+import { createServerSupabase } from "@/lib/supabase-server";
+
+export async function verifyTaskAccess(userId: string, deptId: string): Promise<boolean> {
+  const supabase = createServerSupabase();
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  
+  if (!user) return false;
+  
+  // Admins and HR have global access
+  if (user.role === "admin" || user.role === "hr") return true;
+  
+  // Only department approvers can mutate tasks assigned to them
+  if (user.role === "dept_approver") {
+    const { data: assignments } = await supabase
+      .from("department_assignments")
+      .select("department")
+      .eq("user_id", userId);
+      
+    if (assignments && assignments.some(a => a.department === deptId)) {
+      return true;
+    }
+  }
+  
+  return false;
+}

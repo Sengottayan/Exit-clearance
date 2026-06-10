@@ -1,4 +1,4 @@
-import { format, addHours, isPast } from 'date-fns';
+import { format, addHours, isPast, differenceInDays, parseISO } from 'date-fns';
 import { ClearanceTask, ExitCase, TaskStatus, DeptId } from './types';
 import { DEPARTMENTS, CHECKLIST_TEMPLATES } from './constants';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -84,4 +84,35 @@ export function normalizeCaseTasks(
 
   const deptIds = tasks.length > 0 ? tasks.map((t) => t.deptId) : (fallbackDeptIds ?? DEPARTMENTS.map((d) => d.id));
   return buildClearanceTasks(deptIds);
+}
+
+
+export function calcPerformance(allTasks: any[]) {
+  const completed = allTasks.filter((t) => ["approved", "rejected"].includes(t.status) || ["approved", "rejected"].includes(t.displayStatus));
+  const active    = allTasks.filter((t) => ["pending", "in_progress", "overdue"].includes(t.status) || ["pending", "in_progress", "overdue"].includes(t.displayStatus));
+
+  const onTimeTasks   = completed.filter((t) => t.completedAt && t.slaDueAt && new Date(t.completedAt) <= new Date(t.slaDueAt));
+  const overdueActive = active.filter((t) => t.slaDueAt && isPast(parseISO(t.slaDueAt)));
+
+  const total      = completed.length + active.length;
+  const onTimePct  = completed.length > 0 ? Math.round((onTimeTasks.length / completed.length) * 100) : 0;
+  const overduePct = total > 0          ? Math.round((overdueActive.length / total) * 100)            : 0;
+  const atRiskPct  = total > 0 ? Math.max(0, 100 - onTimePct - overduePct) : 0;
+
+  const completionTimes = completed
+    .filter((t) => t.completedAt && t.startedAt)
+    .map((t) => Math.abs(differenceInDays(new Date(t.completedAt), new Date(t.startedAt))));
+  const avgCompletion =
+    completionTimes.length > 0
+      ? (completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length).toFixed(1)
+      : "0";
+
+  return {
+    onTime:        onTimePct,
+    atRisk:        atRiskPct,
+    overdue:       overduePct,
+    completedCount: completed.length,
+    overdueCount:  overdueActive.length,
+    avgCompletion,
+  };
 }

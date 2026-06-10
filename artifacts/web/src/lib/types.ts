@@ -111,6 +111,7 @@ export interface ExitCase {
   escalated?: boolean;
   cancelReason?: string;
   tags?: string[];
+  workflowStage?: number;
 }
 
 export interface Department {

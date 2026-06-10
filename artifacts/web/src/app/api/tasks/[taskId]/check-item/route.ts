@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized, forbidden, verifyTaskAccess } from "@/lib/api-auth";
+import { ChecklistItem } from "@/lib/types";
 
 export async function POST(
   req: NextRequest,
@@ -10,12 +11,8 @@ export async function POST(
   if (!userId) return unauthorized();
 
   const { taskId } = await params;
-  if (!taskId) {
-    return NextResponse.json({ error: "Invalid task ID format" }, { status: 400 });
-  }
-
-  // legacy_clearance_tasks don't use 'id', they use case_id and dept_id
   const [caseId, deptId] = taskId.split("__");
+
   if (!caseId || !deptId) {
     return NextResponse.json({ error: "Invalid task ID format" }, { status: 400 });
   }
@@ -23,41 +20,39 @@ export async function POST(
   const hasAccess = await verifyTaskAccess(userId, deptId);
   if (!hasAccess) return forbidden();
 
-  const { assigneeId } = await req.json();
-  if (!assigneeId) {
-    return NextResponse.json(
-      { error: "Bad Request", message: "assigneeId is required" },
-      { status: 400 }
-    );
-  }
-
+  const { itemId, checked } = await req.json();
   const supabase = createServerSupabase();
 
-  // Validate user exists in DB
-  const { data: assignee, error: userError } = await supabase
-    .from("users")
-    .select("id, name")
-    .eq("id", assigneeId)
+  // 1. Fetch current checklist
+  const { data: task, error: fetchError } = await supabase
+    .from("legacy_clearance_tasks")
+    .select("checklist")
+    .eq("case_id", caseId)
+    .eq("dept_id", deptId)
     .single();
 
-  if (userError || !assignee) {
-    return NextResponse.json({ error: "Bad Request", message: "User not found" }, { status: 400 });
+  if (fetchError || !task) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  // Update task in DB
+  // 2. Update item
+  const checklist = (task.checklist as ChecklistItem[] | null) ?? [];
+  const updatedChecklist = checklist.map((item) =>
+    item.id === itemId ? { ...item, checked } : item
+  );
+
+  // 3. Save to database
   const { data: updatedTask, error: updateError } = await supabase
     .from("legacy_clearance_tasks")
-    .update({ 
-      assignee_id: assignee.id,
-      assignee_name: assignee.name
-    })
+    .update({ checklist: updatedChecklist })
     .eq("case_id", caseId)
     .eq("dept_id", deptId)
     .select()
     .single();
 
-  if (updateError) {
-    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  if (updateError || !updatedTask) {
+    console.error("Check item error:", updateError);
+    return NextResponse.json({ error: "Failed to update item" }, { status: 500 });
   }
 
   return NextResponse.json(updatedTask);

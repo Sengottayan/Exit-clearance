@@ -110,19 +110,18 @@ export function useApproveTask() {
   return useMutation({
     mutationFn: async ({ taskId, notes }: { taskId: string; notes?: string }) => {
       const { caseId, deptId } = parseTaskId(taskId);
-      try {
-        const res = await fetch(`/api/tasks/${taskId}/approve`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes }),
-        });
-        if (!res.ok) throw new Error("API unavailable");
-      } catch {
-        useExitStore.getState().approveTask(caseId, deptId, notes);
+      const res = await fetch(`/api/tasks/${taskId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to approve task");
       }
       return { caseId, deptId };
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tasksKeys.all });
       queryClient.invalidateQueries({ queryKey: ["cases"] });
     },
@@ -134,15 +133,14 @@ export function useRejectTask() {
   return useMutation({
     mutationFn: async ({ taskId, reason }: { taskId: string; reason: string }) => {
       const { caseId, deptId } = parseTaskId(taskId);
-      try {
-        const res = await fetch(`/api/tasks/${taskId}/reject`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reason }),
-        });
-        if (!res.ok) throw new Error("API unavailable");
-      } catch {
-        useExitStore.getState().rejectTask(caseId, deptId, reason);
+      const res = await fetch(`/api/tasks/${taskId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to reject task");
       }
       return { caseId, deptId };
     },
@@ -158,15 +156,14 @@ export function useSaveTaskDraft() {
   return useMutation({
     mutationFn: async ({ taskId, checklist }: { taskId: string; checklist: ChecklistItem[] }) => {
       const { caseId, deptId } = parseTaskId(taskId);
-      try {
-        const res = await fetch(`/api/tasks/${taskId}/save-draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ checklist }),
-        });
-        if (!res.ok) throw new Error("API unavailable");
-      } catch {
-        useExitStore.getState().saveTaskDraft(caseId, deptId, checklist);
+      const res = await fetch(`/api/tasks/${taskId}/save-draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checklist }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save draft");
       }
       return { caseId, deptId };
     },
@@ -180,15 +177,14 @@ export function useCheckItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, deptId, itemId, checked }: { caseId: string; deptId: string; itemId: string; checked: boolean }) => {
-      try {
-        const res = await fetch(`/api/tasks/${deriveTaskId(caseId, deptId)}/check-item`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemId, checked }),
-        });
-        if (!res.ok) throw new Error("API unavailable");
-      } catch {
-        useExitStore.getState().checkItem(caseId, deptId, itemId, checked);
+      const res = await fetch(`/api/tasks/${deriveTaskId(caseId, deptId)}/check-item`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, checked }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update checklist item");
       }
       return { caseId, deptId };
     },
@@ -202,15 +198,14 @@ export function useSetItemInput() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ caseId, deptId, itemId, inputValue }: { caseId: string; deptId: string; itemId: string; inputValue: string }) => {
-      try {
-        const res = await fetch(`/api/tasks/${deriveTaskId(caseId, deptId)}/set-item-input`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemId, inputValue }),
-        });
-        if (!res.ok) throw new Error("API unavailable");
-      } catch {
-        useExitStore.getState().setItemInput(caseId, deptId, itemId, inputValue);
+      const res = await fetch(`/api/tasks/${deriveTaskId(caseId, deptId)}/set-item-input`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, inputValue }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update input value");
       }
       return { caseId, deptId };
     },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
+import { calculateWorkflowStage } from "@/lib/workflow-server";
 
 const MULTI_TENANT_ENABLED = false; // Toggle to true after full DB migration
 
@@ -38,6 +39,31 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Calculate backend workflow stage
+  data.workflow_stage = calculateWorkflowStage(data.status, data.clearance_tasks || []);
+
+  // --- VISIBILITY RULES ENFORCEMENT ---
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const isAdminOrHR = user?.role === "admin" || user?.role === "hr";
+
+  if (!isAdminOrHR) {
+    const { data: assignments } = await supabase
+      .from("department_assignments")
+      .select("department")
+      .eq("user_id", userId);
+    const userDeptAssignments = assignments?.map((a: any) => a.department) || [];
+
+    // Redact internal notes from other departments
+    if (data.clearance_tasks) {
+      data.clearance_tasks = data.clearance_tasks.map((task: any) => {
+        if (!userDeptAssignments.includes(task.dept_id)) {
+          return { ...task, notes: null };
+        }
+        return task;
+      });
+    }
+  }
+
   return NextResponse.json(data);
 }
 
@@ -52,8 +78,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Organization context required" }, { status: 403 });
   }
 
-  const { id } = await params;
   const supabase = createServerSupabase();
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  
+  // Only Admin, HR, and Manager can update case fields directly
+  if (!user || (user.role !== "admin" && user.role !== "hr" && user.role !== "manager")) {
+    return NextResponse.json({ error: "Forbidden: Only Admin, HR, or Manager can update case details" }, { status: 403 });
+  }
+
+  const { id } = await params;
   const body = await request.json();
 
   const allowedFields = [
@@ -90,11 +123,11 @@ export async function PATCH(
     // query = query.eq("organization_id", orgId);
   }
 
-  const { data, error } = await query.select().single();
+  const { data: updatedData, error: updateError } = await query.select().single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(updatedData);
 }
