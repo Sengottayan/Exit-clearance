@@ -1,238 +1,601 @@
+"use client";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCases } from "@/hooks/api/useCases";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useUserProfile } from "@/hooks/api/useProfile";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/lib/wouter";
-import { SLARiskChip } from "@/components/shared/SLARiskChip";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ClearanceProgressBar } from "@/components/shared/ClearanceProgressBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, CheckCircle2, Lock, ClipboardCheck, Clock, CheckCircle } from "lucide-react";
+import {
+  ArrowUp, ArrowDown, ArrowRight, CheckCircle2, ClipboardCheck, Clock,
+  MoreVertical, List, ChevronDown, Grid3X3, AlertCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { GlobalLoading } from "@/components/shared/GlobalLoading";
+import { PaginationFooter } from "@/components/shared/PaginationFooter";
+import { TASK_METADATA } from "@/lib/constants";
+import { ProgressRing } from "@/components/shared/ProgressRing";
+import { isPast, isToday, isThisWeek, parseISO, differenceInDays } from "date-fns";
 
+// ── KPI Definitions ────────────────────────────────────────────────────────────
+// SLA On-Time %:   completed tasks where completedAt ≤ slaDueAt / total completed
+// Overdue %:       active tasks where slaDueAt < now()           / (active + completed)
+// At Risk %:       100 - onTime% - overdue%                      (min 0)
+// Avg Completion:  mean of (completedAt − startedAt) in days
+function calcPerformance(allTasks: any[]) {
+  const completed = allTasks.filter((t) => ["approved", "rejected"].includes(t.status));
+  const active    = allTasks.filter((t) => ["pending", "in_progress", "overdue"].includes(t.status));
+
+  const onTimeTasks   = completed.filter((t) => t.completedAt && t.slaDueAt && new Date(t.completedAt) <= new Date(t.slaDueAt));
+  const overdueActive = active.filter((t) => t.slaDueAt && isPast(parseISO(t.slaDueAt)));
+
+  const total      = completed.length + active.length;
+  const onTimePct  = completed.length > 0 ? Math.round((onTimeTasks.length / completed.length) * 100) : 0;
+  const overduePct = total > 0          ? Math.round((overdueActive.length / total) * 100)            : 0;
+  const atRiskPct  = Math.max(0, 100 - onTimePct - overduePct);
+
+  const completionTimes = completed
+    .filter((t) => t.completedAt && t.startedAt)
+    .map((t) => Math.abs(differenceInDays(new Date(t.completedAt), new Date(t.startedAt))));
+  const avgCompletion =
+    completionTimes.length > 0
+      ? (completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length).toFixed(1)
+      : "–";
+
+  return {
+    onTime:        onTimePct,
+    atRisk:        atRiskPct,
+    overdue:       overduePct,
+    completedCount: completed.length,
+    overdueCount:  overdueActive.length,
+    avgCompletion,
+  };
+}
+
+const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+
+// ── Task-level SLA helpers ─────────────────────────────────────────────────────
+function getTaskSlaInfo(task: any) {
+  const isOverdue  = task.slaDueAt && isPast(parseISO(task.slaDueAt));
+  const isDueToday = task.slaDueAt && isToday(parseISO(task.slaDueAt)) && !isPast(parseISO(task.slaDueAt));
+  const daysLeft   = task.slaDueAt
+    ? Math.ceil((new Date(task.slaDueAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  if (isOverdue)  return { text: "Overdue",   cls: "text-red-500 border-red-500/20 bg-red-500/10",         dateCls: "text-red-500",    dateSub: "Overdue",      isOverdue: true,  isDueToday: false };
+  if (isDueToday) return { text: "Due Today",  cls: "text-orange-500 border-orange-500/20 bg-orange-500/10", dateCls: "text-orange-500", dateSub: "Due today",    isOverdue: false, isDueToday: true  };
+  return           { text: "On Track",  cls: "text-emerald-500 border-emerald-500/20 bg-emerald-500/10", dateCls: "text-muted-foreground", dateSub: daysLeft != null ? `${Math.max(0, daysLeft)} days left` : "", isOverdue: false, isDueToday: false };
+}
+
+function getProgress(task: any) {
+  const total   = task.checklist?.length ?? 0;
+  const checked = task.checklist?.filter((i: any) => i.checked).length ?? 0;
+  return total === 0 ? 0 : Math.round((checked / total) * 100);
+}
+
+// ── Shared table row ───────────────────────────────────────────────────────────
+function TaskRow({ task }: { task: any }) {
+  const meta     = TASK_METADATA[task.deptId] || { title: task.deptLabel, description: "", priority: "Low" };
+  const sla      = getTaskSlaInfo(task);
+  const progress = getProgress(task);
+
+  return (
+    <TableRow key={`${task.caseId}-${task.id}`} className="border-b border-border/40 hover:bg-muted/5 group">
+      <TableCell className="py-4">
+        <div className="font-mono text-xs font-medium">{task.caseId}</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">Resignation</div>
+      </TableCell>
+      <TableCell className="py-4">
+        <div className="flex items-center gap-2.5">
+          <UserAvatar name={task.employeeName} className="w-8 h-8 rounded-full bg-indigo-500 text-white text-xs" />
+          <div>
+            <div className="font-medium text-sm">{task.employeeName}</div>
+            <div className="text-[10px] text-muted-foreground">{task.employeeRole || task.employeeDept}</div>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="py-4">
+        <div className="flex items-start gap-2">
+          <ClipboardCheck className="w-4 h-4 text-muted-foreground mt-0.5 opacity-70 shrink-0" />
+          <div>
+            <div className="font-medium text-sm text-foreground">{meta.title}</div>
+            <div className="text-[10px] text-muted-foreground">{task.deptLabel} Clearance</div>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="py-4">
+        <div className="flex items-center gap-1.5">
+          {meta.priority === "High"   && <ArrowUp    className="w-3.5 h-3.5 text-red-500"     />}
+          {meta.priority === "Medium" && <ArrowRight className="w-3.5 h-3.5 text-orange-500"  />}
+          {meta.priority === "Low"    && <ArrowDown  className="w-3.5 h-3.5 text-emerald-500" />}
+          <span className={`text-xs font-medium ${meta.priority === "High" ? "text-red-500" : meta.priority === "Medium" ? "text-orange-500" : "text-emerald-500"}`}>
+            {meta.priority}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="py-4">
+        <div className="text-xs">
+          {task.slaDueAt ? new Date(task.slaDueAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "N/A"}
+        </div>
+        <div className={`text-[10px] ${sla.dateCls} mt-0.5 font-medium`}>{sla.dateSub}</div>
+      </TableCell>
+      <TableCell className="py-4">
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${sla.cls}`}>{sla.text}</span>
+      </TableCell>
+      <TableCell className="py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full ${progress === 100 ? "bg-emerald-500" : sla.isOverdue ? "bg-red-500" : "bg-orange-500"}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium w-8">{progress}%</span>
+        </div>
+      </TableCell>
+      <TableCell className="py-4 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
+            <Button size="sm" className="h-8 bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-4 rounded-md">
+              Review
+            </Button>
+          </Link>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <MoreVertical className="w-4 h-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ── Shared card (grid view) ────────────────────────────────────────────────────
+function TaskCard({ task }: { task: any }) {
+  const meta     = TASK_METADATA[task.deptId] || { title: task.deptLabel, description: "", priority: "Low" };
+  const sla      = getTaskSlaInfo(task);
+  const progress = getProgress(task);
+
+  return (
+    <Card className="bg-card border-border/40 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+      <CardContent className="p-4 flex flex-col gap-3">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2.5">
+            <UserAvatar name={task.employeeName} className="w-8 h-8 rounded-full bg-indigo-500 text-white text-xs" />
+            <div>
+              <div className="font-medium text-sm leading-tight">{task.employeeName}</div>
+              <div className="text-[10px] text-muted-foreground font-mono">{task.caseId}</div>
+            </div>
+          </div>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${sla.cls}`}>
+            {sla.text}
+          </span>
+        </div>
+        {/* Task info */}
+        <div>
+          <div className="font-medium text-sm text-foreground">{meta.title}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{task.deptLabel} Clearance</div>
+        </div>
+        {/* Meta row */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className={sla.dateCls}>
+            {task.slaDueAt ? new Date(task.slaDueAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "N/A"}
+          </span>
+          <div className="flex items-center gap-1">
+            {meta.priority === "High"   && <ArrowUp    className="w-3 h-3 text-red-500"     />}
+            {meta.priority === "Medium" && <ArrowRight className="w-3 h-3 text-orange-500"  />}
+            {meta.priority === "Low"    && <ArrowDown  className="w-3 h-3 text-emerald-500" />}
+            <span className={`text-[10px] font-medium ${meta.priority === "High" ? "text-red-500" : meta.priority === "Medium" ? "text-orange-500" : "text-emerald-500"}`}>
+              {meta.priority}
+            </span>
+          </div>
+        </div>
+        {/* Progress */}
+        <div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+            <span>Progress</span>
+            <span className="font-medium text-foreground">{progress}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? "bg-emerald-500" : sla.isOverdue ? "bg-red-500" : "bg-indigo-500"}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+        {/* Action */}
+        <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
+          <Button size="sm" className="w-full h-8 bg-indigo-500 hover:bg-indigo-600 text-white text-xs rounded-md">
+            Review Task
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Empty state ────────────────────────────────────────────────────────────────
+function EmptyState({ colSpan, message = "No tasks found." }: { colSpan?: number; message?: string }) {
+  if (colSpan) {
+    return (
+      <TableRow>
+        <TableCell colSpan={colSpan} className="h-32 text-center text-muted-foreground text-sm">
+          {message}
+        </TableCell>
+      </TableRow>
+    );
+  }
+  return (
+    <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
+      {message}
+    </div>
+  );
+}
+
+// ── Table / Grid renderer ──────────────────────────────────────────────────────
+function TaskListView({ tasks }: { tasks: any[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="hover:bg-transparent border-b border-border/40">
+          {["Exit Case", "Employee", "Department Task", "Priority", "Due Date", "SLA Status", "Progress", "Actions"].map((h) => (
+            <TableHead key={h} className={`text-[10px] font-bold uppercase tracking-wider text-muted-foreground h-10${h === "Actions" ? " text-right" : ""}`}>
+              {h}
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {tasks.length === 0
+          ? <EmptyState colSpan={8} message="No pending tasks found." />
+          : tasks.map((task) => <TaskRow key={`${task.caseId}-${task.id}`} task={task} />)}
+      </TableBody>
+    </Table>
+  );
+}
+
+function TaskGridView({ tasks }: { tasks: any[] }) {
+  if (tasks.length === 0) return <EmptyState message="No pending tasks found." />;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+      {tasks.map((task) => <TaskCard key={`${task.caseId}-${task.id}`} task={task} />)}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 export function DeptApproverDashboard() {
   const { user } = useAuth();
-  const { data: cases = [] } = useCases();
-  
-  const myTasks = cases.flatMap(c => {
-    const task = c.tasks.find(t => t.assigneeId === user?.id || t.deptLabel === user?.dept);
-    if (!task) return [];
-    return [{
+  const { data: cases = [],   isLoading: casesLoading   } = useCases();
+  const { data: profile,      isLoading: profileLoading } = useUserProfile();
+
+  const [viewMode,     setViewMode]     = useState<"list" | "grid">("list");
+  const [selectedDept, setSelectedDept] = useState<string>("all");
+  const [sortBy,       setSortBy]       = useState<"due_date" | "priority" | "progress">("due_date");
+
+  // ── Pagination state ───────────────────────────────────────────────────────
+  const [activeTab,    setActiveTab]    = useState<"all" | "overdue" | "today" | "week">("all");
+  const [pageSize,     setPageSize]     = useState(10);
+  const [currentPage,  setCurrentPage]  = useState(1);
+
+  if (casesLoading || profileLoading) return <GlobalLoading />;
+
+  // ── Department assignments from profile (production-safe, dept-based not user-based) ──
+  const departmentAssignments = profile?.departmentAssignments ?? [];
+  const assignedDeptIds       = departmentAssignments.map((d) => d.department);
+
+  // ── Build task list: filter by department ownership, not by assigneeId ─────────
+  // This allows Primary + Backup approver models without changing task ownership.
+  const myTasks = cases.flatMap((c) => {
+    const tasks = c.tasks.filter((t) => assignedDeptIds.includes(t.deptId));
+    return tasks.map((task) => ({
       ...task,
-      caseId: c.id,
-      caseStatus: c.status,
+      caseId:       c.id,
+      caseStatus:   c.status,
       employeeName: c.employeeName,
       employeeRole: c.employeeRole,
       employeeDept: c.employeeDept,
-    }];
+    }));
   });
 
-  const pendingTasks = myTasks.filter(t => ['pending', 'in_progress', 'overdue'].includes(t.status) && t.caseStatus === 'in_clearance');
-  const lockedTasks = myTasks.filter(t => t.caseStatus === 'pending_manager');
-  const completedTasks = myTasks.filter(t => ['approved', 'rejected'].includes(t.status));
-  const overdueCount = pendingTasks.filter(t => t.status === 'overdue').length;
+  // ── For KPI calculations, include ALL statuses (completed + active) ───────────
+  const allMyTasksForKPI = cases.flatMap((c) =>
+    c.tasks.filter((t) => assignedDeptIds.includes(t.deptId)).map((task) => ({
+      ...task, caseId: c.id,
+    })),
+  );
 
-  return (
-    <div className="space-y-8 animate-slide-up pb-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+  // ── Pending (action inbox) ─────────────────────────────────────────────────
+  const pendingTasks     = myTasks.filter((t) => ["pending", "in_progress", "overdue"].includes(t.status) && t.caseStatus === "in_clearance");
+  const completedTasks   = allMyTasksForKPI.filter((t) => ["approved", "rejected"].includes(t.status));
+  const overdueTasks     = pendingTasks.filter((t) => t.slaDueAt && isPast(parseISO(t.slaDueAt)));
+  const dueTodayTasks    = pendingTasks.filter((t) => t.slaDueAt && isToday(parseISO(t.slaDueAt)) && !isPast(parseISO(t.slaDueAt)));
+  const dueThisWeekTasks = pendingTasks.filter((t) => t.slaDueAt && isThisWeek(parseISO(t.slaDueAt)));
+
+  const perf = calcPerformance(allMyTasksForKPI);
+
+  // ── Apply dept filter + sort ───────────────────────────────────────────────
+  function applyFilterSort(tasks: any[]) {
+    return [...tasks]
+      .filter((t) => selectedDept === "all" || t.deptId === selectedDept)
+      .sort((a, b) => {
+        if (sortBy === "due_date") {
+          if (!a.slaDueAt) return 1;
+          if (!b.slaDueAt) return -1;
+          return new Date(a.slaDueAt).getTime() - new Date(b.slaDueAt).getTime();
+        }
+        if (sortBy === "priority") {
+          const pa = PRIORITY_ORDER[(TASK_METADATA[a.deptId]?.priority) ?? "Low"] ?? 2;
+          const pb = PRIORITY_ORDER[(TASK_METADATA[b.deptId]?.priority) ?? "Low"] ?? 2;
+          return pa - pb;
+        }
+        if (sortBy === "progress") {
+          return getProgress(a) - getProgress(b);
+        }
+        return 0;
+      });
+  }
+
+  const tabTasks = {
+    all:     applyFilterSort(pendingTasks),
+    overdue: applyFilterSort(overdueTasks),
+    today:   applyFilterSort(dueTodayTasks),
+    week:    applyFilterSort(dueThisWeekTasks),
+  } as const;
+
+  const sortLabel = sortBy === "due_date" ? "Due Date" : sortBy === "priority" ? "Priority" : "Progress";
+  const deptLabel = selectedDept === "all"
+    ? "All Departments"
+    : (departmentAssignments.find((d) => d.department === selectedDept)?.deptLabel ?? selectedDept);
+
+  // ── No assignments guard ───────────────────────────────────────────────────
+  if (assignedDeptIds.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4 text-center animate-slide-up">
+        <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center">
+          <AlertCircle className="w-7 h-7 text-muted-foreground" />
+        </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Task Inbox</h1>
-          <p className="text-muted-foreground mt-1 font-medium">{user?.dept} Clearance Approver</p>
+          <h2 className="text-lg font-semibold text-foreground">No Department Assignments</h2>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+            You haven&apos;t been assigned to any departments yet. Please contact your HR administrator.
+          </p>
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <Card className="bg-primary border-primary shadow-md overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-6 opacity-10">
-            <ClipboardCheck className="w-24 h-24 text-primary-foreground" />
+  return (
+    <div className="space-y-6 animate-slide-up pb-8">
+      {/* Header */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Task Inbox</h1>
+          <ClipboardCheck className="w-5 h-5 text-muted-foreground" />
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Review and complete clearance tasks assigned to your department
+          {assignedDeptIds.length > 0 && (
+            <span className="text-muted-foreground/60">
+              {" "}({departmentAssignments.map((d) => d.deptLabel).join(", ")})
+            </span>
+          )}.
+        </p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Action Required */}
+        <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 border-none shadow-md overflow-hidden relative col-span-1">
+          <div className="absolute -right-4 -bottom-4 opacity-10">
+            <ClipboardCheck className="w-32 h-32 text-white" />
           </div>
-          <CardContent className="p-6 relative z-10">
-            <p className="text-primary-foreground/80 text-sm font-semibold tracking-wide uppercase mb-2">Action Required</p>
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-5xl font-bold text-white tracking-tighter">{pendingTasks.length}</h3>
-              <span className="text-primary-foreground/80 font-medium">pending tasks</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className={`shadow-sm transition-colors ${overdueCount > 0 ? "border-red-200 bg-red-50/50 dark:bg-red-500/10 dark:border-red-900/50" : "border-border/60"}`}>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className={`text-sm font-semibold tracking-wide uppercase mb-2 ${overdueCount > 0 ? 'text-red-800/80 dark:text-red-400/80' : 'text-muted-foreground'}`}>Overdue SLA</p>
-                <div className="flex items-baseline gap-2">
-                  <h3 className={`text-4xl font-bold tracking-tighter ${overdueCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{overdueCount}</h3>
-                  <span className="text-muted-foreground font-medium">tasks</span>
-                </div>
-              </div>
-              <div className={`w-10 h-10 rounded-md flex items-center justify-center ${overdueCount > 0 ? 'bg-red-100 dark:bg-red-500/20' : 'bg-muted'}`}>
-                <Clock className={`w-5 h-5 ${overdueCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} />
-              </div>
+          <CardContent className="p-5 relative z-10 h-full flex flex-col justify-between">
+            <p className="text-white/80 text-xs font-bold tracking-wider uppercase mb-2">Action Required</p>
+            <div className="flex items-baseline gap-2 mt-auto">
+              <h3 className="text-4xl font-bold text-white">{pendingTasks.length}</h3>
+              <span className="text-white/80 text-sm font-medium">pending tasks</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/60">
-          <CardContent className="p-6">
+        {/* Overdue SLA */}
+        <Card className="bg-[#1C1C1E] border-border/20 shadow-sm relative overflow-hidden">
+          <CardContent className="p-5 h-full flex flex-col justify-between">
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold tracking-wide uppercase mb-2 text-muted-foreground">Completed Today</p>
-                <div className="flex items-baseline gap-2">
-                  <h3 className="text-4xl font-bold tracking-tighter">
-                    {completedTasks.filter(t => t.completedAt && new Date(t.completedAt).toDateString() === new Date().toDateString()).length}
-                  </h3>
-                  <span className="text-muted-foreground font-medium">tasks</span>
-                </div>
+              <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Overdue SLA</p>
+              <div className="w-7 h-7 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                <Clock className="w-3.5 h-3.5 text-red-500" />
               </div>
-              <div className="w-10 h-10 rounded-md bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20">
-                <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="mt-4">
+              <div className="flex items-baseline gap-2 mb-1">
+                <h3 className="text-3xl font-bold text-red-500">{overdueTasks.length}</h3>
+                <span className="text-red-500/80 text-sm font-medium">tasks</span>
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                Requires immediate attention
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Completed Today */}
+        <Card className="bg-[#1C1C1E] border-border/20 shadow-sm relative overflow-hidden">
+          <CardContent className="p-5 h-full flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Completed Today</p>
+              <div className="w-7 h-7 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-baseline gap-2 mb-1">
+                <h3 className="text-3xl font-bold text-white">
+                  {completedTasks.filter((t) => t.completedAt && isToday(parseISO(t.completedAt))).length}
+                </h3>
+                <span className="text-emerald-500/80 text-sm font-medium">tasks</span>
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Great job! Keep it up.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Avg SLA Compliance – dynamic KPI */}
+        <Card className="bg-[#1C1C1E] border-border/20 shadow-sm relative overflow-hidden">
+          <CardContent className="p-5 h-full flex flex-col justify-between">
+            <p className="text-xs font-bold tracking-wider uppercase text-muted-foreground mb-3">Avg SLA Compliance (This Month)</p>
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16 shrink-0">
+                <ProgressRing value={perf.onTime} size={64} strokeWidth={6} className="text-emerald-500" />
+                <div className="absolute inset-0 flex items-center justify-center bg-[#1C1C1E]">
+                  <span className="text-lg font-bold text-emerald-500">{perf.onTime}%</span>
+                </div>
+                <svg width="64" height="64" className="absolute top-0 left-0 -rotate-90 pointer-events-none">
+                  <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeWidth="6" className="text-muted/20" />
+                  <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="182.2" strokeDashoffset={182.2 - 182.2 * perf.onTime / 100} className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" strokeLinecap="round" />
+                  <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="182.2" strokeDashoffset={182.2 - 182.2 * perf.atRisk / 100 + 182.2 * perf.onTime / 100} className="text-orange-500" strokeLinecap="round" />
+                  <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="182.2" strokeDashoffset={182.2 - 182.2 * perf.overdue / 100 + 182.2 * (perf.onTime + perf.atRisk) / 100} className="text-red-500" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-1.5 flex-1">
+                {[
+                  { label: "On Time", value: perf.onTime, color: "bg-emerald-500" },
+                  { label: "At Risk", value: perf.atRisk, color: "bg-orange-500" },
+                  { label: "Overdue", value: perf.overdue, color: "bg-red-500" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
+                      <span className="text-muted-foreground">{label}</span>
+                    </div>
+                    <span className="font-medium text-white">{value}%</span>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="bg-card shadow-sm border rounded-xl overflow-hidden">
-        <Tabs defaultValue="pending" className="w-full">
-          <div className="border-b bg-muted/20 px-4 pt-4">
-            <TabsList className="bg-transparent h-auto p-0 space-x-6 border-b-0 w-full justify-start overflow-x-auto rounded-none">
-              <TabsTrigger 
-                value="pending" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-3 pt-2 font-semibold text-muted-foreground data-[state=active]:text-foreground"
-              >
-                Pending Queue <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 h-5 bg-muted text-foreground">{pendingTasks.length}</Badge>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="locked" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-3 pt-2 font-semibold text-muted-foreground data-[state=active]:text-foreground"
-              >
-                Upcoming (Locked) <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 h-5 bg-muted text-foreground">{lockedTasks.length}</Badge>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="completed" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 pb-3 pt-2 font-semibold text-muted-foreground data-[state=active]:text-foreground"
-              >
-                Completed <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 h-5 bg-muted text-foreground">{completedTasks.length}</Badge>
-              </TabsTrigger>
+      {/* Task Table / Grid */}
+      <div className="bg-card shadow-sm border border-border/40 rounded-xl overflow-hidden">
+        <Tabs
+          defaultValue="all"
+          className="w-full"
+          onValueChange={(v) => { setActiveTab(v as typeof activeTab); setCurrentPage(1); }}
+        >
+          {/* Tab bar + controls */}
+          <div className="border-b border-border/40 bg-muted/10 px-4 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <TabsList className="bg-transparent h-auto p-0 space-x-6 border-b-0 justify-start overflow-x-auto rounded-none">
+              {[
+                { value: "all",     label: "All Tasks",      count: tabTasks.all.length,     badgeCls: "bg-indigo-500 text-white"              },
+                { value: "overdue", label: "Overdue",        count: overdueTasks.length,     badgeCls: "bg-red-500/20 text-red-500"            },
+                { value: "today",   label: "Due Today",      count: dueTodayTasks.length,    badgeCls: "bg-orange-500/20 text-orange-500"      },
+                { value: "week",    label: "Due This Week",  count: dueThisWeekTasks.length, badgeCls: "bg-indigo-500/20 text-indigo-400"     },
+              ].map(({ value, label, count, badgeCls }) => (
+                <TabsTrigger
+                  key={value} value={value}
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-500 data-[state=active]:bg-transparent px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold text-sm whitespace-nowrap"
+                >
+                  {label}
+                  <Badge variant="secondary" className={`ml-2 rounded-md px-1.5 py-0 h-5 border-none ${badgeCls}`}>
+                    {count}
+                  </Badge>
+                </TabsTrigger>
+              ))}
             </TabsList>
-          </div>
 
-          <div className="p-6 bg-muted/5">
-            <TabsContent value="pending" className="mt-0">
-              {pendingTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground bg-background rounded-lg border border-dashed">
-                  <CheckCircle2 className="w-16 h-16 mb-4 text-emerald-500/30" />
-                  <h3 className="text-lg font-semibold text-foreground mb-1">Inbox Zero</h3>
-                  <p className="max-w-sm text-sm">You have no pending clearance tasks in your queue. Enjoy your day!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                  {pendingTasks.map(task => {
-                    const checkedCount = task.checklist.filter(i => i.checked).length;
-                    const totalCount = task.checklist.length;
-                    const progress = (checkedCount / totalCount) * 100;
-                    
-                    return (
-                      <Card key={task.id} className="flex flex-col shadow-sm hover:shadow-md transition-shadow border-border/80 group">
-                        <CardContent className="p-6 flex-1">
-                          <div className="flex justify-between items-start mb-6">
-                            <div className="flex items-center gap-4">
-                              <UserAvatar name={task.employeeName} className="w-12 h-12 border shadow-sm" />
-                              <div>
-                                <p className="font-bold text-base leading-none mb-1.5">{task.employeeName}</p>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-[10px] uppercase font-mono px-1.5 py-0">{task.caseId}</Badge>
-                                  <span className="text-xs text-muted-foreground font-medium">{task.employeeRole}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <SLARiskChip dueAt={task.slaDueAt} className="hidden sm:flex" />
-                          </div>
-                          
-                          <div className="space-y-3 bg-secondary/30 rounded-lg p-4 border border-border/50">
-                            <div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                              <span>Checklist Items</span>
-                              <span className="text-foreground">{checkedCount}/{totalCount} Completed</span>
-                            </div>
-                            <div className="h-2 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
-                              <div 
-                                className="bg-primary h-full transition-all duration-500 ease-out" 
-                                style={{ width: `${progress}%` }} 
-                              />
-                            </div>
-                          </div>
-                        </CardContent>
-                        <div className="p-4 bg-muted/30 border-t flex justify-between items-center mt-auto rounded-b-xl">
-                          <StatusBadge status={task.status} className="shadow-none bg-background" />
-                          <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
-                            <Button size="sm" className="font-semibold shadow-sm px-6 h-9 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                              Open Task <ArrowRight className="w-4 h-4 ml-2" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="locked" className="mt-0">
-              <div className="bg-background rounded-lg border shadow-sm">
-                <div className="border-b p-4">
-                  <h3 className="font-semibold text-sm">Awaiting Manager Approval</h3>
-                  <p className="text-xs text-muted-foreground mt-1">These tasks will unlock once the manager approves the resignation.</p>
-                </div>
-                <div className="divide-y">
-                  {lockedTasks.map(task => (
-                    <div key={task.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 opacity-70">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-secondary border flex items-center justify-center shrink-0">
-                          <Lock className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm">{task.employeeName}</p>
-                          <p className="text-xs text-muted-foreground font-medium mt-1">{task.employeeRole} · {task.employeeDept}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="font-mono text-xs">{task.caseId}</Badge>
-                        <StatusBadge status="pending_manager" className="bg-background" />
-                      </div>
-                    </div>
+            <div className="flex items-center gap-3 pb-3 sm:pb-0 shrink-0">
+              {/* Department filter — sourced from department_assignments, never hardcoded */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 border-border/40 bg-transparent text-xs font-normal max-w-[160px] truncate">
+                    <span className="truncate">{deptLabel}</span>
+                    <ChevronDown className="w-3.5 h-3.5 ml-2 opacity-50 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => { setSelectedDept("all"); setCurrentPage(1); }}>All Departments</DropdownMenuItem>
+                  {departmentAssignments.map((d) => (
+                    <DropdownMenuItem key={d.department} onClick={() => { setSelectedDept(d.department); setCurrentPage(1); }}>
+                      {d.deptLabel}
+                    </DropdownMenuItem>
                   ))}
-                  {lockedTasks.length === 0 && <div className="p-12 text-center text-muted-foreground text-sm font-medium">No upcoming tasks locked in the pipeline.</div>}
-                </div>
-              </div>
-            </TabsContent>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <TabsContent value="completed" className="mt-0">
-              <div className="bg-background rounded-lg border shadow-sm divide-y">
-                {completedTasks.map(task => (
-                  <div key={task.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <UserAvatar name={task.employeeName} className="w-10 h-10" />
-                      <div>
-                        <p className="font-semibold text-sm">{task.employeeName}</p>
-                        <p className="text-xs text-muted-foreground font-medium mt-1 font-mono">Case: {task.caseId}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                         <span className="text-xs text-muted-foreground font-medium hidden sm:inline-block">Completed on {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : 'N/A'}</span>
-                         <StatusBadge status={task.status} className="bg-background" />
-                      </div>
-                      <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
-                        <Button variant="secondary" size="sm" className="h-8 font-semibold text-xs px-4">Review</Button>
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-                {completedTasks.length === 0 && <div className="p-12 text-center text-muted-foreground text-sm font-medium">No completed tasks in the system.</div>}
+              {/* Sort */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 border-border/40 bg-transparent text-xs font-normal">
+                    Sort: {sortLabel} <ChevronDown className="w-3.5 h-3.5 ml-2 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => { setSortBy("due_date"); setCurrentPage(1); }}>Due Date (Earliest)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setSortBy("priority"); setCurrentPage(1); }}>Priority (High → Low)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setSortBy("progress"); setCurrentPage(1); }}>Progress (Low → High)</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* List / Grid toggle */}
+              <div className="flex items-center gap-0.5 border border-border/40 rounded-md p-0.5">
+                <Button
+                  variant="ghost" size="icon"
+                  className={`h-6 w-6 rounded transition-colors ${viewMode === "list" ? "bg-muted/70 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewMode("list")}
+                  title="List view"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost" size="icon"
+                  className={`h-6 w-6 rounded transition-colors ${viewMode === "grid" ? "bg-muted/70 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewMode("grid")}
+                  title="Grid view"
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                </Button>
               </div>
-            </TabsContent>
+            </div>
           </div>
+
+          {/* Tab content — shared renderer, paginated data slice */}
+          <div className="p-0">
+            {(["all", "overdue", "today", "week"] as const).map((tab) => {
+              const start = (currentPage - 1) * pageSize;
+              const paged = tabTasks[tab].slice(start, start + pageSize);
+              return (
+                <TabsContent key={tab} value={tab} className="m-0 border-none">
+                  {viewMode === "list"
+                    ? <TaskListView tasks={paged} />
+                    : <TaskGridView tasks={paged} />}
+                </TabsContent>
+              );
+            })}
+          </div>
+
+          <PaginationFooter
+            total={tabTasks[activeTab].length}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+            showTimezone
+          />
         </Tabs>
       </div>
     </div>

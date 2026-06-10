@@ -102,6 +102,7 @@ export const NAV_CONFIG = {
   dept_approver: [
     { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },
     { icon: 'ClipboardCheck',  label: 'My Tasks',        href: '/tasks' },
+    { icon: 'BarChart2',       label: 'Reports',         href: '/reports' },
   ],
   admin: [
     { icon: 'LayoutDashboard', label: 'Dashboard',       href: '/dashboard' },
@@ -110,3 +111,15 @@ export const NAV_CONFIG = {
     { icon: 'Settings',        label: 'Settings',        href: '/settings' },
   ],
 };
+
+export const TASK_METADATA: Record<string, { title: string, description: string, priority: 'High' | 'Medium' | 'Low' }> = {
+  it: { title: 'Laptop & Asset Return', description: 'Verify returned assets and condition', priority: 'High' },
+  admin: { title: 'ID & Access Card Return', description: 'Confirm all access cards returned', priority: 'Medium' },
+  finance: { title: 'Final Settlement', description: 'Process final dues and settlements', priority: 'Low' },
+  infosec: { title: 'Access Revocation', description: 'Revoke all system and app access', priority: 'Medium' },
+  hr: { title: 'Exit Interview', description: 'Conduct and record exit interview', priority: 'Low' },
+  manager: { title: 'Knowledge Transfer', description: 'Ensure all projects handed over', priority: 'High' },
+  procurement: { title: 'Vendor Asset Return', description: 'Return vendor-owned assets', priority: 'Low' },
+  facilities: { title: 'Workspace Handover', description: 'Inspect workspace and handover', priority: 'Medium' }
+};
+

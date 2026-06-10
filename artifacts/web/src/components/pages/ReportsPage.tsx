@@ -1,5 +1,6 @@
 "use client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/api/useProfile";
 import { Redirect } from "@/lib/wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,12 +66,22 @@ const ICON_MAP = {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function ReportsPage() {
-  const { isHR, isAdmin } = useAuth();
+  const { isHR, isAdmin, isDeptApprover } = useAuth();
+  const { data: profile } = useUserProfile();
   const [activeTab, setActiveTab] = useState("Overview");
+
+  // For dept_approver: lock to assigned departments only (no cross-dept data)
+  const departmentAssignments = profile?.departmentAssignments ?? [];
+  const assignedDeptOptions   = departmentAssignments.map(d => d.deptLabel ?? d.department);
+
+  // Initial department state — first assigned dept for approvers, "all" for HR/Admin
+  const initialDept = isDeptApprover && !isHR && !isAdmin && assignedDeptOptions.length > 0
+    ? assignedDeptOptions[0].toLowerCase()
+    : "all";
 
   // Filter state – applied only when "Apply Filters" is clicked
   const [dateRange, setDateRange]   = useState("Last 90 Days");
-  const [department, setDepartment] = useState("all");
+  const [department, setDepartment] = useState(() => isDeptApprover && !isHR && !isAdmin && assignedDeptOptions.length > 0 ? assignedDeptOptions[0].toLowerCase() : "all");
   const [location, setLocation]     = useState("all");
   const [exitReason, setExitReason] = useState("all");
 
@@ -83,7 +94,7 @@ export default function ReportsPage() {
 
   const { data, isLoading, isError, refetch } = useReportsAnalytics(appliedFilters);
 
-  if (!isHR && !isAdmin) return <Redirect to="/dashboard" />;
+  if (!isHR && !isAdmin && !isDeptApprover) return <Redirect to="/dashboard" />;
 
   const handleApplyFilters = () => {
     setAppliedFilters({ dateRange, department, exitReason });
@@ -108,11 +119,16 @@ export default function ReportsPage() {
     return compliant?.pct ?? "–";
   }, [slaData]);
 
-  // Department filter options from live data
-  const deptOptions = useMemo(
-    () => departments.map((d) => d.dept),
-    [departments],
-  );
+  // Department filter options:
+  // - HR/Admin: all departments from live analytics data
+  // - Dept Approver: only assigned departments (scoped access)
+  const deptOptions = useMemo(() => {
+    if (isDeptApprover && !isHR && !isAdmin) {
+      // Use assignedDeptOptions from profile
+      return assignedDeptOptions;
+    }
+    return departments.map(d => d.dept);
+  }, [departments, isDeptApprover, isHR, isAdmin, assignedDeptOptions]);
 
   // Exit reason filter options
   const reasonOptions = useMemo(
@@ -519,7 +535,10 @@ export default function ReportsPage() {
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs">All Departments</SelectItem>
+                  {/* HR/Admin see "All Departments"; dept_approver only sees their assigned depts */}
+                  {(!isDeptApprover || isHR || isAdmin) && (
+                    <SelectItem value="all" className="text-xs">All Departments</SelectItem>
+                  )}
                   {deptOptions.map((d) => (
                     <SelectItem key={d} value={d.toLowerCase()} className="text-xs">{d}</SelectItem>
                   ))}
