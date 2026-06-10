@@ -21,6 +21,7 @@ const casesKeys = {
   detail: (id: string) => ["cases", "detail", id] as const,
   tasks: (caseId: string) => ["cases", "tasks", caseId] as const,
   comments: (caseId: string) => ["cases", "comments", caseId] as const,
+  metrics: () => ["cases", "metrics"] as const,
 };
 
 function getFallbackCases(filters?: Record<string, string>): ExitCase[] {
@@ -45,18 +46,28 @@ export function useCases(filters?: Record<string, string>) {
   return useQuery({
     queryKey: casesKeys.list(filters),
     queryFn: async () => {
-      try {
-        const params = new URLSearchParams();
-        if (filters?.status) params.set("status", filters.status);
-        if (filters?.search) params.set("search", filters.search);
-        const qs = params.toString();
-        const res = await fetch(`/api/cases${qs ? `?${qs}` : ""}`);
-        if (!res.ok) throw new Error("API unavailable");
-        const data: Record<string, unknown>[] = await res.json();
-        return data.map(toExitCase);
-      } catch {
-        return getFallbackCases(filters);
-      }
+      const params = new URLSearchParams();
+      if (filters?.status) params.set("status", filters.status);
+      if (filters?.search) params.set("search", filters.search);
+      const qs = params.toString();
+      const res = await fetch(`/api/cases${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("API unavailable");
+      const data: Record<string, unknown>[] = await res.json();
+      return data.map(toExitCase);
+    },
+  });
+}
+
+export function useCaseMetrics(filters?: Record<string, string>) {
+  return useQuery({
+    queryKey: [...casesKeys.metrics(), filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters?.manager_id) params.set("manager_id", filters.manager_id);
+      const qs = params.toString();
+      const res = await fetch(`/api/cases/metrics${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("API unavailable");
+      return res.json();
     },
   });
 }

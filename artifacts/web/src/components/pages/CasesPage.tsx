@@ -1,6 +1,7 @@
 "use client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCases, useAddComment } from "@/hooks/api/useCases";
+import { useCases, useCaseMetrics, useAddComment } from "@/hooks/api/useCases";
+import { useExitStore } from "@/store/exitStore";
 import { useUploadAttachment } from "@/hooks/api/useDocuments";
 import { Redirect, Link } from "@/lib/wouter";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,15 @@ function ProgressCell({ tasks }: { tasks: { status: string }[] }) {
 
 export default function CasesPage() {
   const { user, isHR, isAdmin, isManager, isEmployee } = useAuth();
-  const { data: cases = [], isLoading } = useCases();
+  const isManagerOnly = isManager && !isHR && !isAdmin;
+
+  const { data: dbCases = [], isLoading, isError, refetch } = useCases();
+  const { data: metrics } = useCaseMetrics(isManagerOnly && user ? { manager_id: user.id } : undefined);
+  const fallbackCases = useExitStore(s => s.cases);
+  
+  const isDemoMode = !isLoading && !isError && dbCases.length === 0;
+  const cases = isDemoMode ? fallbackCases : dbCases;
+
   const { mutate: addComment } = useAddComment();
   const { mutate: uploadAttachment } = useUploadAttachment();
 
@@ -90,17 +99,16 @@ export default function CasesPage() {
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
 
-  const isManagerOnly = isManager && !isHR && !isAdmin;
   const baseCases = isManagerOnly ? cases.filter(c => c.managerId === user?.id) : cases;
   const activeCase = getActiveEmployeeCase(cases, user);
   const latestCase = getLatestEmployeeCase(cases, user);
 
   // KPI Metrics
-  const totalCount       = baseCases.length;
-  const pendingCount     = baseCases.filter(c => c.status === "pending_manager").length;
-  const inClearanceCount = baseCases.filter(c => c.status === "in_clearance").length;
-  const overdueCount     = baseCases.filter(c => c.tasks.some(t => resolveTaskStatus(t) === "overdue")).length;
-  const completedCount   = baseCases.filter(c => c.status === "completed").length;
+  const totalCount       = metrics?.totalCases ?? 0;
+  const pendingCount     = metrics?.pendingManager ?? 0;
+  const inClearanceCount = metrics?.inClearance ?? 0;
+  const overdueCount     = metrics?.overdue ?? 0;
+  const completedCount   = metrics?.completed ?? 0;
 
   const activeDepartmentsList = useMemo(() => {
     const set = new Set(cases.map(c => c.employeeDept).filter(Boolean));
@@ -188,6 +196,21 @@ export default function CasesPage() {
   }
   if (!isHR && !isAdmin && !isManager) return <Redirect to="/dashboard" />;
 
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4 animate-in fade-in zoom-in duration-300">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mb-2">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-extrabold tracking-tight">Unable to Load Cases</h2>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">There was a problem communicating with the server. Please try again.</p>
+        </div>
+        <Button onClick={() => refetch()} variant="outline" className="mt-4 rounded-xl px-6">Retry Connection</Button>
+      </div>
+    );
+  }
+
   const SortBtn = ({ field, label }: { field: typeof sortField; label: string }) => (
     <button onClick={() => handleSort(field)} className="flex items-center gap-1 hover:text-foreground transition-colors">
       {label}<ArrowUpDown className="w-3 h-3 shrink-0" />
@@ -196,6 +219,15 @@ export default function CasesPage() {
 
   return (
     <div className="animate-slide-up space-y-5 pb-12">
+      {isDemoMode && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 px-5 py-4 rounded-2xl flex items-start gap-4 animate-in fade-in duration-500 shadow-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-extrabold text-sm uppercase tracking-wider mb-1">⚠ Demo Mode</h4>
+            <p className="text-xs font-medium opacity-90 leading-relaxed">Showing sample exit cases because this organization has no records yet. Create your first exit case to begin tracking real employee exits.</p>
+          </div>
+        </div>
+      )}
       {/* ── Page Header ────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <div>
