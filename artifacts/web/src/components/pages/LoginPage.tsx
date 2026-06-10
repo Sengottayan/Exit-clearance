@@ -4,11 +4,11 @@ import { Link, Redirect, useLocation } from "@/lib/wouter";
 import { Box, ShieldCheck, Zap, Layers, ArrowRight } from "lucide-react";
 import { SignIn, useAuth, useUser } from "@clerk/nextjs";
 import { useAuthStore } from "@/store/authStore";
-import { MOCK_USERS, ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { GlobalLoading } from "@/components/shared/GlobalLoading";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -156,7 +156,7 @@ function ClerkAuthPanel() {
 }
 
 function DevAuthPanel() {
-  const loginById = useAuthStore((state) => state.loginById);
+  const login = useAuthStore((state) => state.login);
   const [, setLocation] = useLocation();
   const isAuthenticated = useAuthStore((state) => !!state.user);
 
@@ -164,19 +164,29 @@ function DevAuthPanel() {
     return <Redirect to="/dashboard" />;
   }
 
-  function handleDemoLogin(userId: string) {
-    loginById(userId);
+  function handleDemoLogin(user: any) {
+    login(user);
     setLocation("/dashboard");
   }
 
-  const demoUsers = [
-    MOCK_USERS.find((u) => u.role === "hr"),
-    MOCK_USERS.find((u) => u.id === "u1"),
-    MOCK_USERS.find((u) => u.role === "manager"),
-    MOCK_USERS.find((u) => u.id === "u4"),
-    MOCK_USERS.find((u) => u.id === "u5"),
-    MOCK_USERS.find((u) => u.role === "admin"),
-  ].filter(Boolean) as typeof MOCK_USERS;
+  const [demoUsers, setDemoUsers] = useState<{id: string, name: string, role: string}[]>([]);
+
+  useEffect(() => {
+    fetch('/api/users?demo=true')
+      .then(res => res.json())
+      .then(users => {
+        if (!Array.isArray(users)) return;
+        
+        // Pick one user of each key role for the sandbox
+        const roles = ["manager", "hr", "employee", "admin", "dept_approver"];
+        const selected = roles
+          .map(role => users.find((u: any) => u.role === role))
+          .filter(Boolean);
+          
+        setDemoUsers(selected);
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="w-full max-w-[420px] mx-auto space-y-6 animate-slide-up" style={{ animationDelay: "100ms" }}>
@@ -212,7 +222,7 @@ function DevAuthPanel() {
           <button
             key={u.id}
             type="button"
-            onClick={() => handleDemoLogin(u.id)}
+            onClick={() => handleDemoLogin(u)}
             className="flex items-center gap-3.5 p-3.5 rounded-xl border border-border/70 bg-card hover:bg-secondary/40 hover:border-primary/45 transition-all duration-300 text-left group hover:shadow-soft"
             data-testid={`demo-login-${u.role}`}
           >

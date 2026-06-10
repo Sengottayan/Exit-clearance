@@ -1,6 +1,6 @@
 import { format, addHours, isPast } from 'date-fns';
 import { ClearanceTask, ExitCase, TaskStatus, DeptId } from './types';
-import { DEPARTMENTS, CHECKLIST_TEMPLATES, MOCK_USERS } from './constants';
+import { DEPARTMENTS, CHECKLIST_TEMPLATES } from './constants';
 import { useSettingsStore } from '@/store/settingsStore';
 
 function getDeptConfig(deptId: string) {
@@ -22,14 +22,14 @@ export function buildClearanceTasks(
   return deptIds.map((deptId) => {
     const dept = getDeptConfig(deptId);
     if (!dept) throw new Error(`Unknown department: ${deptId}`);
-    const assignee = MOCK_USERS.find((u) => u.id === dept.defaultAssignee);
+
     const slaHours = Math.round(dept.slaHours * slaMultiplier);
     return {
       id: `t-${deptId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       deptId: dept.id,
       deptLabel: dept.label,
       assigneeId: dept.defaultAssignee,
-      assigneeName: assignee?.name ?? dept.label,
+      assigneeName: dept.label,
       status: 'pending' as TaskStatus,
       slaHours,
       slaDueAt: format(addHours(start, slaHours), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"),
@@ -72,8 +72,7 @@ export function tryCompleteCase(exitCase: ExitCase): ExitCase {
 }
 
 export function getManagerForEmployee(employeeDept: string): { id: string; name: string } {
-  const manager = MOCK_USERS.find((u) => u.role === 'manager' && u.dept === employeeDept);
-  return manager ? { id: manager.id, name: manager.name } : { id: 'u2', name: 'Rahul Mehta' };
+  return { id: '', name: 'Loading...' };
 }
 
 export function normalizeCaseTasks(

@@ -1,18 +1,5 @@
 import { Department, ChecklistTemplate, User } from './types';
 
-export const MOCK_USERS: User[] = [
-  { id: 'u1', email: 'priya@company.com',  password: 'demo', role: 'employee',      name: 'Priya Sharma',   dept: 'Engineering',   employeeId: 'EMP-1042' },
-  { id: 'u2', email: 'rahul@company.com',  password: 'demo', role: 'manager',       name: 'Rahul Mehta',    dept: 'Engineering',   employeeId: 'MGR-201'  },
-  { id: 'u3', email: 'anita@company.com',  password: 'demo', role: 'hr',            name: 'Anita Desai',    dept: 'HR',            employeeId: 'HR-001'   },
-  { id: 'u4', email: 'kiran@company.com',  password: 'demo', role: 'dept_approver', name: 'Kiran Patel',    dept: 'IT',            employeeId: 'IT-101'   },
-  { id: 'u5', email: 'sunita@company.com', password: 'demo', role: 'dept_approver', name: 'Sunita Rao',     dept: 'Finance',       employeeId: 'FIN-201'  },
-  { id: 'u6', email: 'admin@company.com',  password: 'demo', role: 'admin',         name: 'System Admin',   dept: 'IT',            employeeId: 'ADM-001'  },
-  { id: 'u7', email: 'admin_dept@company.com', password: 'demo', role: 'dept_approver', name: 'Admin Dept', dept: 'Administration', employeeId: 'ADM-101' },
-  { id: 'u8', email: 'procurement@company.com', password: 'demo', role: 'dept_approver', name: 'Procurement', dept: 'Procurement', employeeId: 'PRO-101' },
-  { id: 'u9', email: 'infosec@company.com', password: 'demo', role: 'dept_approver', name: 'InfoSec', dept: 'Info Security', employeeId: 'SEC-101' },
-  { id: 'u10', email: 'facilities@company.com', password: 'demo', role: 'dept_approver', name: 'Facilities', dept: 'Facilities', employeeId: 'FAC-101' },
-  { id: 'u11', email: 'sunita.iyer@company.com', password: 'demo', role: 'manager', name: 'Sunita Iyer', dept: 'Product', employeeId: 'MGR-202' },
-];
 
 export const DEPARTMENTS: Department[] = [
   { id: 'manager',     label: 'Manager Clearance', icon: 'Users',       isMandatory: true,  slaHours: 48, defaultAssignee: 'u2' },

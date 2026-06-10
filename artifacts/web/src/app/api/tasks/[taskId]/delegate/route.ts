@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { useExitStore } from "@/store/exitStore";
-import { MOCK_USERS } from "@/lib/constants";
+import { createServerSupabase } from "@/lib/supabase-server";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   const { taskId } = await params;
-  const [caseId, deptId] = taskId.split("__");
 
-  if (!caseId || !deptId) {
-    return NextResponse.json({ error: "Invalid task ID format" }, { status: 400 });
-  }
-
-  const exitCase = useExitStore.getState().cases.find((c) => c.id === caseId);
-  if (!exitCase) {
-    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  if (!taskId) {
+    return NextResponse.json({ error: "Invalid task ID" }, { status: 400 });
   }
 
   const { assigneeId } = await req.json();
@@ -26,13 +19,33 @@ export async function POST(
     );
   }
 
-  const assignee = MOCK_USERS.find((u) => u.id === assigneeId);
-  if (!assignee) {
+  const supabase = createServerSupabase();
+
+  // Validate user exists in DB
+  const { data: assignee, error: userError } = await supabase
+    .from("users")
+    .select("id, name")
+    .eq("id", assigneeId)
+    .single();
+
+  if (userError || !assignee) {
     return NextResponse.json({ error: "Bad Request", message: "User not found" }, { status: 400 });
   }
 
-  useExitStore.getState().saveTaskDraft(caseId, deptId, exitCase.tasks.find((t) => t.deptId === deptId)?.checklist ?? []);
-  const updated = useExitStore.getState().cases.find((c) => c.id === caseId);
-  const task = updated?.tasks.find((t) => t.deptId === deptId);
-  return NextResponse.json(task);
+  // Update task in DB
+  const { data: updatedTask, error: updateError } = await supabase
+    .from("clearance_tasks")
+    .update({ 
+      assignee_id: assignee.id,
+      assignee_name: assignee.name
+    })
+    .eq("id", taskId)
+    .select()
+    .single();
+
+  if (updateError) {
+    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  }
+
+  return NextResponse.json(updatedTask);
 }

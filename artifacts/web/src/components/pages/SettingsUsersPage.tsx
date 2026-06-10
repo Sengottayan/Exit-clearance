@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Redirect } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
-import { MOCK_USERS, ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,6 +10,7 @@ import { Search, Plus, MoreHorizontal } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
+import { useUsers } from "@/hooks/api/useUsers";
 
 export default function SettingsUsersPage() {
   const { isAdmin } = useAuth();
@@ -17,10 +18,8 @@ export default function SettingsUsersPage() {
 
   if (!isAdmin) return <Redirect to="/dashboard" />;
 
-  const filteredUsers = MOCK_USERS.filter(u => 
-    u.name.toLowerCase().includes(search.toLowerCase()) || 
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: dbUsersResp, isLoading } = useUsers({ search, limit: 100 });
+  const filteredUsers = dbUsersResp?.data || [];
 
   return (
     <div className="animate-in fade-in duration-500 pb-12">
@@ -60,7 +59,7 @@ export default function SettingsUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map(u => (
+              {filteredUsers.map((u: any) => (
                 <TableRow key={u.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -77,7 +76,7 @@ export default function SettingsUsersPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-sm">{u.dept}</TableCell>
-                  <TableCell className="text-sm font-mono text-muted-foreground">{u.employeeId}</TableCell>
+                  <TableCell className="text-sm font-mono text-muted-foreground">{u.employee_id || u.employeeId}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -97,7 +96,7 @@ export default function SettingsUsersPage() {
               {filteredUsers.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    No users found.
+                    {isLoading ? "Loading users..." : "No users found."}
                   </TableCell>
                 </TableRow>
               )}

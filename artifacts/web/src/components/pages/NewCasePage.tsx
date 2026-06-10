@@ -19,7 +19,7 @@ import {
   Plus, Upload, Pencil, Trash2, AlertCircle, ExternalLink,
   CheckSquare, ArrowLeft,
 } from "lucide-react";
-import { MOCK_USERS, DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
+import { DEPARTMENTS, EXIT_REASONS } from "@/lib/constants";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useCreateCase } from "@/hooks/api/useCases";
 import { useUsers } from "@/hooks/api/useUsers";
@@ -277,11 +277,7 @@ export default function NewCasePage() {
   const isDemoUsers = !isLoadingUsers && dbUsers.length === 0;
 
   const searchResults = isDemoUsers
-    ? MOCK_USERS.filter(u => u.role === "employee" &&
-        (u.name.toLowerCase().includes(search.toLowerCase()) ||
-         u.email?.toLowerCase().includes(search.toLowerCase()) ||
-         u.employeeId.toLowerCase().includes(search.toLowerCase()))
-      )
+    ? []
     : dbUsers;
 
   const { data: wfPreview } = useWorkflowPreview();

@@ -6,9 +6,13 @@ const clerkConfigured =
   isValidClerkPublishableKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
   isValidClerkSecretKey(process.env.CLERK_SECRET_KEY);
 
+import { cookies } from "next/headers";
+
 export async function getOptionalAuth(): Promise<{ userId: string | null; orgId: string | null }> {
   if (!clerkConfigured) {
-    return { userId: "dev-user", orgId: "dev-org" };
+    const cookieStore = await cookies();
+    const demoUserId = cookieStore.get("demo-user-id")?.value;
+    return { userId: demoUserId || "dev-user", orgId: "dev-org" };
   }
 
   try {

@@ -2,8 +2,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MOCK_USERS } from "@/lib/constants";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useUsers } from "@/hooks/api/useUsers";
 import { Department } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ export default function SettingsDepartmentsPage() {
     assignee: activeDept.defaultAssignee,
     mandatory: activeDept.isMandatory,
   });
+
+  const { data: dbUsersResp } = useUsers({ limit: 50 });
+  const assignees = dbUsersResp?.data || [];
 
   if (!isAdmin) return <Redirect to="/dashboard" />;
 
@@ -107,7 +110,7 @@ export default function SettingsDepartmentsPage() {
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MOCK_USERS.map((u) => (
+                    {assignees.map((u: any) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.name} ({u.role})
                       </SelectItem>

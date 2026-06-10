@@ -1,12 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, Role } from '@/lib/types';
-import { MOCK_USERS } from '@/lib/constants';
 
 interface AuthState {
   user: User | null;
-  login: (emailOrId: string, password?: string) => User | null;
-  loginById: (userId: string) => void;
+  login: (user: User) => void;
   setClerkUser: (clerkUserId: string, role: Role, name?: string, email?: string) => void;
   updateUserManager: (managerId: string, managerName: string) => void;
   updateUserProfile: (updates: Partial<User>) => void;
@@ -17,36 +15,20 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      login: (email, password) => {
-        const normalizedInput = email.trim().toLowerCase();
-        const found = MOCK_USERS.find(
-          (u) =>
-            (u.email.toLowerCase() === normalizedInput || u.employeeId.toLowerCase() === normalizedInput) &&
-            (password === undefined || u.password === password),
-        );
-        if (found) { set({ user: found as User }); return found as User; }
-        return null;
-      },
-      loginById: (userId) => {
-        const found = MOCK_USERS.find(u => u.id === userId);
-        if (found) set({ user: found as User });
+      login: (user) => {
+        if (typeof document !== 'undefined') {
+          document.cookie = `demo-user-id=${user.id}; path=/; max-age=86400`;
+        }
+        set({ user });
       },
       setClerkUser: (clerkUserId, role, name, email) => {
-        const normalizedEmail = email?.trim().toLowerCase() ?? '';
-        // Try to match against mock users by email for local dev fallback
-        const matchedUser = normalizedEmail
-          ? MOCK_USERS.find((candidate) => candidate.email.toLowerCase() === normalizedEmail)
-          : undefined;
-
         const clerkUser: User = {
           id: clerkUserId,
-          email: email || matchedUser?.email || '',
-          name: name || matchedUser?.name || '',
+          email: email || '',
+          name: name || '',
           role,
-          dept: matchedUser?.dept || '',
-          employeeId: matchedUser?.employeeId || clerkUserId.slice(0, 8).toUpperCase(),
-          managerId: matchedUser?.managerId,
-          managerName: matchedUser?.managerName,
+          dept: '',
+          employeeId: clerkUserId.slice(0, 8).toUpperCase(),
         };
         set({ user: clerkUser });
 
