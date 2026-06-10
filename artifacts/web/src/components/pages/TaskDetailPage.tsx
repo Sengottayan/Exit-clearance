@@ -5,6 +5,7 @@ import {
 } from "@/hooks/api/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link, useParams, useLocation } from "@/lib/wouter";
+import { sendReminderEmail } from "@/lib/email";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ export default function TaskDetailPage() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showErrors, setShowErrors] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
 
   const { data: resolvedTask, isLoading } = useTask(taskId ?? "");
   const { mutate: checkItem } = useCheckItem();
@@ -111,6 +113,27 @@ export default function TaskDetailPage() {
     setRejectOpen(false);
     toast.info("Task rejected");
     setLocation("/tasks");
+  };
+
+  const handleSendReminder = async () => {
+    setIsSendingReminder(true);
+    try {
+      await sendReminderEmail({
+        assignee_name: "Assignee",
+        assignee_email: "sengottayan2003@gmail.com",
+        task_name: meta.title,
+        case_id: exitCase.id,
+        due_date: slaDueLabel,
+        employee_name: exitCase.employeeName || "N/A",
+        assigned_department: task.deptLabel || "N/A",
+        sender_name: user?.name || "OffboardIQ"
+      });
+      toast.success("Reminder notification sent to assignee.");
+    } catch (err: any) {
+      toast.error("Failed to send reminder email.");
+    } finally {
+      setIsSendingReminder(false);
+    }
   };
 
   return (
@@ -509,9 +532,12 @@ export default function TaskDetailPage() {
                 </button>
                 
                 <button
-                  className="w-full py-2.5 rounded-lg border border-[#1e2536] text-white hover:bg-[#1a202f] text-xs font-bold flex items-center gap-2 transition-colors px-3 justify-center"
+                  onClick={handleSendReminder}
+                  disabled={isSendingReminder}
+                  className="w-full py-2.5 rounded-lg border border-[#1e2536] text-white hover:bg-[#1a202f] text-xs font-bold flex items-center gap-2 transition-colors px-3 justify-center disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4 text-[#8e9bb0]" /> Send Reminder
+                  {isSendingReminder ? <Loader2 className="w-4 h-4 text-[#8e9bb0] animate-spin" /> : <Send className="w-4 h-4 text-[#8e9bb0]" />}
+                  {isSendingReminder ? "Sending..." : "Send Reminder"}
                 </button>
               </div>
             </div>
