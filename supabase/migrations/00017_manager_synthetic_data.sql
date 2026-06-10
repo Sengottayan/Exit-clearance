@@ -31,71 +31,71 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO legacy_exit_cases (
   id, employee_id, employee_name, employee_email, employee_role, employee_dept,
-  manager_id, manager_name, status, resignation_date, last_working_day,
+  manager_id, manager_name, manager_email, status, resignation_date, last_working_day,
   notice_period_days, exit_reason, escalated, tags, created_at, updated_at
 ) VALUES
 
 -- ── 3 × pending_manager (awaiting approval) ──────────────────────────────────
 ('EXIT-MGR-2001', 'usr_emp_101', 'Deepa Rajan',    'deepa.rajan@offboardiq.com',
-  'Sales Executive',    'Sales',       'usr_mgr_004', 'Aryan Kapoor',
+  'Sales Executive',    'Sales',       'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'pending_manager', NOW() - INTERVAL '2 days', NOW() + INTERVAL '28 days', 30,
   'better_opportunity', false, ARRAY['urgent'], NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
 
 ('EXIT-MGR-2002', 'usr_emp_102', 'Sameer Khan',    'sameer.khan@offboardiq.com',
-  'Account Manager',    'Sales',       'usr_mgr_004', 'Aryan Kapoor',
+  'Account Manager',    'Sales',       'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'pending_manager', NOW() - INTERVAL '4 days', NOW() + INTERVAL '26 days', 30,
   'compensation',       false, ARRAY['standard'], NOW() - INTERVAL '4 days', NOW() - INTERVAL '4 days'),
 
 ('EXIT-MGR-2003', 'usr_emp_110', 'Vijay Kumar',    'vijay.kumar@offboardiq.com',
-  'Sales Coordinator',  'Sales',       'usr_mgr_004', 'Aryan Kapoor',
+  'Sales Coordinator',  'Sales',       'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'pending_manager', NOW() - INTERVAL '6 days', NOW() + INTERVAL '24 days', 30,
   'work_environment',   false, ARRAY['standard'], NOW() - INTERVAL '6 days', NOW() - INTERVAL '6 days'),
 
 -- ── 4 × in_clearance (active clearance, mixed SLA) ───────────────────────────
 ('EXIT-MGR-2004', 'usr_emp_103', 'Lakshmi Nair',   'lakshmi.nair@offboardiq.com',
-  'Senior Sales Exec',  'Sales',       'usr_mgr_004', 'Aryan Kapoor',
+  'Senior Sales Exec',  'Sales',       'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'in_clearance', NOW() - INTERVAL '20 days', NOW() + INTERVAL '10 days', 30,
   'relocation',         false, ARRAY['standard'], NOW() - INTERVAL '20 days', NOW() - INTERVAL '5 days'),
 
 ('EXIT-MGR-2005', 'usr_emp_104', 'Abhishek Jain',  'abhishek.jain@offboardiq.com',
-  'Sales Manager',      'Sales',       'usr_mgr_004', 'Aryan Kapoor',
+  'Sales Manager',      'Sales',       'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'in_clearance', NOW() - INTERVAL '25 days', NOW() + INTERVAL '5 days', 30,
   'personal',           false, ARRAY['priority'], NOW() - INTERVAL '25 days', NOW() - INTERVAL '10 days'),
 
 ('EXIT-MGR-2006', 'usr_emp_105', 'Pooja Verma',    'pooja.verma@offboardiq.com',
-  'Marketing Executive','Marketing',   'usr_mgr_004', 'Aryan Kapoor',
+  'Marketing Executive','Marketing',   'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'in_clearance', NOW() - INTERVAL '30 days', NOW() + INTERVAL '2 days', 32,
   'higher_studies',     false, ARRAY['standard'], NOW() - INTERVAL '30 days', NOW() - INTERVAL '15 days'),
 
 ('EXIT-MGR-2007', 'usr_emp_106', 'Nikhil Chandra', 'nikhil.chandra@offboardiq.com',
-  'Software Engineer',  'Engineering', 'usr_mgr_004', 'Aryan Kapoor',
+  'Software Engineer',  'Engineering', 'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'in_clearance', NOW() - INTERVAL '35 days', NOW() - INTERVAL '1 day', 34,
   'better_opportunity', false, ARRAY['overdue','priority'], NOW() - INTERVAL '35 days', NOW() - INTERVAL '20 days'),
 
 -- ── 1 × cancelled ────────────────────────────────────────────────────────────
 ('EXIT-MGR-2008', 'usr_emp_107', 'Ritu Menon',     'ritu.menon@offboardiq.com',
-  'UI Designer',        'Design',      'usr_mgr_004', 'Aryan Kapoor',
+  'UI Designer',        'Design',      'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'cancelled', NOW() - INTERVAL '45 days', NOW() - INTERVAL '15 days', 30,
   'personal',           false, ARRAY['withdrawn'], NOW() - INTERVAL '45 days', NOW() - INTERVAL '30 days'),
 
 -- ── 4 × completed ────────────────────────────────────────────────────────────
 ('EXIT-MGR-2009', 'usr_emp_108', 'Girish Pai',     'girish.pai@offboardiq.com',
-  'Product Manager',    'Product',     'usr_mgr_004', 'Aryan Kapoor',
+  'Product Manager',    'Product',     'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'completed', NOW() - INTERVAL '60 days', NOW() - INTERVAL '30 days', 30,
   'compensation',       false, ARRAY['standard'], NOW() - INTERVAL '60 days', NOW() - INTERVAL '30 days'),
 
 ('EXIT-MGR-2010', 'usr_emp_109', 'Swetha Rao',     'swetha.rao@offboardiq.com',
-  'Sales Lead',         'Sales',       'usr_mgr_004', 'Aryan Kapoor',
+  'Sales Lead',         'Sales',       'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'completed', NOW() - INTERVAL '75 days', NOW() - INTERVAL '45 days', 30,
   'relocation',         false, ARRAY['standard'], NOW() - INTERVAL '75 days', NOW() - INTERVAL '45 days'),
 
 ('EXIT-MGR-2011', 'usr_emp_111', 'Meena Iyer',     'meena.iyer@offboardiq.com',
-  'Operations Analyst', 'Operations',  'usr_mgr_004', 'Aryan Kapoor',
+  'Operations Analyst', 'Operations',  'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'completed', NOW() - INTERVAL '85 days', NOW() - INTERVAL '55 days', 30,
   'better_opportunity', false, ARRAY['standard'], NOW() - INTERVAL '85 days', NOW() - INTERVAL '55 days'),
 
 ('EXIT-MGR-2012', 'usr_emp_112', 'Praveen Das',    'praveen.das@offboardiq.com',
-  'Finance Analyst',    'Finance',     'usr_mgr_004', 'Aryan Kapoor',
+  'Finance Analyst',    'Finance',     'usr_mgr_004', 'Aryan Kapoor', 'aryan.kapoor@offboardiq.com',
   'completed', NOW() - INTERVAL '95 days', NOW() - INTERVAL '65 days', 30,
   'higher_studies',     false, ARRAY['standard'], NOW() - INTERVAL '95 days', NOW() - INTERVAL '65 days')
 

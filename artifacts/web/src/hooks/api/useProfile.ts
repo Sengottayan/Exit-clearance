@@ -17,12 +17,25 @@ export interface UserProfile {
     dateOfHire: string | null;
     employmentStatus: string;
     managerId: string | null;
+    dept: string;
+    role: string;
   };
   organization: {
     id: string;
     name: string;
     role: string;
   };
+  // Only populated for managers
+  teamStats?: {
+    totalReports: number;
+    activeExits: number;
+  };
+  // Only populated for dept_approver
+  departmentAssignments?: {
+    department: string;
+    deptLabel: string;
+    authority: string;
+  }[];
 }
 
 export interface Manager {
@@ -52,7 +65,16 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: Partial<UserProfile['user'] & UserProfile['employment']>) => {
+    mutationFn: async (data: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      jobTitle?: string;
+      employeeType?: string;
+      dateOfHire?: string;
+      managerId?: string;
+      dept?: string;
+    }) => {
       const response = await fetch('/api/users/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

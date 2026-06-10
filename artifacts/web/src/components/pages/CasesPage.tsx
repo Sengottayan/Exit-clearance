@@ -80,6 +80,11 @@ export default function CasesPage() {
   const isManagerOnly = isManager && !isHR && !isAdmin;
   const rowsPerPage = 10;
 
+  // Manager can see cases by their Clerk ID OR their email (handles pre-remap synthetic data)
+  const managerCasePredicate = (c: any) =>
+    c.managerId === user?.id ||
+    (user?.email && c.managerEmail === user?.email);
+
   // ── Derived department list from real data ────────────────────────────────────
   const departments = useMemo(() => {
     const depts = Array.from(new Set(dbCases.map((c) => c.employeeDept).filter(Boolean)));
@@ -88,7 +93,7 @@ export default function CasesPage() {
 
   // ── Filtered + sorted cases ───────────────────────────────────────────────────
   const filteredCases = useMemo(() => {
-    let result = isManagerOnly ? dbCases.filter((c) => c.managerId === user?.id) : dbCases;
+    let result = isManagerOnly ? dbCases.filter(managerCasePredicate) : dbCases;
 
     // Tab filter
     if (tabFilter === "pending")   result = result.filter((c) => c.status === "pending_manager");

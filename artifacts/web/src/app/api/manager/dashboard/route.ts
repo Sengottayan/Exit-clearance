@@ -16,8 +16,21 @@ export async function GET(request: NextRequest) {
   const managerId = searchParams.get("manager_id") || userId;
   const trendDays = parseInt(searchParams.get("days") || "30", 10);
 
+  // ── Resolve manager email for fallback query ──────────────────────────────────
+  let managerEmail: string | null = null;
+  try {
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("email")
+      .eq("id", managerId)
+      .single();
+    managerEmail = userRow?.email ?? null;
+  } catch { /* ignore */ }
+
   // ── 1. Fetch all cases for this manager ─────────────────────────────────────
-  const { data: cases, error } = await supabase
+  // Strategy: primary query by manager_id (Clerk ID after remap).
+  // Fallback: if no results, query by manager_email (catches pre-remap synthetic data).
+  let { data: cases, error } = await supabase
     .from("exit_cases")
     .select("id, status, created_at, last_working_day, clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
     .eq("manager_id", managerId)
@@ -26,6 +39,30 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Fallback: if no cases found by ID but we have an email, try email-based lookup
+  if ((!cases || cases.length === 0) && managerEmail) {
+    const { data: emailCases } = await supabase
+      .from("exit_cases")
+      .select("id, status, created_at, last_working_day, clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
+      .eq("manager_email", managerEmail)
+      .order("created_at", { ascending: false });
+    
+    if (emailCases && emailCases.length > 0) {
+      cases = emailCases;
+      // Trigger background remap for next time
+      supabase
+        .from("legacy_exit_cases")
+        .update({ manager_id: managerId })
+        .eq("manager_email", managerEmail)
+        .neq("manager_id", managerId)
+        .then(() => {}) // fire-and-forget
+        .catch(() => {});
+    }
+  }
+
+  cases = cases ?? [];
+
 
   const now = new Date();
 

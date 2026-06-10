@@ -9,11 +9,19 @@ import { Role } from "@/lib/types";
  * Upserts the currently logged-in Clerk user into the `users` table and returns
  * their full profile including their reporting manager.
  *
+ * Email-Based Manager Remapping:
+ *   Instead of hardcoding synthetic IDs like 'usr_mgr_004', we remap manager_id
+ *   by matching on manager_email. This is production-safe and supports any dataset.
+ *
+ * Department Auto-Assign:
+ *   On first login for a manager, if users.dept is empty, we copy the dept from
+ *   any matching synthetic record (matched by email) so the dashboard works immediately.
+ *
  * Called:
- *  - After Clerk login (from useAuth hook)
+ *  - After Clerk login (from authStore.setClerkUser)
  *  - Before submitting a resignation (to ensure user row exists for FK constraints)
  *
- * Body: { email, name, role?, dept?, employeeId?, managerId? }
+ * Body: { email, name, role?, dept?, employeeId? }
  */
 export async function POST(request: NextRequest) {
   const { userId } = await getOptionalAuth();
@@ -31,9 +39,6 @@ export async function POST(request: NextRequest) {
     dept = "",
     phone = "",
     employeeId = "",
-    managerId = null,
-    managerName = "",
-    jobTitle = "",
   } = body as {
     email?: string;
     name?: string;
@@ -41,25 +46,20 @@ export async function POST(request: NextRequest) {
     dept?: string;
     phone?: string;
     employeeId?: string;
-    managerId?: string | null;
-    managerName?: string;
-    jobTitle?: string;
   };
 
   if (action === "update_profile") {
-    // Attempt to update dept and phone (and potentially assign a manager based on dept)
-    
-    // First let's find a manager in the new dept
-    let newManagerId = managerId;
-    let newManagerName = managerName;
-    
+    // Find a manager in the new dept for auto-assignment
+    let newManagerId: string | null = null;
+    let newManagerName = "";
+
     const { data: managers } = await supabase
       .from("users")
       .select("id, name")
       .eq("role", "manager")
       .eq("dept", dept)
       .limit(1);
-      
+
     if (managers && managers.length > 0) {
       newManagerId = managers[0].id;
       newManagerName = managers[0].name;
@@ -91,12 +91,11 @@ export async function POST(request: NextRequest) {
         managerId: newManagerId,
         managerName: newManagerName,
       },
-      token: "dummy-token-not-used", // authStore requires a token param
+      token: "dummy-token-not-used",
     });
   }
 
-  // Upsert user row using only columns guaranteed to exist in the base schema.
-  // Extended columns (manager_id, job_title) are added by migration 00003.
+  // ── Standard sync-user upsert ─────────────────────────────────────────────
   const baseUpsert: Record<string, unknown> = {
     id: userId,
     email: email || `${userId}@exitflow.app`,
@@ -107,8 +106,6 @@ export async function POST(request: NextRequest) {
     updated_at: new Date().toISOString(),
   };
 
-  // Check if manager_id column exists (migration 00003) before trying to set it
-  // We do this by attempting the upsert without the column first, then with it.
   const { data: upsertedUser, error: upsertError } = await supabase
     .from("users")
     .upsert(baseUpsert, { onConflict: "id" })
@@ -123,7 +120,90 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Try to read manager_id if column exists (post-migration)
+  // ── Email-based manager_id remapping ──────────────────────────────────────
+  // After upsert, remap any exit cases where manager_email = this user's email
+  // but manager_id is still a synthetic placeholder. This is safe for all datasets.
+  if (role === "manager" && email) {
+    try {
+      // Remap legacy_exit_cases where manager_email matches but manager_id is stale
+      const { error: remapCasesErr } = await supabase
+        .from("legacy_exit_cases")
+        .update({ manager_id: userId, manager_name: name || upsertedUser?.name || "" })
+        .eq("manager_email", email)
+        .neq("manager_id", userId); // only update if not already mapped
+
+      if (remapCasesErr) {
+        console.warn("[sync-user] Case remap warning:", remapCasesErr.message);
+      }
+
+      // ── Department auto-assign on first login ───────────────────────────
+      // If the user has no dept set yet, look it up from the synthetic manager row
+      const currentDept = (upsertedUser as any)?.dept ?? "";
+      if (!currentDept || currentDept === "") {
+        // Find the old synthetic manager row with the same email (different ID)
+        const { data: syntheticMgr } = await supabase
+          .from("users")
+          .select("dept")
+          .eq("email", email)
+          .neq("id", userId) // a different row with same email
+          .limit(1)
+          .single();
+
+        const resolvedDept = syntheticMgr?.dept || "Sales";
+
+        await supabase
+          .from("users")
+          .update({ dept: resolvedDept })
+          .eq("id", userId);
+
+        // Return with dept set
+        const resolvedManagerId = await resolveManager(supabase, upsertedUser!.id);
+        return NextResponse.json({
+          id: upsertedUser!.id,
+          email: upsertedUser!.email,
+          name: upsertedUser!.name,
+          role: upsertedUser!.role,
+          dept: resolvedDept,
+          employeeId: (upsertedUser as any).employee_id ?? "",
+          managerId: resolvedManagerId.id,
+          managerName: resolvedManagerId.name,
+        });
+      }
+    } catch (err) {
+      console.warn("[sync-user] Manager remap error:", err);
+    }
+  }
+
+  // ── dept_approver: seed department_assignments ──────────────────────────────
+  if (role === "dept_approver" && email) {
+    try {
+      // Find any clearance tasks where this email was the assignee
+      // and seed department_assignments accordingly
+      const { data: taskDepts } = await supabase
+        .from("legacy_clearance_tasks")
+        .select("dept_id, dept_label")
+        .eq("assignee_id", userId);
+
+      if (taskDepts && taskDepts.length > 0) {
+        const uniqueDepts = Array.from(
+          new Map(taskDepts.map((t) => [t.dept_id, t])).values()
+        );
+        for (const d of uniqueDepts) {
+          await supabase.from("department_assignments").upsert({
+            user_id: userId,
+            department: d.dept_id,
+            dept_label: d.dept_label,
+            authority: "primary",
+            is_active: true,
+          }, { onConflict: "user_id,department" });
+        }
+      }
+    } catch (err) {
+      console.warn("[sync-user] Dept approver assignment seeding error:", err);
+    }
+  }
+
+  // ── Resolve manager for return payload ────────────────────────────────────
   let resolvedManagerId: string | null = null;
   let resolvedManagerName = "";
 
@@ -153,11 +233,24 @@ export async function POST(request: NextRequest) {
   });
 }
 
+// Helper: resolve manager details
+async function resolveManager(supabase: any, userId: string) {
+  try {
+    const { data } = await supabase
+      .from("users")
+      .select("manager_id, manager_name")
+      .eq("id", userId)
+      .single();
+    return { id: data?.manager_id ?? null, name: data?.manager_name ?? "" };
+  } catch {
+    return { id: null, name: "" };
+  }
+}
+
 /**
  * GET /api/auth/sync-user
  *
  * Returns the current user's profile from the DB, or null if not found.
- * Lightweight — used to check if manager assignment exists.
  */
 export async function GET() {
   const { userId } = await getOptionalAuth();
@@ -172,7 +265,6 @@ export async function GET() {
     .single();
 
   if (error || !data) {
-    // User hasn't been synced yet — return null so the client can POST to sync
     return NextResponse.json(null);
   }
 

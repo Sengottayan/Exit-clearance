@@ -91,6 +91,7 @@ export interface ExitCase {
   employeeDept: string;
   managerId: string;
   managerName: string;
+  managerEmail?: string;
   status: CaseStatus;
   resignationDate: string;
   lastWorkingDay: string;
