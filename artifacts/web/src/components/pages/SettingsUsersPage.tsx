@@ -10,8 +10,8 @@ import { Search, Plus, MoreHorizontal } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
-import { useUsers } from "@/hooks/api/useUsers";
-
+import { useUsers, useUpdateUser, useDeactivateUser } from "@/hooks/api/useUsers";
+import { toast } from "sonner";
 export default function SettingsUsersPage() {
   const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
@@ -20,18 +20,31 @@ export default function SettingsUsersPage() {
 
   const { data: dbUsersResp, isLoading } = useUsers({ search, limit: 100 });
   const filteredUsers = dbUsersResp?.data || [];
+  
+  const { mutate: updateUser } = useUpdateUser();
+  const { mutate: deactivateUser } = useDeactivateUser();
+
+  const handleRoleChange = (id: string, newRole: string) => {
+    updateUser({ id, updates: { role: newRole } }, {
+      onSuccess: () => toast.success("User role updated successfully"),
+      onError: (err: any) => toast.error(err.message)
+    });
+  };
+
+  const handleDeactivate = (id: string) => {
+    if (confirm("Are you sure you want to deactivate this user?")) {
+      deactivateUser(id, {
+        onSuccess: () => toast.success("User deactivated successfully"),
+        onError: (err: any) => toast.error(err.message)
+      });
+    }
+  };
 
   return (
     <div className="animate-in fade-in duration-500 pb-12">
       <PageHeader 
         title="User Management" 
         breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Users" }]}
-        action={
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add User
-          </Button>
-        }
       />
 
       <Card>
@@ -85,9 +98,10 @@ export default function SettingsUsersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Edit User</DropdownMenuItem>
-                        <DropdownMenuItem>Reset Password</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(u.id, 'manager')}>Make Manager</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(u.id, 'admin')}>Make Admin</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(u.id, 'employee')}>Make Employee</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeactivate(u.id)}>Deactivate</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

@@ -2,10 +2,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link } from "@/lib/wouter";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useSettingsStore } from "@/store/settingsStore";
+import { useDepartments, useUpdateDepartment } from "@/hooks/api/useDepartments";
 import { useUsers } from "@/hooks/api/useUsers";
 import { Department } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,14 +15,21 @@ import { toast } from "sonner";
 
 export default function SettingsDepartmentsPage() {
   const { isAdmin } = useAuth();
-  const departments = useSettingsStore((s) => s.departments);
-  const updateDepartment = useSettingsStore((s) => s.updateDepartment);
-  const [activeDept, setActiveDept] = useState<Department>(departments[0]);
+  const { data: departments = [], isLoading: isLoadingDepts } = useDepartments();
+  const { mutate: updateDepartment, isPending: isUpdating } = useUpdateDepartment();
+  
+  const [activeDept, setActiveDept] = useState<Department | null>(null);
   const [formData, setFormData] = useState({
-    slaHours: activeDept.slaHours.toString(),
-    assignee: activeDept.defaultAssignee,
-    mandatory: activeDept.isMandatory,
+    slaHours: "",
+    assignee: "",
+    mandatory: true,
   });
+
+  useEffect(() => {
+    if (departments.length > 0 && !activeDept) {
+      handleDeptSelect(departments[0]);
+    }
+  }, [departments, activeDept]);
 
   const { data: dbUsersResp } = useUsers({ limit: 50 });
   const assignees = dbUsersResp?.data || [];
@@ -39,15 +46,26 @@ export default function SettingsDepartmentsPage() {
   };
 
   const handleSave = () => {
-    updateDepartment(activeDept.id, {
-      slaHours: parseInt(formData.slaHours, 10) || activeDept.slaHours,
-      defaultAssignee: formData.assignee,
-      isMandatory: formData.mandatory,
+    if (!activeDept) return;
+    updateDepartment({
+      id: activeDept.id,
+      updates: {
+        slaHours: parseInt(formData.slaHours, 10) || activeDept.slaHours,
+        defaultAssignee: formData.assignee,
+        isMandatory: formData.mandatory,
+      }
+    }, {
+      onSuccess: () => {
+        toast.success(`${activeDept.label} configuration saved successfully`);
+      },
+      onError: (err: any) => {
+        toast.error(`Failed to save: ${err.message}`);
+      }
     });
-    const updated = useSettingsStore.getState().departments.find((d) => d.id === activeDept.id)!;
-    setActiveDept(updated);
-    toast.success(`${activeDept.label} configuration saved successfully`);
   };
+
+  if (isLoadingDepts) return <div className="p-8">Loading departments...</div>;
+  if (!activeDept) return null;
 
   return (
     <div className="animate-in fade-in duration-500 pb-12">
@@ -137,7 +155,9 @@ export default function SettingsDepartmentsPage() {
                 <Link href="/settings">
                   <Button variant="ghost">Cancel</Button>
                 </Link>
-                <Button onClick={handleSave}>Save Changes</Button>
+                <Button onClick={handleSave} disabled={isUpdating}>
+                  {isUpdating ? "Saving..." : "Save Changes"}
+                </Button>
               </div>
             </CardContent>
           </Card>
