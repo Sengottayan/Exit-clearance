@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
+import { resolveDbOrgId } from "@/lib/organization";
 
 const MULTI_TENANT_ENABLED = true;
 
@@ -17,6 +18,7 @@ export async function POST(
 
   const { id: caseId } = await params;
   const supabase = createServerSupabase();
+  const dbOrgId = await resolveDbOrgId(supabase, orgId);
   
   // 1. Validate Caller Role (Admin or HR)
   const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
@@ -33,7 +35,7 @@ export async function POST(
     .eq("id", caseId);
     
   if (MULTI_TENANT_ENABLED && orgId) {
-    caseQuery = caseQuery.eq("organization_id", orgId);
+    caseQuery = caseQuery.eq("organization_id", dbOrgId);
   }
   
   const { data: caseMeta, error: metaErr } = await caseQuery.single();
@@ -104,7 +106,7 @@ export async function POST(
         .eq("id", caseId);
         
       if (MULTI_TENANT_ENABLED && orgId) {
-        updateQ = updateQ.eq("organization_id", orgId);
+        updateQ = updateQ.eq("organization_id", dbOrgId);
       }
       
       await updateQ;

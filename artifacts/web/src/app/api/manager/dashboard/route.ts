@@ -2,19 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 import { subDays, format, differenceInHours } from "date-fns";
+import { resolveDbOrgId } from "@/lib/organization";
 
 export const revalidate = 30; // Cache for 30 seconds
 
+const MULTI_TENANT_ENABLED = true;
+
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await getOptionalAuth();
+    const { userId, orgId } = await getOptionalAuth();
     if (!userId) return unauthorized();
 
+    if (MULTI_TENANT_ENABLED && !orgId) {
+      return NextResponse.json({ error: "Organization context required" }, { status: 403 });
+    }
+
     const supabase = createServerSupabase();
+    const dbOrgId = await resolveDbOrgId(supabase, orgId);
     const { searchParams } = new URL(request.url);
     
-    // Manager ID comes from session (current user), but allow override for HR/Admin
-    const managerId = searchParams.get("manager_id") || userId;
+    // Role check to prevent manager ID spoofing
+    const { data: userRowAuth } = await supabase.from("users").select("role").eq("id", userId).single();
+    const isAdminOrHR = userRowAuth?.role === "admin" || userRowAuth?.role === "hr";
+    
+    let requestedManagerId = searchParams.get("manager_id");
+    if (!isAdminOrHR && requestedManagerId && requestedManagerId !== userId) {
+      return NextResponse.json({ error: "Forbidden: Cannot view other managers' dashboards" }, { status: 403 });
+    }
+    
+    const managerId = requestedManagerId || userId;
     const trendDays = parseInt(searchParams.get("days") || "30", 10);
 
     // ── Resolve manager email for fallback query ──────────────────────────────────
@@ -31,11 +47,17 @@ export async function GET(request: NextRequest) {
     // ── 1. Fetch all cases for this manager ─────────────────────────────────────
     // Strategy: primary query by manager_id (Clerk ID after remap).
     // Fallback: if no results, query by manager_email (catches pre-remap synthetic data).
-    let { data: cases, error } = await supabase
+    let casesQuery = supabase
       .from("legacy_exit_cases")
       .select("id, status, created_at, last_working_day, clearance_tasks:legacy_clearance_tasks(id, status, sla_due_at, completed_at, dept_label)")
       .eq("manager_id", managerId)
       .order("created_at", { ascending: false });
+
+    if (MULTI_TENANT_ENABLED && orgId) {
+      casesQuery = casesQuery.eq("organization_id", dbOrgId);
+    }
+
+    let { data: cases, error } = await casesQuery;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -138,13 +160,19 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 5. Recent Pending Approvals (top 5, newest first) ───────────────────────
-    const { data: pendingCases, error: pendingError } = await supabase
+    let pendingQuery = supabase
       .from("legacy_exit_cases")
       .select("id, employee_name, employee_dept, employee_role, created_at")
       .eq("manager_id", managerId)
       .eq("status", "pending_manager")
       .order("created_at", { ascending: false })
       .limit(5);
+
+    if (MULTI_TENANT_ENABLED && orgId) {
+      pendingQuery = pendingQuery.eq("organization_id", dbOrgId);
+    }
+
+    const { data: pendingCases, error: pendingError } = await pendingQuery;
 
     if (pendingError) {
       console.error("Pending approvals error:", pendingError.message);

@@ -27,7 +27,16 @@ describe('complete API Security Guards', () => {
     };
 
     mockSupabase = {
-      from: vi.fn(() => mockQuery),
+      from: vi.fn((table: string) => {
+        if (table === 'organizations') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: { id: '00000000-0000-0000-0000-000000000000' }, error: null })
+          };
+        }
+        return mockQuery;
+      }),
     };
 
     (createServerSupabase as any).mockReturnValue(mockSupabase);

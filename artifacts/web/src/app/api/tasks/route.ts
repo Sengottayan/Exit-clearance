@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
+import { resolveDbOrgId } from "@/lib/organization";
 
 const MULTI_TENANT_ENABLED = true;
 
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServerSupabase();
+  const dbOrgId = await resolveDbOrgId(supabase, orgId);
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const assigneeId = searchParams.get("assigneeId");
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
     .order("sla_due_at", { ascending: true });
 
   if (MULTI_TENANT_ENABLED && orgId) {
-    query = query.eq("organization_id", orgId);
+    query = query.eq("organization_id", dbOrgId);
   }
 
   if (status) query = query.eq("status", status);

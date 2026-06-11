@@ -28,7 +28,16 @@ describe('approve-resignation API Security Guards', () => {
     };
 
     mockSupabase = {
-      from: vi.fn(() => mockQuery),
+      from: vi.fn((table: string) => {
+        if (table === 'organizations') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: { id: '00000000-0000-0000-0000-000000000000' }, error: null })
+          };
+        }
+        return mockQuery;
+      }),
     };
 
     (createServerSupabase as any).mockReturnValue(mockSupabase);
@@ -57,6 +66,13 @@ describe('approve-resignation API Security Guards', () => {
 
     // Tasks fetch return
     mockSupabase.from = vi.fn((table: string) => {
+      if (table === 'organizations') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: { id: '00000000-0000-0000-0000-000000000000' }, error: null })
+        };
+      }
       if (table === 'legacy_clearance_tasks') {
         return {
           select: vi.fn().mockReturnThis(),
@@ -70,5 +86,21 @@ describe('approve-resignation API Security Guards', () => {
     const response = await POST(req, { params: Promise.resolve({ id: '1' }) });
     
     expect(response.status).toBe(200);
+  });
+
+  it('should reject requests from unauthorized managers', async () => {
+    (getOptionalAuth as any).mockResolvedValue({ userId: 'manager_123', orgId: 'org_1' });
+    
+    // Simulate updating a case that does not belong to the manager
+    mockQuery.single = vi.fn()
+      .mockResolvedValueOnce({ data: { role: 'manager' }, error: null }) // user role check
+      .mockResolvedValueOnce({ data: null, error: { message: 'Row not found' } }); // case update returns no rows
+
+    const req = new NextRequest('http://localhost/api/cases/1/approve-resignation', { method: 'POST', body: JSON.stringify({}) });
+    const response = await POST(req, { params: Promise.resolve({ id: '1' }) });
+    
+    expect(response.status).toBe(403);
+    const data = await response.json();
+    expect(data.error).toMatch(/Forbidden|Exit case not found/i);
   });
 });
