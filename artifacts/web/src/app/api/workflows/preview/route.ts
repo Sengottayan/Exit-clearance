@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
-const MULTI_TENANT_ENABLED = false;
+const MULTI_TENANT_ENABLED = true;
 
 export async function GET() {
   const { userId, orgId } = await getOptionalAuth();

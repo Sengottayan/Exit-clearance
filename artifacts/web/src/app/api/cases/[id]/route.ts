@@ -3,7 +3,7 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 import { calculateWorkflowStage } from "@/lib/workflow-server";
 
-const MULTI_TENANT_ENABLED = false; // Toggle to true after full DB migration
+const MULTI_TENANT_ENABLED = true; // Toggle to true after full DB migration
 
 export async function GET(
   _request: NextRequest,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
-const MULTI_TENANT_ENABLED = false; // Toggle to true after full DB migration
+const MULTI_TENANT_ENABLED = true; // Enabled full database multi-tenancy
 
 export async function GET(request: NextRequest) {
   const { userId, orgId } = await getOptionalAuth();
