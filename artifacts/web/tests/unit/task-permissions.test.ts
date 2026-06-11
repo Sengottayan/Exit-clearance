@@ -1,8 +1,8 @@
-import { verifyTaskAccess } from '../lib/api-auth';
+import { verifyTaskAccess } from '@/lib/api-auth';
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock the supabase client that verifyTaskAccess uses
-vi.mock('../lib/supabase-server', () => ({
+vi.mock('@/lib/supabase-server', () => ({
   createServerSupabase: () => ({
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),

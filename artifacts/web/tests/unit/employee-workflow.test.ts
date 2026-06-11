@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { POST as approveResignation } from '../app/api/cases/[id]/approve-resignation/route';
+import { POST as approveResignation } from '@/app/api/cases/[id]/approve-resignation/route';
 import { NextRequest } from 'next/server';
 
 // Mock getOptionalAuth
-vi.mock('../lib/api-auth', () => ({
-  getOptionalAuth: vi.fn().mockResolvedValue({ userId: 'test-user-id' }),
+vi.mock('@/lib/api-auth', () => ({
+  getOptionalAuth: vi.fn().mockResolvedValue({ userId: 'test-user-id', orgId: 'org_1' }),
   unauthorized: vi.fn().mockReturnValue(new Response('Unauthorized', { status: 401 }))
 }));
 
@@ -15,7 +15,7 @@ const mockSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
 
-vi.mock('../lib/supabase-server', () => ({
+vi.mock('@/lib/supabase-server', () => ({
   createServerSupabase: vi.fn(() => ({
     from: vi.fn().mockReturnValue({
       update: mockUpdate,
@@ -28,14 +28,17 @@ vi.mock('../lib/supabase-server', () => ({
 describe('Employee Resignation Workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
     mockUpdate.mockReturnValue({ eq: mockEq });
-    mockEq.mockResolvedValue({ error: null });
-    
     mockSelect.mockReturnValue({ eq: mockEq });
     mockEq.mockImplementation((field, value) => {
+      const chainable: any = Promise.resolve({ data: null, error: null });
+      chainable.eq = mockEq;
+      chainable.select = vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: 'CASE-123', status: 'in_clearance' }, error: null })
+      });
+      chainable.single = vi.fn().mockResolvedValue({ data: { role: 'manager' }, error: null });
+      
       if (field === 'case_id' && value === 'CASE-123') {
-        // Return tasks for fetch clearance tasks
         return Promise.resolve({
           data: [
             { id: 'task-1', dept_id: 'manager', sla_hours: 24 },
@@ -45,10 +48,10 @@ describe('Employee Resignation Workflow', () => {
         });
       }
       if (field === 'id' && value === 'CASE-123') {
-        // Return single case for fetch updated case
-        return { single: mockSingle.mockResolvedValue({ data: { id: 'CASE-123', status: 'in_clearance' }, error: null }) };
+        chainable.single = mockSingle.mockResolvedValue({ data: { id: 'CASE-123', status: 'in_clearance' }, error: null });
+        return chainable;
       }
-      return Promise.resolve({ data: null, error: null });
+      return chainable;
     });
     
     mockInsert.mockResolvedValue({ error: null });

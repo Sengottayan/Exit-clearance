@@ -2,30 +2,51 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
+const MULTI_TENANT_ENABLED = true;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { userId } = await getOptionalAuth();
+  const { userId, orgId } = await getOptionalAuth();
   if (!userId) return unauthorized();
+
+  if (MULTI_TENANT_ENABLED && !orgId) {
+    return NextResponse.json({ error: "Organization context required" }, { status: 403 });
+  }
 
   const { id: caseId } = await params;
   const supabase = createServerSupabase();
+  
+  // 1. Validate Caller Role (Admin, HR, or Manager)
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const isAdminOrManager = user?.role === "admin" || user?.role === "hr" || user?.role === "manager";
+  
+  if (!isAdminOrManager) {
+    return NextResponse.json({ error: "Forbidden: Only Admin, HR, or Manager can approve resignations" }, { status: 403 });
+  }
+
   const { actor = "Manager" } = await request.json().catch(() => ({}));
 
   try {
-    // 1. Update legacy_exit_cases status to 'in_clearance'
-    const { error: caseErr } = await supabase
+    // 2. Update legacy_exit_cases status to 'in_clearance' with Tenant Isolation
+    let caseUpdateQuery = supabase
       .from("legacy_exit_cases")
       .update({ status: "in_clearance" })
       .eq("id", caseId);
+      
+    if (MULTI_TENANT_ENABLED && orgId) {
+      caseUpdateQuery = caseUpdateQuery.eq("organization_id", orgId);
+    }
+      
+    const { data: updateCaseRes, error: caseErr } = await caseUpdateQuery.select().single();
 
     if (caseErr) {
       console.error("[POST approve-resignation] Exit case update error:", caseErr.message);
       return NextResponse.json({ error: caseErr.message }, { status: 500 });
     }
 
-    // 2. Fetch all clearance tasks for this case
+    // 3. Fetch all clearance tasks for this case
     const { data: tasks, error: tasksFetchErr } = await supabase
       .from("legacy_clearance_tasks")
       .select("id, dept_id, sla_hours")
@@ -36,28 +57,39 @@ export async function POST(
       return NextResponse.json({ error: tasksFetchErr.message }, { status: 500 });
     }
 
-    // 3. Update tasks: manager task is 'approved', others are 'pending' with calculated sla_due_at
+    // 4. Update tasks: manager task is 'approved', others are 'pending' with calculated sla_due_at
     const now = new Date();
     if (tasks && tasks.length > 0) {
       for (const t of tasks) {
         if (t.dept_id === "manager") {
-          await supabase
+          let taskUpdate = supabase
             .from("legacy_clearance_tasks")
             .update({
               status: "approved",
               completed_at: now.toISOString(),
             })
             .eq("id", t.id);
+            
+          if (MULTI_TENANT_ENABLED && orgId) {
+            taskUpdate = taskUpdate.eq("organization_id", orgId);
+          }
+          await taskUpdate;
         } else {
           const slaHours = t.sla_hours || 24;
           const slaDueAt = new Date(now.getTime() + slaHours * 60 * 60 * 1000);
-          await supabase
+          
+          let taskUpdate = supabase
             .from("legacy_clearance_tasks")
             .update({
               status: "pending",
               sla_due_at: slaDueAt.toISOString(),
             })
             .eq("id", t.id);
+            
+          if (MULTI_TENANT_ENABLED && orgId) {
+            taskUpdate = taskUpdate.eq("organization_id", orgId);
+          }
+          await taskUpdate;
         }
       }
     }

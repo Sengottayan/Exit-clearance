@@ -1,4 +1,4 @@
-import { calculateWorkflowStage, validateTaskCompletion } from '../lib/workflow-server';
+import { calculateWorkflowStage, validateTaskCompletion } from '@/lib/workflow-server';
 import { describe, it, expect } from 'vitest';
 
 describe('Workflow Progression Logic', () => {

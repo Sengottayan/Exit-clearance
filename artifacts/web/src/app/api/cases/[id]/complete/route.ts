@@ -2,15 +2,54 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
+const MULTI_TENANT_ENABLED = true;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { userId } = await getOptionalAuth();
+  const { userId, orgId } = await getOptionalAuth();
   if (!userId) return unauthorized();
+
+  if (MULTI_TENANT_ENABLED && !orgId) {
+    return NextResponse.json({ error: "Organization context required" }, { status: 403 });
+  }
 
   const { id: caseId } = await params;
   const supabase = createServerSupabase();
+  
+  // 1. Validate Caller Role (Admin or HR)
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const isHR = user?.role === "admin" || user?.role === "hr";
+  
+  if (!isHR) {
+    return NextResponse.json({ error: "Forbidden: Only Admin or HR can complete an exit case" }, { status: 403 });
+  }
+
+  // 2. Pre-flight check: Legal Hold and Payroll Status
+  let caseQuery = supabase
+    .from("legacy_exit_cases")
+    .select("legal_hold, payroll_status")
+    .eq("id", caseId);
+    
+  if (MULTI_TENANT_ENABLED && orgId) {
+    caseQuery = caseQuery.eq("organization_id", orgId);
+  }
+  
+  const { data: caseMeta, error: metaErr } = await caseQuery.single();
+  
+  if (metaErr || !caseMeta) {
+    return NextResponse.json({ error: "Case not found or permission denied" }, { status: 404 });
+  }
+  
+  if (caseMeta.legal_hold) {
+    return NextResponse.json({ error: "Cannot complete case: Active Legal Hold" }, { status: 400 });
+  }
+  
+  if (caseMeta.payroll_status !== 'settled') {
+    return NextResponse.json({ error: "Cannot complete case: Payroll F&F is not settled" }, { status: 400 });
+  }
+
   const body = await request.json().catch(() => ({}));
 
   const {
@@ -24,7 +63,7 @@ export async function POST(
   } = body;
 
   try {
-    // 1. Insert/Upsert into legacy_exit_interviews
+    // 3. Insert/Upsert into legacy_exit_interviews
     const { error: interviewErr } = await supabase
       .from("legacy_exit_interviews")
       .upsert({
@@ -44,7 +83,7 @@ export async function POST(
       return NextResponse.json({ error: interviewErr.message }, { status: 500 });
     }
 
-    // 2. Fetch clearance tasks to see if they are all completed/approved
+    // 4. Fetch clearance tasks to see if they are all completed/approved
     const { data: tasks, error: tasksErr } = await supabase
       .from("legacy_clearance_tasks")
       .select("status")
@@ -57,12 +96,18 @@ export async function POST(
       allCompleted = tasks.every(t => t.status === "approved" || t.status === "completed");
     }
 
-    // 3. If all clearance tasks are done, update case status to 'completed'
+    // 5. If all clearance tasks are done (and we passed legal/payroll checks), complete it.
     if (allCompleted) {
-      await supabase
+      let updateQ = supabase
         .from("legacy_exit_cases")
         .update({ status: "completed" })
         .eq("id", caseId);
+        
+      if (MULTI_TENANT_ENABLED && orgId) {
+        updateQ = updateQ.eq("organization_id", orgId);
+      }
+      
+      await updateQ;
     }
 
     // Fetch updated case
