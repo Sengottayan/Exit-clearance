@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAdminDashboard } from "@/hooks/api/useAdminDashboard";
+import { useAuth } from "@/hooks/useAuth";
 import { Users, FileText, Settings, Activity, ShieldCheck, Database, ArrowRight, Clock, AlertTriangle, ChevronRight, MoreVertical, Eye, Search, Bell, Zap, CheckCircle2 } from "lucide-react";
 import { Link } from "@/lib/wouter";
 import { Button } from "@/components/ui/button";
@@ -11,15 +12,18 @@ import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, A
 
 export function AdminDashboard() {
   const { data: dashboardData, isLoading } = useAdminDashboard();
+  const { user } = useAuth();
   
   if (isLoading || !dashboardData) {
     return <div className="min-h-screen bg-[#0b0e14] text-white p-6 md:p-8 flex items-center justify-center">Loading dashboard data...</div>;
   }
 
-  const { kpis, pieData, trendData, activities: recentActivities } = dashboardData;
+  const { kpis, pieData, trendData, activities: recentActivities, recentCases = [] } = dashboardData;
   const activeCasesCount = kpis.activeCases;
   const totalCasesCount = kpis.totalCases;
-  const slaCompliance = 93; // Could be derived from SLA calculations in backend
+  const slaCompliance = kpis.slaCompliance ?? 100;
+  const avgCompletionTime = kpis.avgCompletionTime ?? 0;
+  const overdueCases = kpis.overdueCases ?? 0;
 
   // Sparklines can still be mock or we can skip them for now
   const sparklineData1 = [{ v: 10 }, { v: 15 }, { v: 13 }, { v: 20 }, { v: 25 }, { v: 22 }, { v: 28 }];
@@ -34,15 +38,6 @@ export function AdminDashboard() {
     ...d,
     percent: totalPie > 0 ? ((d.value / totalPie) * 100).toFixed(1) + '%' : '0%'
   }));
-
-
-  const recentCases = [
-    { id: 'CASE-2026-1013', name: 'Meera Krishnan', dept: 'Testing', avatar: 'MK', avatarColor: 'bg-purple-600', lwd: '20 Mar 2026', progress: 100, sla: 'On Track', slaColor: 'text-emerald-500 bg-emerald-500/10', status: 'Completed', statusColor: 'text-emerald-500' },
-    { id: 'CASE-2026-1011', name: 'Amit Patel', dept: 'Engineering', avatar: 'AP', avatarColor: 'bg-blue-600', lwd: '24 Mar 2026', progress: 75, sla: 'On Track', slaColor: 'text-emerald-500 bg-emerald-500/10', status: 'In Clearance', statusColor: 'text-blue-500' },
-    { id: 'CASE-2026-5864', name: 'Sengo S', dept: 'Product', avatar: 'SS', avatarColor: 'bg-pink-600', lwd: '10 Jun 2026', progress: 40, sla: 'Due in 5d', slaColor: 'text-amber-500 bg-amber-500/10', status: 'Pending Manager', statusColor: 'text-amber-500' },
-    { id: 'CASE-2026-1015', name: 'Rohan Das', dept: 'Finance', avatar: 'RD', avatarColor: 'bg-indigo-600', lwd: '18 Jun 2026', progress: 30, sla: 'Overdue by 18d', slaColor: 'text-red-500 bg-red-500/10', status: 'SLA Overdue', statusColor: 'text-red-500' },
-    { id: 'CASE-2026-1014', name: 'Vikram Singh', dept: 'IT', avatar: 'VS', avatarColor: 'bg-blue-500', lwd: '28 Jun 2026', progress: 60, sla: 'Overdue by 10d', slaColor: 'text-red-500 bg-red-500/10', status: 'SLA Overdue', statusColor: 'text-red-500' },
-  ];
 
   const StatCard = ({ title, value, change, isPositive, icon: Icon, sparklineData, color, chartColor }: { title: string; value: string | number; change: string; isPositive: boolean; icon: any; sparklineData: any[]; color: string; chartColor: string }) => (
     <div className="bg-[#11141c] border border-white/5 rounded-xl p-5 flex flex-col relative overflow-hidden group hover:border-white/10 transition-colors">
@@ -77,7 +72,7 @@ export function AdminDashboard() {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Welcome back, Sengottayan <span className="inline-block animate-wave">👋</span></h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Welcome back, {user?.name || "Admin"} <span className="inline-block animate-wave">👋</span></h1>
           <p className="text-[#8a94a6] text-sm font-medium">Here's what's happening across your offboarding platform today.</p>
         </div>
         <Button className="bg-[#5e6ad2] hover:bg-[#4f5abf] text-white shadow-lg shadow-indigo-500/20 font-semibold h-10 px-5 rounded-lg border-0 transition-all hover:scale-105">
@@ -101,11 +96,11 @@ export function AdminDashboard() {
           icon={ShieldCheck} color="text-emerald-400" chartColor="#10b981" sparklineData={sparklineData3} 
         />
         <StatCard 
-          title="AVG COMPLETION TIME" value="14 DAYS" change="1.2 days" isPositive={false} 
+          title="AVG COMPLETION TIME" value={`${avgCompletionTime} DAYS`} change="1.2 days" isPositive={false} 
           icon={Clock} color="text-amber-400" chartColor="#f59e0b" sparklineData={sparklineData4} 
         />
         <StatCard 
-          title="OVERDUE CASES" value="3" change="25%" isPositive={false} 
+          title="OVERDUE CASES" value={overdueCases} change="25%" isPositive={false} 
           icon={AlertTriangle} color="text-red-400" chartColor="#ef4444" sparklineData={sparklineData5} 
         />
       </div>
@@ -259,56 +254,68 @@ export function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {recentCases.map((c) => (
-                  <tr key={c.id} className="hover:bg-white/[0.02] transition-colors group">
-                    <td className="py-3 text-xs text-[#cbd5e1] font-mono">{c.id}</td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar className={`w-6 h-6 text-[10px] ${c.avatarColor} text-white border-0`}>
-                          <AvatarFallback className="bg-transparent">{c.avatar}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-xs font-medium text-white">{c.name}</p>
-                          <p className="text-[10px] text-[#8a94a6]">{c.dept}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 text-xs text-[#cbd5e1]">{c.dept}</td>
-                    <td className="py-3 text-xs text-[#cbd5e1]">{c.lwd}</td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-2 max-w-[120px]">
-                        <Progress value={c.progress} className="h-1.5 bg-white/10 [&>div]:bg-indigo-500" />
-                        <span className="text-[10px] text-[#8a94a6] font-mono w-8">{c.progress}%</span>
-                      </div>
-                    </td>
-                    <td className="py-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium border border-transparent ${c.slaColor}`}>
-                        {c.sla}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <span className={`text-xs font-medium ${c.statusColor}`}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="w-6 h-6 text-[#8a94a6] hover:text-white hover:bg-white/10 rounded">
-                          <Eye className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="w-6 h-6 text-[#8a94a6] hover:text-white hover:bg-white/10 rounded">
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+                {recentCases.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-xs text-[#8a94a6]">
+                      No recent cases found. Initiate a new exit case to get started.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentCases.map((c: any) => (
+                    <tr key={c.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="py-3 text-xs text-[#cbd5e1] font-mono">{c.id}</td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar className={`w-6 h-6 text-[10px] ${c.avatarColor} text-white border-0`}>
+                            <AvatarFallback className="bg-transparent">{c.avatar}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-xs font-medium text-white">{c.name}</p>
+                            <p className="text-[10px] text-[#8a94a6]">{c.dept}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 text-xs text-[#cbd5e1]">{c.dept}</td>
+                      <td className="py-3 text-xs text-[#cbd5e1]">{c.lwd}</td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-2 max-w-[120px]">
+                          <Progress value={c.progress} className="h-1.5 bg-white/10 [&>div]:bg-indigo-500" />
+                          <span className="text-[10px] text-[#8a94a6] font-mono w-8">{c.progress}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium border border-transparent ${c.slaColor}`}>
+                          {c.sla}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <span className={`text-xs font-medium ${c.statusColor}`}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="w-6 h-6 text-[#8a94a6] hover:text-white hover:bg-white/10 rounded">
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="w-6 h-6 text-[#8a94a6] hover:text-white hover:bg-white/10 rounded">
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
           
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
-            <p className="text-xs text-[#8a94a6]">Showing 1 to 5 of 28 cases</p>
+            <p className="text-xs text-[#8a94a6]">
+              {recentCases.length === 0
+                ? "Showing 0 cases"
+                : `Showing 1 to ${recentCases.length} of ${totalCasesCount} cases`}
+            </p>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="icon" className="w-6 h-6 bg-transparent border-white/10 text-[#8a94a6] hover:text-white hover:bg-white/5"><ChevronRight className="w-3 h-3 rotate-180" /></Button>
               <Button variant="outline" size="sm" className="w-6 h-6 p-0 bg-indigo-600 border-indigo-600 text-white text-xs hover:bg-indigo-700 hover:text-white">1</Button>

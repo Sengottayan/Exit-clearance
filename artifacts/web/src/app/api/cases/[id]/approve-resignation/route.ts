@@ -118,6 +118,7 @@ export async function POST(
       .insert({
         id: eventId,
         case_id: caseId,
+        organization_id: dbOrgId,
         label: "Manager approved resignation",
         actor: actor,
         actor_role: "manager",

@@ -8,18 +8,18 @@ const clerkConfigured =
 
 import { cookies } from "next/headers";
 
-export async function getOptionalAuth(): Promise<{ userId: string | null; orgId: string | null }> {
+export async function getOptionalAuth(): Promise<{ userId: string | null; orgId: string | null; orgRole: string | null }> {
   if (!clerkConfigured) {
     const cookieStore = await cookies();
     const demoUserId = cookieStore.get("demo-user-id")?.value;
-    return { userId: demoUserId || "dev-user", orgId: "dev-org" };
+    return { userId: demoUserId || "dev-user", orgId: "dev-org", orgRole: null };
   }
 
   try {
-    const { userId, orgId } = await clerkAuth();
-    return { userId: userId ?? null, orgId: orgId ?? null };
+    const { userId, orgId, orgRole } = await clerkAuth();
+    return { userId: userId ?? null, orgId: orgId ?? null, orgRole: orgRole ?? null };
   } catch {
-    return { userId: null, orgId: null };
+    return { userId: null, orgId: null, orgRole: null };
   }
 }
 

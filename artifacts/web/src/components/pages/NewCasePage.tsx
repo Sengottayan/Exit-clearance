@@ -273,7 +273,7 @@ export default function NewCasePage() {
   const [assets] = useState(DEFAULT_ASSETS);
 
   const { data: dbUsersResp, isLoading: isLoadingUsers } = useUsers({ role: "employee", status: "active", search, limit: 20 });
-  const dbUsers = dbUsersResp?.data || [];
+  const dbUsers = Array.isArray(dbUsersResp) ? dbUsersResp : (dbUsersResp?.data || []);
   const isDemoUsers = !isLoadingUsers && dbUsers.length === 0;
 
   const searchResults = isDemoUsers
@@ -310,7 +310,7 @@ export default function NewCasePage() {
     }
     createCase({
       userId: selectedUser.id,
-      employeeId: selectedUser.employeeId,
+      employeeId: selectedUser.employee_id || selectedUser.employeeId,
       employeeName: selectedUser.name,
       employeeEmail: selectedUser.email,
       employeeRole: selectedUser.role,
@@ -435,7 +435,7 @@ export default function NewCasePage() {
                         <p className="text-[11px] text-muted-foreground">{u.role || "Software Engineer"}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs font-bold text-foreground">{u.employeeId}</p>
+                        <p className="text-xs font-bold text-foreground">{u.employee_id || u.employeeId}</p>
                         <p className="text-[10px] text-muted-foreground">Employee ID</p>
                       </div>
                       <div className="w-24 text-center">
@@ -586,7 +586,7 @@ export default function NewCasePage() {
                     </div>
                   </div>
                   {[
-                    { icon: User,     label: "Employee ID",       value: selectedUser?.employeeId || "EMP-1056" },
+                    { icon: User,     label: "Employee ID",       value: selectedUser?.employee_id || selectedUser?.employeeId || "EMP-1056" },
                     { icon: Building2,label: "Department",        value: selectedUser?.dept || "Product" },
                     { icon: MapPin,   label: "Location",          value: "Bengaluru, India" },
                     { icon: Calendar, label: "Date of Joining",   value: "15 Jan 2023" },
@@ -788,7 +788,7 @@ export default function NewCasePage() {
                       <span className="text-xs font-extrabold text-foreground">Employee</span>
                     </div>
                     <p className="text-sm font-extrabold text-foreground">{selectedUser?.name || "Sengottayan S"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{selectedUser?.employeeId || "EMP-1056"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{selectedUser?.employee_id || selectedUser?.employeeId || "EMP-1056"}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">{selectedUser?.role || "Product Manager"}</p>
                   </div>
                   {/* Exit Details card */}

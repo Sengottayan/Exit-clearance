@@ -24,7 +24,7 @@ import { Role } from "@/lib/types";
  * Body: { email, name, role?, dept?, employeeId? }
  */
 export async function POST(request: NextRequest) {
-  const { userId } = await getOptionalAuth();
+  const { userId, orgRole: serverOrgRole } = await getOptionalAuth();
   if (!userId) return unauthorized();
 
   const supabase = createServerSupabase();
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const {
     email = "",
     name = "",
-    role = "employee",
+    role: clientRole = "employee",
     dept = "",
     phone = "",
     employeeId = "",
@@ -47,6 +47,32 @@ export async function POST(request: NextRequest) {
     phone?: string;
     employeeId?: string;
   };
+
+  /**
+   * Determine the authoritative role:
+   *  1. Prefer the server-side Clerk orgRole (can't be spoofed by the client)
+   *  2. Fall back to the client-sent role only if Clerk provides nothing
+   *     (e.g. dev mode / no active org session).
+   *
+   * Normalisation mirrors the client-side mapClerkRole function:
+   *   "org:Hr" → strip prefix → lowercase → lookup → "hr"
+   */
+  function resolveRole(serverRole: string | null, fallback: string): Role {
+    if (serverRole) {
+      const normalised = serverRole
+        .replace(/^org:/i, "")
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+      const map: Record<string, Role> = {
+        admin: "admin", hr: "hr", manager: "manager",
+        dept_approver: "dept_approver", employee: "employee",
+      };
+      return map[normalised] ?? "employee";
+    }
+    return (fallback as Role) ?? "employee";
+  }
+
+  const role = resolveRole(serverOrgRole, clientRole);
 
   if (action === "update_profile") {
     // Find a manager in the new dept for auto-assignment

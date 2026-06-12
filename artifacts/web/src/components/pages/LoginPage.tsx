@@ -87,21 +87,29 @@ function LeftPanel() {
   );
 }
 
+/**
+ * Normalize a Clerk orgRole string (e.g. "org:Hr", "Dept Approver", "hr") to an
+ * application Role. The lookup is fully case-insensitive and handles the "org:"
+ * prefix as well as space/hyphen variations (e.g. "Dept Approver" → "dept_approver").
+ */
 function mapClerkRole(clerkRole: string | null): Role {
   if (!clerkRole) return "employee";
+
+  // Strip "org:" prefix, lowercase everything, normalise spaces/hyphens → underscores
+  const normalised = clerkRole
+    .replace(/^org:/i, "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
   const roleMap: Record<string, Role> = {
-    "org:admin": "admin",
-    "org:hr": "hr",
-    "org:manager": "manager",
-    "org:dept_approver": "dept_approver",
-    "org:employee": "employee",
     admin: "admin",
     hr: "hr",
     manager: "manager",
     dept_approver: "dept_approver",
     employee: "employee",
   };
-  return roleMap[clerkRole] || "employee";
+
+  return roleMap[normalised] ?? "employee";
 }
 
 
@@ -111,6 +119,10 @@ function ClerkAuthPanel() {
   const { user: clerkUser } = useUser();
   const setClerkUser = useAuthStore((state) => state.setClerkUser);
   const existingUser = useAuthStore((state) => state.user);
+  // Track whether we've verified + applied the fresh Clerk role this session.
+  // Without this flag the stale localStorage role causes an immediate redirect
+  // before the useEffect below can correct it.
+  const [roleVerified, setRoleVerified] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !clerkUser) return;
@@ -119,16 +131,25 @@ function ClerkAuthPanel() {
     const name = clerkUser.fullName || clerkUser.firstName || "";
     const email = clerkUser.emailAddresses?.[0]?.emailAddress || "";
 
+    // Always refresh if the user id changed OR the role has drifted (e.g. org switch)
     if (!existingUser || existingUser.id !== clerkUser.id || existingUser.role !== role) {
       setClerkUser(clerkUser.id, role, name, email);
     }
+    // Mark role as verified so the redirect below is safe to fire
+    setRoleVerified(true);
   }, [isLoaded, isSignedIn, orgRole, clerkUser, existingUser, setClerkUser]);
 
   if (!isLoaded) {
     return <GlobalLoading />;
   }
 
-  if (isSignedIn && existingUser) {
+  // Wait until the role is confirmed from the live Clerk session before
+  // redirecting — prevents a flash where the stale localStorage role is used.
+  if (isSignedIn && !roleVerified) {
+    return <GlobalLoading />;
+  }
+
+  if (isSignedIn && existingUser && roleVerified) {
     return <Redirect to="/dashboard" />;
   }
 

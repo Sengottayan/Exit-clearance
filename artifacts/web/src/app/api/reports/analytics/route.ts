@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 import { subDays, differenceInHours, format, parseISO } from "date-fns";
-import {
-  generateSyntheticAnalytics,
-  type DateRange,
-  type SlaSegment,
-  type ReasonSegment,
-  type DepartmentPoint,
-  type TrendPoint,
-  type Insight,
+import type {
+  DateRange,
+  SlaSegment,
+  ReasonSegment,
+  DepartmentPoint,
+  TrendPoint,
+  Insight,
 } from "@/lib/analytics/synthetic-analytics";
 
 // Cache for 60s – analytics don't need to be real-time
@@ -63,7 +62,6 @@ export async function GET(req: NextRequest) {
   const department   = searchParams.get("department") ?? "all";
   const exitReason   = searchParams.get("exitReason") ?? "all";
 
-  const dateRange = asDateRange(dateRangeRaw);
   const days = dateRangeToDays(dateRangeRaw);
 
   // ── 1. Fetch exit cases (legacy compatibility view) ───────────────────────
@@ -100,40 +98,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // ── 2. If no data → synthetic mode ───────────────────────────────────────
+  // ── 2. If no data → empty state (no synthetic fallback) ──────────────────
   if (!cases || cases.length === 0) {
-    // Fetch department list to give synthetic engine org-aware distribution
-    const { data: depts } = await supabase
-      .from("legacy_exit_cases")
-      .select("employee_dept")
-      .not("employee_dept", "is", null);
-
-    const orgDepts = depts
-      ? [...new Set(depts.map((d: any) => d.employee_dept).filter(Boolean))]
-      : undefined;
-
-    const syntheticSeed = orgId ?? userId;
-    const synthetic = generateSyntheticAnalytics(
-      syntheticSeed,
-      dateRange,
-      /* orgSize */ 200,
-    );
-
-    // Override department list if we have real dept names from DB
-    if (orgDepts && orgDepts.length > 0) {
-      const total = synthetic.overview.totalExits;
-      const rng = (min: number, max: number) =>
-        min + Math.floor(Math.random() * (max - min + 1));
-      let remaining = total;
-      synthetic.departments = orgDepts.map((dept: string, i: number) => {
-        const isLast = i === orgDepts.length - 1;
-        const exits = isLast ? Math.max(1, remaining) : rng(1, Math.ceil(remaining / (orgDepts.length - i)));
-        remaining -= exits;
-        return { dept, exits };
-      }).sort((a: DepartmentPoint, b: DepartmentPoint) => b.exits - a.exits);
-    }
-
-    return NextResponse.json(synthetic);
+    return NextResponse.json({
+      source: "database",
+      overview: {
+        totalExits: 0,
+        completedExits: 0,
+        inClearance: 0,
+        overdueCases: 0,
+        avgSlaTimeDays: 0,
+        completionRate: 0,
+        totalExitsDelta: 0,
+        overdueDelta: 0,
+        avgSlaDelta: 0,
+      },
+      exitTrend: [],
+      sla: [
+        { name: "Compliant", value: 0, pct: "0.0%", color: "#10b981" },
+        { name: "At Risk",   value: 0, pct: "0.0%", color: "#f59e0b" },
+        { name: "Breached",  value: 0, pct: "0.0%", color: "#ef4444" },
+      ],
+      reasons: [],
+      departments: [],
+      insights: [],
+    });
   }
 
   // ── 3. Real database analytics ────────────────────────────────────────────

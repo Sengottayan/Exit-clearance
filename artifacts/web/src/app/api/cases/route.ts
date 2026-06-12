@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
+import { resolveDbOrgId } from "@/lib/organization";
 
 const MULTI_TENANT_ENABLED = true; // Enabled full database multi-tenancy
 
@@ -30,16 +31,15 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get("sort") || "created_at";
   const order = searchParams.get("order") || "desc";
 
+  // Resolve the database organization UUID
+  const dbOrgId = await resolveDbOrgId(supabase, orgId);
+
   // During migration phase, we use the legacy backward-compatibility view
   let query = supabase
     .from("legacy_exit_cases")
     .select("*, clearance_tasks:legacy_clearance_tasks(*), timeline_events(*), exit_interviews:legacy_exit_interviews(*)", { count: "exact" })
+    .eq("organization_id", dbOrgId)
     .order(sort, { ascending: order === "asc" });
-
-  if (MULTI_TENANT_ENABLED && orgId) {
-    // In the future when querying org_exit_cases, we would add:
-    // query = query.eq("organization_id", orgId);
-  }
 
   // Apply filters
   if (status && status !== "all") {
@@ -149,8 +149,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Employee is not active" }, { status: 400 });
   }
 
-  if (MULTI_TENANT_ENABLED && employee.organization_id !== orgId) {
-    return NextResponse.json({ error: "Employee does not belong to this organization" }, { status: 403 });
+  // Resolve the database organization UUID
+  const dbOrgId = await resolveDbOrgId(supabase, orgId);
+
+  if (MULTI_TENANT_ENABLED) {
+    const { data: membership } = await supabase
+      .from("organization_members")
+      .select("id")
+      .eq("user_id", targetEmployeeId)
+      .eq("organization_id", dbOrgId)
+      .is("deleted_at", null)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Employee does not belong to this organization" }, { status: 403 });
+    }
   }
 
   // 2. Duplicate Prevention
@@ -208,6 +221,7 @@ export async function POST(request: NextRequest) {
     .from("legacy_exit_cases")
     .insert({
       id: caseId,
+      organization_id: dbOrgId,
       employee_id: targetEmployeeId,
       employee_name: employee.name,
       employee_email: employee.email,
@@ -256,6 +270,7 @@ export async function POST(request: NextRequest) {
       return {
         id: `t-${d.id}-${caseId}-${index}`,
         case_id: caseId,
+        organization_id: dbOrgId,
         dept_id: d.id,
         dept_label: d.label,
         assignee_id: d.default_assignee || managerId,
@@ -272,6 +287,7 @@ export async function POST(request: NextRequest) {
 
     await supabase.from("timeline_events").insert({
       case_id: caseId,
+      organization_id: dbOrgId,
       actor: employee.name || "Employee",
       actor_role: "employee",
       label: "Resignation Submitted",

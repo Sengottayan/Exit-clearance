@@ -34,65 +34,17 @@ import { useHRDashboard } from "@/lib/api/use-hr-dashboard";
 import { format } from "date-fns";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
-// ── Needs Attention Dropdown ──────────────────────────────────────────────────
-
-const ATTENTION_ITEMS = [
-  {
-    id: 1,
-    icon: AlertCircle,
-    iconColor: "text-red-400",
-    iconBg: "bg-red-500/20",
-    title: "SLA Breach",
-    desc: "3 cases exceed SLA due dates",
-    action: "View",
-    actionVariant: "red",
-    href: "/cases",
-  },
-  {
-    id: 2,
-    icon: Clock,
-    iconColor: "text-amber-400",
-    iconBg: "bg-amber-500/20",
-    title: "Pending Approvals",
-    desc: "2 manager approvals pending",
-    action: "Review",
-    actionVariant: "amber",
-    href: "/cases",
-  },
-  {
-    id: 3,
-    icon: FileText,
-    iconColor: "text-blue-400",
-    iconBg: "bg-blue-500/20",
-    title: "Document Expiry",
-    desc: "4 documents expiring soon",
-    action: "Manage",
-    actionVariant: "blue",
-    href: "/cases",
-  },
-  {
-    id: 4,
-    icon: Package,
-    iconColor: "text-orange-400",
-    iconBg: "bg-orange-500/20",
-    title: "Asset Not Returned",
-    desc: "2 assets not returned",
-    action: "Follow Up",
-    actionVariant: "orange",
-    href: "/cases",
-  },
-  {
-    id: 5,
-    icon: Shield,
-    iconColor: "text-purple-400",
-    iconBg: "bg-purple-500/20",
-    title: "Compliance Gap",
-    desc: "1 case missing compliance docs",
-    action: "Resolve",
-    actionVariant: "purple",
-    href: "/cases",
-  },
-];
+interface AttentionItemProps {
+  id: number;
+  icon: any;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  desc: string;
+  action: string;
+  actionVariant: string;
+  href: string;
+}
 
 const actionVariantStyles: Record<string, string> = {
   red: "border-red-500/40 text-red-400 hover:bg-red-500/10",
@@ -102,7 +54,7 @@ const actionVariantStyles: Record<string, string> = {
   purple: "border-purple-500/40 text-purple-400 hover:bg-purple-500/10",
 };
 
-function NeedsAttentionDropdown({ count }: { count: number }) {
+function NeedsAttentionDropdown({ items }: { items?: { title: string; value: number; description: string }[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
@@ -116,6 +68,56 @@ function NeedsAttentionDropdown({ count }: { count: number }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const mappedItems: AttentionItemProps[] = (items ?? []).map((item, idx) => {
+    let icon = AlertCircle;
+    let iconColor = "text-red-400";
+    let iconBg = "bg-red-500/20";
+    let action = "View";
+    let actionVariant = "red";
+    let href = "/cases";
+
+    const titleLower = item.title.toLowerCase();
+    if (titleLower.includes("approval") || titleLower.includes("manager")) {
+      icon = Clock;
+      iconColor = "text-amber-400";
+      iconBg = "bg-amber-500/20";
+      action = "Review";
+      actionVariant = "amber";
+    } else if (titleLower.includes("asset") || titleLower.includes("unreturned")) {
+      icon = Package;
+      iconColor = "text-orange-400";
+      iconBg = "bg-orange-500/20";
+      action = "Follow Up";
+      actionVariant = "orange";
+    } else if (titleLower.includes("document") || titleLower.includes("missing")) {
+      icon = FileText;
+      iconColor = "text-blue-400";
+      iconBg = "bg-blue-500/20";
+      action = "Manage";
+      actionVariant = "blue";
+    } else if (titleLower.includes("compliance") || titleLower.includes("issue")) {
+      icon = Shield;
+      iconColor = "text-purple-400";
+      iconBg = "bg-purple-500/20";
+      action = "Resolve";
+      actionVariant = "purple";
+    }
+
+    return {
+      id: idx + 1,
+      icon,
+      iconColor,
+      iconBg,
+      title: item.title,
+      desc: item.description,
+      action,
+      actionVariant,
+      href
+    };
+  });
+
+  const totalCount = items?.length ?? 0;
 
   return (
     <div ref={ref} className="relative">
@@ -132,7 +134,7 @@ function NeedsAttentionDropdown({ count }: { count: number }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold text-red-400 bg-red-500/20 border border-red-500/30 rounded-full px-2 py-0.5">
-            {count}
+            {totalCount}
           </span>
           {open ? (
             <ChevronUp className="w-3.5 h-3.5 text-red-400" />
@@ -145,37 +147,43 @@ function NeedsAttentionDropdown({ count }: { count: number }) {
       {/* Dropdown panel */}
       {open && (
         <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-red-900/50 bg-[#120808] overflow-hidden shadow-2xl shadow-black/80 animate-enter z-50">
-          <div className="divide-y divide-red-900/30">
-            {ATTENTION_ITEMS.slice(0, 5).map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-500/5 transition-colors"
-                >
+          {mappedItems.length > 0 ? (
+            <div className="divide-y divide-red-900/30">
+              {mappedItems.slice(0, 5).map((item) => {
+                const Icon = item.icon;
+                return (
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${item.iconBg}`}
+                    key={item.id}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-red-500/5 transition-colors"
                   >
-                    <Icon className={`w-3.5 h-3.5 ${item.iconColor}`} />
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${item.iconBg}`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${item.iconColor}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white leading-none mb-0.5">
+                        {item.title}
+                      </p>
+                      <p className="text-[10px] text-red-300/70 font-medium truncate">
+                        {item.desc}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setLocation(item.href)}
+                      className={`text-[10px] font-bold border rounded-md px-2 py-1 shrink-0 transition-colors ${actionVariantStyles[item.actionVariant]}`}
+                    >
+                      {item.action}
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white leading-none mb-0.5">
-                      {item.title}
-                    </p>
-                    <p className="text-[10px] text-red-300/70 font-medium truncate">
-                      {item.desc}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setLocation(item.href)}
-                    className={`text-[10px] font-bold border rounded-md px-2 py-1 shrink-0 transition-colors ${actionVariantStyles[item.actionVariant]}`}
-                  >
-                    {item.action}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-center text-xs text-red-300/50 font-medium bg-[#120808]">
+              🎉 All caught up! No critical items.
+            </div>
+          )}
           <div className="px-4 py-2.5 border-t border-red-900/30 bg-[#0e0606]">
             <button
               onClick={() => setLocation("/cases")}
@@ -193,16 +201,29 @@ function NeedsAttentionDropdown({ count }: { count: number }) {
 
 // ── SLA Donut Chart ───────────────────────────────────────────────────────────
 
-const SLA_DATA = [
-  { name: "Within SLA", value: 45, color: "#22c55e" },
-  { name: "At Risk", value: 2, color: "#f59e0b" },
-  { name: "Breached", value: 3, color: "#ef4444" },
-];
+interface SLADonutChartProps {
+  data?: { name: string; value: number }[];
+}
 
-function SLADonutChart() {
-  const total = SLA_DATA.reduce((s, d) => s + d.value, 0);
-  const compliant = SLA_DATA[0].value;
-  const pct = Math.round((compliant / total) * 100);
+function SLADonutChart({ data }: SLADonutChartProps) {
+  const chartData = data && data.length > 0 ? data.map(item => {
+    let color = "#22c55e"; // Within SLA / Compliant
+    if (item.name.toLowerCase().includes("risk")) color = "#f59e0b";
+    if (item.name.toLowerCase().includes("breached")) color = "#ef4444";
+    return {
+      name: item.name,
+      value: item.value,
+      color
+    };
+  }) : [
+    { name: "Within SLA", value: 0, color: "#22c55e" },
+    { name: "At Risk", value: 0, color: "#f59e0b" },
+    { name: "Breached", value: 0, color: "#ef4444" },
+  ];
+
+  const total = chartData.reduce((s, d) => s + d.value, 0);
+  const compliant = chartData.find(d => d.name.toLowerCase().includes("compliant") || d.name.toLowerCase().includes("within"))?.value ?? 0;
+  const pct = total > 0 ? Math.round((compliant / total) * 100) : 100;
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -210,7 +231,7 @@ function SLADonutChart() {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={SLA_DATA}
+              data={chartData}
               cx="50%"
               cy="50%"
               innerRadius={48}
@@ -220,7 +241,7 @@ function SLADonutChart() {
               startAngle={90}
               endAngle={-270}
             >
-              {SLA_DATA.map((entry, index) => (
+              {chartData.map((entry, index) => (
                 <Cell key={index} fill={entry.color} />
               ))}
             </Pie>
@@ -248,7 +269,7 @@ function SLADonutChart() {
       </div>
       {/* Legend */}
       <div className="space-y-1.5 w-full">
-        {SLA_DATA.map((d) => (
+        {chartData.map((d) => (
           <div key={d.name} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
@@ -274,65 +295,6 @@ function SLADonutChart() {
 }
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
-
-const RECENT_ACTIVITY = [
-  {
-    id: 1,
-    time: "10:30 AM",
-    name: "Meera Krishnan",
-    action: "Resignation submitted",
-    caseId: "CASE-2026-1012",
-    color: "bg-blue-500",
-    icon: FileText,
-    dot: "bg-blue-500",
-    dotBorder: "border-blue-500",
-  },
-  {
-    id: 2,
-    time: "09:45 AM",
-    name: "Arjun Nair",
-    action: "Manager approval pending",
-    caseId: "CASE-2026-1013",
-    color: "bg-amber-500",
-    icon: Clock,
-    dot: "bg-amber-500",
-    dotBorder: "border-amber-500",
-  },
-  {
-    id: 3,
-    time: "09:20 AM",
-    name: "Divya Reddy",
-    action: "IT clearance completed",
-    caseId: "CASE-2026-1008",
-    color: "bg-emerald-500",
-    icon: CheckCircle2,
-    dot: "bg-emerald-500",
-    dotBorder: "border-emerald-500",
-  },
-  {
-    id: 4,
-    time: "Yesterday, 04:30 PM",
-    name: "Rahul Mehta",
-    action: "Documents uploaded",
-    caseId: "CASE-2026-1004",
-    color: "bg-blue-500",
-    icon: FileText,
-    dot: "bg-blue-500",
-    dotBorder: "border-blue-500",
-  },
-  {
-    id: 5,
-    time: "Yesterday, 03:15 PM",
-    name: "System",
-    action: "SLA breached for 2 cases",
-    caseId: "View details",
-    color: "bg-red-500",
-    icon: AlertTriangle,
-    dot: "bg-red-500",
-    dotBorder: "border-red-500",
-    isSystem: true,
-  },
-];
 
 export function HRDashboard() {
   const { data, loading: apiLoading, error } = useHRDashboard();
@@ -639,7 +601,7 @@ export function HRDashboard() {
 
           {/* Needs Attention Dropdown (spans 2 cols) */}
           <div className="lg:col-span-2">
-            <NeedsAttentionDropdown count={5} />
+            <NeedsAttentionDropdown items={data?.attentionItems} />
           </div>
         </div>
 
@@ -681,7 +643,7 @@ export function HRDashboard() {
               <Activity className="w-4 h-4 text-muted-foreground/60" />
             </CardHeader>
             <CardContent className="pt-5 px-5 pb-5 flex items-center justify-center">
-              <SLADonutChart />
+              <SLADonutChart data={data?.slaAggregate} />
             </CardContent>
           </Card>
         </div>
@@ -703,34 +665,31 @@ export function HRDashboard() {
             </button>
           </div>
           <div className="relative pl-4 border-l border-border/40 space-y-5">
-            {((data?.timelineEvents && data.timelineEvents.length > 0)
-              ? data.timelineEvents.map((t) => ({
-                  id: t.id,
-                  time: format(new Date(t.timestamp), "MMM d, h:mm a"),
-                  name: t.actor || "System",
-                  action: t.label,
-                  caseId: t.employee_name || t.case_id,
-                  dot: t.type === "approval" ? "bg-amber-500" : t.type === "task_completed" ? "bg-emerald-500" : "bg-blue-500",
-                }))
-              : RECENT_ACTIVITY
-            ).map((event) => {
-              const Icon = "icon" in event ? event.icon : Activity;
-              return (
-                <div key={event.id} className="relative group">
-                  <span
-                    className={`absolute -left-[20px] top-1 w-3 h-3 rounded-full border-2 border-background ${event.dot} flex items-center justify-center shadow-sm`}
-                  />
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground font-medium">{event.time}</p>
-                    <p className="text-[11px] font-bold text-foreground">{event.name}</p>
-                    <p className="text-[10px] text-muted-foreground/80 font-medium leading-snug">
-                      {event.action}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/50 font-mono">{event.caseId}</p>
+            {data?.timelineEvents && data.timelineEvents.length > 0 ? (
+              data.timelineEvents.map((t) => {
+                const dot = t.type === "approval" ? "bg-amber-500" : t.type === "task_completed" ? "bg-emerald-500" : "bg-blue-500";
+                const timeStr = format(new Date(t.timestamp), "MMM d, h:mm a");
+                return (
+                  <div key={t.id} className="relative group">
+                    <span
+                      className={`absolute -left-[20px] top-1 w-3 h-3 rounded-full border-2 border-background ${dot} flex items-center justify-center shadow-sm`}
+                    />
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground font-medium">{timeStr}</p>
+                      <p className="text-[11px] font-bold text-foreground">{t.actor || "System"}</p>
+                      <p className="text-[10px] text-muted-foreground/80 font-medium leading-snug">
+                        {t.label}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/50 font-mono">{t.employee_name || t.case_id}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="text-center py-6 text-xs text-muted-foreground/50 font-medium">
+                No recent activity
+              </div>
+            )}
           </div>
         </div>
 

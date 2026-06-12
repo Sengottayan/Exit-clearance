@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   Download, Calendar, TrendingUp, CheckCircle2, Activity,
   AlertTriangle, Clock, Filter, Users, BarChart2, PieChart,
-  ExternalLink, ChevronDown, Sparkles,
+  ExternalLink, ChevronDown,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPie, Pie, Cell,
@@ -112,7 +112,8 @@ export default function ReportsPage() {
   const reasons     = data?.reasons     ?? [];
   const departments = data?.departments ?? [];
   const insights    = data?.insights    ?? [];
-  const isSynthetic = data?.source === "synthetic";
+  const isSynthetic = false; // synthetic fallback removed; API always returns real DB data
+  const isEmpty = !isLoading && !isError && (overview?.totalExits ?? 0) === 0;
 
   // Group exit trend data
   const groupedExitTrend = useMemo(() => {
@@ -255,16 +256,16 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Synthetic Data Banner */}
-        {isSynthetic && !isLoading && (
-          <div className="flex items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 px-4 py-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
+        {/* Empty State Banner */}
+        {isEmpty && (
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-500/30 bg-slate-500/5 px-4 py-3">
+            <div className="w-8 h-8 rounded-xl bg-slate-500/15 flex items-center justify-center shrink-0">
+              <BarChart2 className="w-4 h-4 text-slate-400" />
             </div>
             <div>
-              <p className="text-xs font-bold text-indigo-300">Sample Analytics</p>
-              <p className="text-[10px] text-indigo-400/70 mt-0.5">
-                These reports are generated from simulated organizational activity. Create your first exit case to see live data.
+              <p className="text-xs font-bold text-slate-300">No Exit Cases Yet</p>
+              <p className="text-[10px] text-slate-400/70 mt-0.5">
+                Create your first exit case to see live analytics and reports here.
               </p>
             </div>
           </div>

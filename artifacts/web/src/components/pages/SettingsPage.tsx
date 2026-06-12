@@ -1,30 +1,105 @@
+"use client";
+
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect, Link } from "@/lib/wouter";
 import { Building2, Users, ArrowRightLeft, ListChecks, Activity, CheckCircle2, AlertCircle, Search, ShieldCheck, ChevronRight, Settings, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDepartments, useWorkflowTemplates } from "@/hooks/api/useSettings";
+import { useUsers } from "@/hooks/api/useUsers";
+import { useAuditLogs } from "@/hooks/api/useAuditLogs";
+import { format } from "date-fns";
 
 export default function SettingsPage() {
   const { isAdmin } = useAuth();
 
   if (!isAdmin) return <Redirect to="/dashboard" />;
 
-  // Mock data for Quick Overview
+  const { data: departments = [], error: departmentsError } = useDepartments();
+  const { data: workflowData, error: workflowsError } = useWorkflowTemplates();
+  const { data: dbUsersResp, error: usersError } = useUsers();
+  
+  const workflows = workflowData?.workflows || [];
+  const users = Array.isArray(dbUsersResp) ? dbUsersResp : (dbUsersResp?.data || []);
+
+  const { data: auditData } = useAuditLogs({
+    page: 1,
+    limit: 5,
+    type: "all",
+    severity: "all",
+    search: "",
+    from: "",
+    to: "",
+  });
+
+  const auditItems = auditData?.items ?? [];
+
+  const totalDepts = departments?.length ?? 0;
+  const activeWorkflows = workflows?.length ?? 0;
+  const checklistTemplatesCount = departments?.filter((d: any) => d.checklist_templates && d.checklist_templates.length > 0).length ?? 0;
+  const totalUsersCount = users?.length ?? 0;
+
+  const systemStatus = (departmentsError || workflowsError || usersError) ? "Degraded" : "Healthy";
+  const systemStatusColor = systemStatus === "Healthy" ? "text-emerald-500" : "text-amber-500";
+  const systemStatusBg = systemStatus === "Healthy" ? "bg-emerald-500/10" : "bg-amber-500/10";
+
   const stats = [
-    { label: "Total Departments", value: "8", desc: "Active departments", icon: Building2, color: "text-indigo-400", bg: "bg-indigo-500/10" },
-    { label: "Active Workflows", value: "12", desc: "Configured workflows", icon: ArrowRightLeft, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Checklist Templates", value: "7", desc: "Department templates", icon: ListChecks, color: "text-orange-400", bg: "bg-orange-500/10" },
-    { label: "Total Users", value: "42", desc: "System users", icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "System Status", value: "Healthy", desc: "All systems operational", icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-500/10", valueColor: "text-emerald-500" },
+    { label: "Total Departments", value: String(totalDepts), desc: "Active departments", icon: Building2, color: "text-indigo-400", bg: "bg-indigo-500/10" },
+    { label: "Active Workflows", value: String(activeWorkflows), desc: "Configured workflows", icon: ArrowRightLeft, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    { label: "Checklist Templates", value: String(checklistTemplatesCount), desc: "Department templates", icon: ListChecks, color: "text-orange-400", bg: "bg-orange-500/10" },
+    { label: "Total Users", value: String(totalUsersCount), desc: "System users", icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
+    { label: "System Status", value: systemStatus, desc: "All systems operational", icon: ShieldCheck, color: systemStatusColor, bg: systemStatusBg, valueColor: systemStatusColor },
   ];
 
-  // Mock data for Recent Activity
-  const activities = [
-    { text: 'User "Arjun Nair" logged in', time: '08 Jun 2026, 11:45 PM', status: 'Success', statusColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle2, iconColor: 'text-emerald-500', iconBg: 'bg-emerald-500/20' },
-    { text: 'Workflow updated for "IT" department', time: '08 Jun 2026, 10:30 PM', status: 'Updated', statusColor: 'text-orange-400 bg-orange-500/10 border-orange-500/20', icon: ArrowRightLeft, iconColor: 'text-orange-500', iconBg: 'bg-orange-500/20' },
-    { text: 'Checklist template modified for "HR"', time: '08 Jun 2026, 09:15 PM', status: 'Modified', statusColor: 'text-purple-400 bg-purple-500/10 border-purple-500/20', icon: ListChecks, iconColor: 'text-purple-500', iconBg: 'bg-purple-500/20' },
-    { text: 'New user "Deepa Rajan" added', time: '08 Jun 2026, 08:40 PM', status: 'Added', statusColor: 'text-blue-400 bg-blue-500/10 border-blue-500/20', icon: Users, iconColor: 'text-blue-500', iconBg: 'bg-blue-500/20' },
-    { text: 'User "Vikram Singh" deactivated', time: '08 Jun 2026, 07:20 PM', status: 'Deactivated', statusColor: 'text-red-400 bg-red-500/10 border-red-500/20', icon: AlertCircle, iconColor: 'text-red-500', iconBg: 'bg-red-500/20' },
-  ];
+  const activities = auditItems.map((item) => {
+    let icon = Building2;
+    let iconColor = "text-emerald-500";
+    let iconBg = "bg-emerald-500/20";
+    let statusColor = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+
+    const typeLower = item.eventType.toLowerCase();
+    if (typeLower === "user") {
+      icon = Users;
+      iconColor = "text-blue-500";
+      iconBg = "bg-blue-500/20";
+    } else if (typeLower === "task") {
+      icon = ListChecks;
+      iconColor = "text-purple-500";
+      iconBg = "bg-purple-500/20";
+    } else if (typeLower === "case") {
+      icon = ArrowRightLeft;
+      iconColor = "text-orange-500";
+      iconBg = "bg-orange-500/20";
+    }
+
+    if (item.severity === "error") {
+      statusColor = "text-red-400 bg-red-500/10 border-red-500/20";
+      iconColor = "text-red-500";
+      iconBg = "bg-red-500/20";
+    } else if (item.severity === "warn") {
+      statusColor = "text-amber-400 bg-amber-500/10 border-amber-500/20";
+      iconColor = "text-amber-500";
+      iconBg = "bg-amber-500/20";
+    }
+
+    let timeStr = "";
+    try {
+      timeStr = format(new Date(item.timestamp), "dd MMM yyyy, hh:mm a");
+    } catch {
+      timeStr = item.timestamp;
+    }
+
+    const text = `${item.actor} performed ${item.action.replace(/_/g, " ")} (${item.details || item.target})`;
+
+    return {
+      text,
+      time: timeStr,
+      status: item.severity.toUpperCase(),
+      statusColor,
+      icon,
+      iconColor,
+      iconBg,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-[#0b0e14] text-white p-6 md:p-8 font-sans animate-in fade-in duration-500">
@@ -215,20 +290,26 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-5 flex-1">
-            {activities.map((item, i) => (
-              <div key={i} className="flex gap-4 items-start">
-                <div className={`w-8 h-8 rounded-full ${item.iconBg} flex items-center justify-center shrink-0 mt-0.5`}>
-                  <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+            {activities.length > 0 ? (
+              activities.map((item, i) => (
+                <div key={i} className="flex gap-4 items-start">
+                  <div className={`w-8 h-8 rounded-full ${item.iconBg} flex items-center justify-center shrink-0 mt-0.5`}>
+                    <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-white font-medium mb-1 line-clamp-1">{item.text}</p>
+                    <p className="text-[10px] text-[#8a94a6]">{item.time}</p>
+                  </div>
+                  <div className={`text-[9px] px-2 py-0.5 rounded border font-semibold ${item.statusColor}`}>
+                    {item.status}
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-white font-medium mb-1 line-clamp-1">{item.text}</p>
-                  <p className="text-[10px] text-[#8a94a6]">{item.time}</p>
-                </div>
-                <div className={`text-[9px] px-2 py-0.5 rounded border font-semibold ${item.statusColor}`}>
-                  {item.status}
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-xs text-[#8a94a6]">
+                No recent system activity.
               </div>
-            ))}
+            )}
           </div>
         </div>
 

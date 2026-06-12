@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 
+import { resolveDbOrgId } from "@/lib/organization";
+
 const MULTI_TENANT_ENABLED = true;
 
 export async function GET() {
@@ -14,11 +16,8 @@ export async function GET() {
 
   const supabase = createServerSupabase();
 
+  // Note: departments is a global system table without organization_id.
   let deptsQuery = supabase.from("departments").select("*");
-  
-  if (MULTI_TENANT_ENABLED && orgId) {
-    // deptsQuery = deptsQuery.eq("organization_id", orgId);
-  }
 
   const { data: depts, error: deptsError } = await deptsQuery;
 

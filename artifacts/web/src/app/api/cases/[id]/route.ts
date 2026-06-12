@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
 import { calculateWorkflowStage } from "@/lib/workflow-server";
+import { resolveDbOrgId } from "@/lib/organization";
 
 const MULTI_TENANT_ENABLED = true; // Toggle to true after full DB migration
 
@@ -19,15 +20,13 @@ export async function GET(
   const { id } = await params;
   const supabase = createServerSupabase();
 
+  const dbOrgId = await resolveDbOrgId(supabase, orgId);
+
   let query = supabase
     .from("legacy_exit_cases")
     .select("*, clearance_tasks:legacy_clearance_tasks(*), timeline_events(*), exit_interviews:legacy_exit_interviews(*), case_comments:legacy_case_comments(*), documents:legacy_documents(*)")
-    .eq("id", id);
-
-  if (MULTI_TENANT_ENABLED && orgId) {
-    // In the future when querying org_exit_cases, we would add:
-    // query = query.eq("organization_id", orgId);
-  }
+    .eq("id", id)
+    .eq("organization_id", dbOrgId);
 
   const { data, error } = await query.single();
 
@@ -117,15 +116,13 @@ export async function PATCH(
     );
   }
 
+  const dbOrgId = await resolveDbOrgId(supabase, orgId);
+
   let query = supabase
     .from("legacy_exit_cases")
     .update(updateData)
-    .eq("id", id);
-    
-  if (MULTI_TENANT_ENABLED && orgId) {
-    // In the future when querying org_exit_cases, we would add:
-    // query = query.eq("organization_id", orgId);
-  }
+    .eq("id", id)
+    .eq("organization_id", dbOrgId);
 
   const { data: updatedData, error: updateError } = await query.select().single();
 
