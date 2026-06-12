@@ -455,7 +455,7 @@ export default function SettingsUsersPage() {
           
         </div>
       ) : (
-        <div className="flex justify-center p-6 bg-[#11141c] border border-white/5 rounded-2xl overflow-hidden">
+        <div className="flex justify-center p-6 bg-[#11141c] border border-white/5 rounded-2xl" style={{ overflow: "visible" }}>
           <OrganizationProfile
             appearance={{
               variables: {
@@ -479,8 +479,18 @@ export default function SettingsUsersPage() {
                 profileSectionTitle: "text-white border-b border-white/5",
                 membershipRoleIcon: "text-[#8a94a6]",
                 breadcrumbs: "hidden",
+                // Fix: allow scrollbox to be visible so dropdowns aren't clipped
                 scrollBox: "bg-transparent",
                 pageScrollBox: "bg-transparent px-6",
+                // Role select width fixes
+                selectButton: {
+                  minWidth: "180px",
+                  whiteSpace: "nowrap",
+                } as React.CSSProperties,
+                selectOptionsContainer: {
+                  minWidth: "200px",
+                  zIndex: 99999,
+                } as React.CSSProperties,
               }
             }}
           />

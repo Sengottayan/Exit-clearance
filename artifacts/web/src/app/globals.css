@@ -231,3 +231,53 @@
 button, a, input, select, textarea {
   @apply transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)];
 }
+
+/* ─── Clerk OrganizationProfile Dropdown Fixes ─────────────────────────────
+   Clerk wraps its role select in containers with overflow:hidden which clips
+   the dropdown. These overrides allow the popup to float above the table. */
+.cl-card,
+.cl-rootBox,
+.cl-organizationProfile-root,
+.cl-pageScrollBox,
+.cl-scrollBox,
+.cl-profilePage,
+.cl-profileSection,
+.cl-membershipsTable,
+.cl-tableBody,
+.cl-tableRow,
+.cl-tableCellMenu {
+  overflow: visible !important;
+}
+
+/* Ensure the select button is wide enough for long role names */
+.cl-selectButton {
+  min-width: 180px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Float the dropdown option list above everything */
+.cl-selectOptionsContainer {
+  min-width: 200px !important;
+  z-index: 99999 !important;
+  position: fixed !important;
+  background: #11141c !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+  overflow: hidden !important;
+}
+
+/* Style each option row */
+.cl-selectOption {
+  padding: 8px 14px !important;
+  font-size: 0.85rem !important;
+  white-space: nowrap !important;
+  color: #e2e8f0 !important;
+}
+.cl-selectOption:hover {
+  background: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+}
+
