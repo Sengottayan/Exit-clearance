@@ -66,7 +66,7 @@ export async function POST(
     // 3. Fetch all clearance tasks for this case
     const { data: tasks, error: tasksFetchErr } = await supabase
       .from("legacy_clearance_tasks")
-      .select("id, dept_id, sla_hours")
+      .select("id, dept_id, sla_hours, assignee_id, dept_label")
       .eq("case_id", caseId);
 
     if (tasksFetchErr) {
@@ -128,6 +128,55 @@ export async function POST(
 
     if (timelineErr) {
       console.warn("[POST approve-resignation] Timeline event insert failed:", timelineErr.message);
+    }
+
+    // ── DATABASE NOTIFICATIONS ───────────────────────────────────────────────
+    // 1. Notify Employee
+    if (updateCaseRes.employee_id) {
+      await supabase.from("notifications").insert({
+        user_id: updateCaseRes.employee_id,
+        type: "completion",
+        title: "Resignation Approved",
+        message: `Your resignation request has been approved by your manager. The clearance process has started.`,
+        href: `/cases/${caseId}`,
+        read: false
+      });
+    }
+
+    // 2. Notify HR Professionals
+    const { data: hrUsers } = await supabase
+      .from("users")
+      .select("id")
+      .eq("role", "hr");
+
+    if (hrUsers && hrUsers.length > 0) {
+      const hrNotifications = hrUsers.map((hr) => ({
+        user_id: hr.id,
+        type: "system",
+        title: "Resignation Approved",
+        message: `${updateCaseRes.employee_name}'s resignation has been approved by ${actor}.`,
+        href: `/cases/${caseId}`,
+        read: false
+      }));
+      await supabase.from("notifications").insert(hrNotifications);
+    }
+
+    // 3. Notify Department Approvers
+    if (tasks && tasks.length > 0) {
+      const deptNotifications = tasks
+        .filter((t) => t.dept_id !== "manager" && t.assignee_id)
+        .map((t) => ({
+          user_id: t.assignee_id,
+          type: "approval",
+          title: "Clearance Action Required",
+          message: `Clearance task assigned for ${updateCaseRes.employee_name} (${t.dept_label}).`,
+          href: `/tasks/${caseId}__${t.dept_id}`,
+          read: false
+        }));
+
+      if (deptNotifications.length > 0) {
+        await supabase.from("notifications").insert(deptNotifications);
+      }
     }
 
     // 5. Fetch updated case to return (with clearance tasks joined)

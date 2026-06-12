@@ -48,8 +48,12 @@ export const useAuthStore = create<AuthState>()(
           })
             .then((res) => res.ok ? res.json() : null)
             .then((profile) => {
-              if (profile?.managerId) {
-                get().updateUserManager(profile.managerId, profile.managerName ?? '');
+              if (profile) {
+                get().updateUserProfile({
+                  avatarUrl: profile.avatarUrl,
+                  managerId: profile.managerId,
+                  managerName: profile.managerName,
+                });
               }
             })
             .catch(() => {

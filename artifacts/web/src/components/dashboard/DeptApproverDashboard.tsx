@@ -359,6 +359,20 @@ export function DeptApproverDashboard() {
     );
   }
 
+  const recentAssignedTasks = myTasks
+    .filter((t) => ["pending", "in_progress"].includes(t.status) && t.caseStatus === "in_clearance")
+    .map((t) => {
+      const parentCase = cases.find((c) => c.id === t.caseId);
+      return {
+        ...t,
+        caseCreatedAt: parentCase?.createdAt || new Date().toISOString(),
+      };
+    })
+    .filter((t) => {
+      const diffHrs = (Date.now() - new Date(t.caseCreatedAt).getTime()) / (1000 * 60 * 60);
+      return diffHrs <= 48;
+    });
+
   return (
     <div className="space-y-6 animate-slide-up pb-8">
       {/* Header */}
@@ -376,6 +390,37 @@ export function DeptApproverDashboard() {
           )}.
         </p>
       </div>
+
+      {recentAssignedTasks.length > 0 && (
+        <div className="bg-[#121622] border border-blue-500/20 rounded-xl p-4 relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-tight">New Clearance Tasks Assigned</h4>
+              <p className="text-xs text-[#8e9bb0] mt-0.5 font-medium">
+                The following clearance tasks have been assigned to your department in the last 48 hours:
+              </p>
+              <div className="flex flex-wrap gap-2.5 mt-3">
+                {recentAssignedTasks.map((t) => (
+                  <Link
+                    key={`${t.caseId}-${t.id}`}
+                    href={`/tasks/${t.caseId}__${t.deptId}`}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all text-xs font-semibold text-white group"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span>{t.employeeName} ({t.deptLabel})</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{t.caseId}</span>
+                    <span className="text-primary group-hover:translate-x-0.5 transition-transform"> →</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -92,7 +92,7 @@ export function Sidebar() {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-sidebar-accent/50 transition-all duration-300 text-left group">
               <div className="relative">
-                <UserAvatar name={user.name} className="w-9 h-9 border border-sidebar-border shadow-md group-hover:border-sidebar-primary/50 transition-all duration-300" />
+                <UserAvatar name={user.name} src={user.avatarUrl} className="w-9 h-9 border border-sidebar-border shadow-md group-hover:border-sidebar-primary/50 transition-all duration-300" />
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-sidebar" />
               </div>
               <div className="flex flex-col overflow-hidden flex-1">

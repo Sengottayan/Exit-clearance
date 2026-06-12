@@ -378,6 +378,38 @@ export function HRDashboard() {
           </div>
         </div>
 
+        {/* Recently Submitted Exits */}
+        {data?.recentCases && data.recentCases.length > 0 && (
+          <div className="bg-[#121622] border border-orange-500/20 rounded-2xl p-4 relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white tracking-tight">Recent Resignations Submitted</h4>
+                <p className="text-xs text-[#8e9bb0] mt-0.5 font-medium">
+                  The following exit cases were recently submitted and require clearance workflows setup/review:
+                </p>
+                <div className="flex flex-wrap gap-3 mt-3">
+                  {data.recentCases.map((c) => (
+                    <Link
+                      key={c.id}
+                      href={`/cases/${c.id}`}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all text-xs font-semibold text-white group"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                      <span>{c.employeeName} ({c.employeeDept})</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{c.id}</span>
+                      <span className="text-primary group-hover:translate-x-0.5 transition-transform">→</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── 4 Stat Cards ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Active Cases */}

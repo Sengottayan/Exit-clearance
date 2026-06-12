@@ -15,6 +15,7 @@ export interface User {
   managerName?: string;
   jobTitle?: string;
   phone?: string;
+  avatarUrl?: string;
 }
 
 export interface ChecklistItem {

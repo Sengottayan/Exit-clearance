@@ -159,6 +159,14 @@ export async function GET() {
 
   const exitTrend = computeExitTrend(cases);
 
+  const recentCases = activeCases.slice(0, 3).map((c) => ({
+    id: c.id,
+    employeeName: c.employee_name,
+    employeeDept: c.employee_dept,
+    status: c.status,
+    createdAt: c.created_at,
+  }));
+
   return NextResponse.json({
     overview: {
       activeCases: activeCases.length,
@@ -185,6 +193,7 @@ export async function GET() {
     priorityAlerts,
     timelineEvents,
     exitTrend,
+    recentCases,
     hasMoreTimeline: timelineEvents.length === 20
   });
 }

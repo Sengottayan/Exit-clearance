@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       .from("users")
       .update({ dept, phone, manager_id: newManagerId, manager_name: newManagerName })
       .eq("id", userId)
-      .select("id, email, name, role, dept, employee_id, phone")
+      .select("id, email, name, role, dept, employee_id, phone, avatar_url")
       .single();
 
     if (updateError) {
@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
         phone: updatedUser.phone ?? "",
         managerId: newManagerId,
         managerName: newManagerName,
+        avatarUrl: updatedUser.avatar_url ?? "",
       },
       token: "dummy-token-not-used",
     });
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
   const { data: upsertedUser, error: upsertError } = await supabase
     .from("users")
     .upsert(baseUpsert, { onConflict: "id" })
-    .select("id, email, name, role, dept, employee_id")
+    .select("id, email, name, role, dept, employee_id, avatar_url")
     .single();
 
   if (upsertError) {
@@ -345,6 +346,7 @@ export async function POST(request: NextRequest) {
     employeeId: (upsertedUser as Record<string, unknown>).employee_id ?? "",
     managerId: resolvedManagerId,
     managerName: resolvedManagerName,
+    avatarUrl: (upsertedUser as Record<string, unknown>).avatar_url ?? "",
   });
 }
 
@@ -395,5 +397,6 @@ export async function GET() {
     managerId: manager?.id ?? null,
     managerName: manager?.name ?? data.manager_name ?? "",
     jobTitle: data.job_title ?? "",
+    avatarUrl: data.avatar_url ?? "",
   });
 }

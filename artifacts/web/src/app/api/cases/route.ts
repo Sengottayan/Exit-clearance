@@ -294,6 +294,37 @@ export async function POST(request: NextRequest) {
       status: "pending"
     });
 
+    // ── DATABASE NOTIFICATIONS ───────────────────────────────────────────────
+    // 1. Notify Manager
+    if (managerId) {
+      await supabase.from("notifications").insert({
+        user_id: managerId,
+        type: "approval",
+        title: "Resignation Approval Required",
+        message: `Resignation submitted by ${employee.name} (${employee.dept}) requires your approval.`,
+        href: `/cases/${caseId}`,
+        read: false
+      });
+    }
+
+    // 2. Notify HR Professionals
+    const { data: hrUsers } = await supabase
+      .from("users")
+      .select("id")
+      .eq("role", "hr");
+
+    if (hrUsers && hrUsers.length > 0) {
+      const hrNotifications = hrUsers.map((hr) => ({
+        user_id: hr.id,
+        type: "system",
+        title: "New Exit Case Submitted",
+        message: `${employee.name} (${employee.dept}) has filed a resignation request.`,
+        href: `/cases/${caseId}`,
+        read: false
+      }));
+      await supabase.from("notifications").insert(hrNotifications);
+    }
+
   } catch (err) {
     console.error("[POST /api/cases] Workflow initialization error:", err);
   }

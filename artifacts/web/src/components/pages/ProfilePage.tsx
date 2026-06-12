@@ -20,6 +20,7 @@ import {
   ApproverProfileSection,
   AdminProfileSection,
 } from "@/components/profile/ProfileSections";
+import { useAuthStore } from "@/store/authStore";
 
 export default function ProfilePage() {
   const { user, isHR, isAdmin, isManager, isDeptApprover } = useAuth();
@@ -104,6 +105,12 @@ export default function ProfilePage() {
         avatarUrl: publicUrl,
       });
 
+      useAuthStore.getState().updateUserProfile({
+        avatarUrl: publicUrl,
+        name: `${firstName} ${lastName}`.trim(),
+        phone,
+      });
+
       toast.success("Avatar updated successfully", { id: toastId });
     } catch (err: any) {
       console.error("Avatar upload error:", err);
@@ -138,7 +145,13 @@ export default function ProfilePage() {
       managerId: managerId || undefined,
       dept: dept || undefined,
     }, {
-      onSuccess: () => toast.success("Profile updated successfully"),
+      onSuccess: () => {
+        toast.success("Profile updated successfully");
+        useAuthStore.getState().updateUserProfile({
+          name: `${firstName} ${lastName}`.trim(),
+          phone,
+        });
+      },
       onError: (err: any) => toast.error(err.message || "Failed to update profile"),
     });
   };

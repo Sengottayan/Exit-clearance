@@ -31,6 +31,13 @@ export interface DashboardData {
     employee_name: string;
   }>;
   exitTrend: Array<{ name: string; exits: number }>;
+  recentCases?: Array<{
+    id: string;
+    employeeName: string;
+    employeeDept: string;
+    status: string;
+    createdAt: string;
+  }>;
   hasMoreTimeline: boolean;
 }
 

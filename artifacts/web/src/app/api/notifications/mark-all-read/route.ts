@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { useNotificationStore } from "@/store/notificationStore";
+import { createServerSupabase } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   const { userId } = await req.json();
@@ -9,6 +9,16 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  useNotificationStore.getState().markAllRead(userId);
+
+  const supabase = createServerSupabase();
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("user_id", userId);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
   return NextResponse.json({ status: "ok" });
 }

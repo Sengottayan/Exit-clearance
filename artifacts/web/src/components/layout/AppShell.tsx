@@ -12,8 +12,31 @@ interface AppShellProps {
   requireAuth?: boolean;
 }
 
+import { useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
+
 export function AppShell({ children, requireAuth = true }: AppShellProps) {
   const { isAuthenticated, isHydrated } = useAuth();
+  const updateUserProfile = useAuthStore((state) => state.updateUserProfile);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetch("/api/auth/sync-user")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) {
+            updateUserProfile({
+              avatarUrl: data.avatarUrl,
+              managerId: data.managerId,
+              managerName: data.managerName,
+              phone: data.phone,
+              jobTitle: data.jobTitle,
+            });
+          }
+        })
+        .catch((err) => console.error("Failed to sync user profile in AppShell:", err));
+    }
+  }, [isAuthenticated, updateUserProfile]);
 
   if (!isHydrated) {
     return <GlobalLoading />;

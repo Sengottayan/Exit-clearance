@@ -122,6 +122,35 @@ export function ManagerDashboard() {
         )}
       </div>
 
+      {recentPending.length > 0 && (
+        <div className="bg-[#1e1a15] border border-[#d97706]/20 rounded-xl p-4 relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#d97706]/15 text-[#fbbf24] flex items-center justify-center shrink-0 mt-0.5">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-tight">Pending Approvals Required</h4>
+              <p className="text-xs text-[#8e9bb0] mt-0.5 font-medium">
+                You have {recentPending.length} resignation requests awaiting your approval:
+              </p>
+              <div className="flex flex-wrap gap-2.5 mt-3">
+                {recentPending.map((item) => (
+                  <Link
+                    key={item.caseId}
+                    href={`/cases/${item.caseId}`}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg border border-white/5 transition-all text-xs font-semibold text-white group"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24]" />
+                    <span>{item.employeeName} ({item.employeeDept})</span>
+                    <span className="text-[#fbbf24] group-hover:translate-x-0.5 transition-transform"> →</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <KPICard label="Total Cases"               value={metrics?.totalCases ?? 0}     icon={Users}         iconBg="bg-[#1e2b4d]" iconColor="text-[#60a5fa]" sub="All team exits"              subColor="text-[#8e9bb0]"  loading={isLoading} />
