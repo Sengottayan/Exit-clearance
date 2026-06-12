@@ -7,14 +7,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ClipboardCheck, Clock, CheckCircle2, MoreVertical, RotateCw } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Clock, CheckCircle2, MoreVertical, RotateCw, Eye, Mail } from "lucide-react";
 import { resolveTaskStatus } from "@/lib/workflow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GlobalLoading } from "@/components/shared/GlobalLoading";
 import { PaginationFooter } from "@/components/shared/PaginationFooter";
 import { TASK_METADATA } from "@/lib/constants";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import { isPast, isToday, parseISO, differenceInDays } from "date-fns";
-import { Link } from "@/lib/wouter";
+import { Link, useLocation } from "@/lib/wouter";
 import { ProgressRing } from "@/components/shared/ProgressRing";
 import { useState } from "react";
 
@@ -22,6 +29,7 @@ export default function TasksPage() {
   const { user, isDeptApprover, isAdmin } = useAuth();
   const { data: cases = [], isLoading: casesLoading } = useCases();
   const { data: profile,    isLoading: profileLoading } = useUserProfile();
+  const [, setLocation] = useLocation();
 
   // ── Pagination state ───────────────────────────────────────────────
   const [activeTabKey, setActiveTabKey] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
@@ -47,6 +55,7 @@ export default function TasksPage() {
       employeeName: c.employeeName,
       employeeRole: c.employeeRole,
       employeeDept: c.employeeDept,
+      employeeEmail: c.employeeEmail,
     }));
   });
 
@@ -284,9 +293,37 @@ export default function TasksPage() {
                               <Link href={`/tasks/${task.caseId}__${task.deptId}`}>
                                 {actionButton}
                               </Link>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                                <MoreVertical className="w-3.5 h-3.5" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                                    <MoreVertical className="w-3.5 h-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-44 bg-[#11141c] border border-white/10 text-white">
+                                  <DropdownMenuItem className="hover:bg-white/5 cursor-pointer text-xs" onClick={() => setLocation(`/tasks/${task.caseId}__${task.deptId}`)}>
+                                    <Eye className="w-3.5 h-3.5 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="hover:bg-white/5 cursor-pointer text-xs" onClick={() => {
+                                    navigator.clipboard.writeText(task.id || "");
+                                    toast.success("Task ID copied to clipboard");
+                                  }}>
+                                    <ClipboardCheck className="w-3.5 h-3.5 mr-2" />
+                                    Copy Task ID
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="hover:bg-white/5 cursor-pointer text-xs" onClick={() => {
+                                    if (task.employeeEmail) {
+                                      navigator.clipboard.writeText(task.employeeEmail);
+                                      toast.success("Employee email copied to clipboard");
+                                    } else {
+                                      toast.error("Employee email not available");
+                                    }
+                                  }}>
+                                    <Mail className="w-3.5 h-3.5 mr-2" />
+                                    Copy Email
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>

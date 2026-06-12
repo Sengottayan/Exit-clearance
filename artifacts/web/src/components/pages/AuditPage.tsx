@@ -11,9 +11,22 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MoreVertical, ArrowUpDown, ShieldAlert, Briefcase, FileText,
   CheckSquare, Users, ExternalLink, Calendar, Sparkles, RefreshCw,
-  ClipboardList,
+  ClipboardList, Eye,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -118,6 +131,7 @@ export default function AuditPage() {
   const [severityFilter, setSeverityFilter] = useState("all");
   const [page,           setPage]           = useState(1);
   const [trendGranularity, setTrendGranularity] = useState("daily");
+  const [selectedLog,    setSelectedLog]    = useState<any | null>(null);
   const PAGE_SIZE = 10;
 
   const filters = {
@@ -437,9 +451,33 @@ export default function AuditPage() {
                       <td className="px-4 py-3.5 text-muted-foreground max-w-[180px] truncate">{log.details}</td>
                       <td className="px-4 py-3.5 font-mono text-[10px] text-muted-foreground">{log.ip}</td>
                       <td className="px-4 py-3.5">
-                        <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded-lg">
-                          <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded-lg">
+                              <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40 bg-[#11141c] border border-white/10 text-white">
+                            <DropdownMenuItem className="hover:bg-white/5 cursor-pointer text-xs" onClick={() => setSelectedLog(log)}>
+                              <Eye className="w-3.5 h-3.5 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="hover:bg-white/5 cursor-pointer text-xs" onClick={() => {
+                              navigator.clipboard.writeText(log.details || "");
+                              toast.success("Details copied to clipboard");
+                            }}>
+                              <FileText className="w-3.5 h-3.5 mr-2" />
+                              Copy Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="hover:bg-white/5 cursor-pointer text-xs" onClick={() => {
+                              navigator.clipboard.writeText(log.ip || "");
+                              toast.success("IP address copied to clipboard");
+                            }}>
+                              <Users className="w-3.5 h-3.5 mr-2" />
+                              Copy IP Address
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))
@@ -610,6 +648,107 @@ export default function AuditPage() {
           </button>
         </div>
       </div>
+
+      {selectedLog && (
+        <Dialog open={selectedLog !== null} onOpenChange={(open) => !open && setSelectedLog(null)}>
+          <DialogContent className="max-w-md bg-[#11141c] border border-white/10 rounded-2xl p-6 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-base font-extrabold flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-indigo-400" />
+                Audit Event Details
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-1">
+                Full technical parameters and context for this system event.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-4 text-xs">
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">Timestamp</span>
+                <span className="col-span-2 font-mono text-[11px] text-zinc-300">
+                  {format(new Date(selectedLog.timestamp), "dd MMM yyyy, hh:mm:ss aa")}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">Severity</span>
+                <span className="col-span-2">
+                  <SeverityBadge severity={selectedLog.severity} />
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">Actor</span>
+                <span className="col-span-2 text-zinc-200 font-bold">
+                  {selectedLog.actor} ({selectedLog.actorRole})
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">Event Type</span>
+                <span className="col-span-2">
+                  <TypeBadge type={selectedLog.eventType} />
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">Action</span>
+                <span className="col-span-2 text-zinc-200 font-semibold">
+                  {selectedLog.action}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">Target</span>
+                <span className="col-span-2 font-mono text-zinc-300">
+                  {selectedLog.target}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                <span className="text-muted-foreground font-semibold">IP Address</span>
+                <span className="col-span-2 font-mono text-zinc-300">
+                  {selectedLog.ip}
+                </span>
+              </div>
+
+              {selectedLog.sessionId && (
+                <div className="grid grid-cols-3 gap-2 py-1.5 border-b border-white/5">
+                  <span className="text-muted-foreground font-semibold">Session ID</span>
+                  <span className="col-span-2 font-mono text-[10px] text-zinc-400">
+                    {selectedLog.sessionId}
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-1.5 pt-2">
+                <span className="text-muted-foreground font-semibold block">Details &amp; Metadata</span>
+                <div className="bg-black/30 border border-white/5 rounded-xl p-3 font-mono text-[10px] text-zinc-300 overflow-x-auto max-h-[160px] whitespace-pre-wrap">
+                  {(() => {
+                    try {
+                      const parsed = JSON.parse(selectedLog.details);
+                      return JSON.stringify(parsed, null, 2);
+                    } catch {
+                      return selectedLog.details;
+                    }
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedLog(null)}
+                className="h-8 rounded-xl text-xs font-bold border-white/10 hover:bg-white/5 text-zinc-300"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

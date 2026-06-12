@@ -11,6 +11,7 @@ import { format, differenceInHours } from "date-fns";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { EXIT_REASONS } from "@/lib/constants";
 import CaseDetailPage from "@/components/pages/CaseDetailPage";
+import { CaseActionsMenu } from "@/components/cases/CaseActionsMenu";
 
 // ── SLA helpers ────────────────────────────────────────────────────────────────
 type SLAStatus = "on_track" | "at_risk" | "overdue" | "none";
@@ -478,9 +479,7 @@ export default function CasesPage() {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="text-[#8e9bb0] hover:text-white transition-colors" title="More actions">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                      <CaseActionsMenu exitCase={c} iconOnly />
                     </div>
                   </td>
                 </tr>

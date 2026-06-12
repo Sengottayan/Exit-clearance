@@ -131,7 +131,7 @@ export default function ResignPage() {
       setConfirmOpen(false);
       localStorage.removeItem("resign_draft");
       toast.success("Resignation submitted successfully");
-      setLocation(`/cases/${createdCase.id}`);
+      setLocation(`/cases/${createdCase.caseId}`);
     } catch {
       toast.error("We couldn't submit your resignation. Please try again.");
     }

@@ -151,6 +151,7 @@ export async function PATCH(request: NextRequest) {
       firstName, lastName, phone, 
       jobTitle, employeeType, dateOfHire, managerId,
       dept,  // Now supported for all roles
+      avatarUrl,
     } = body;
 
     // VALIDATION
@@ -204,6 +205,9 @@ export async function PATCH(request: NextRequest) {
       name: name,
       phone_number: phone,
     };
+    if (avatarUrl !== undefined) {
+      userUpdates.avatar_url = avatarUrl;
+    }
     // Update dept for all roles (manager needs this for dashboard filtering)
     if (dept !== undefined) {
       userUpdates.dept = dept;

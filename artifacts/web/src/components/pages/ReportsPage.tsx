@@ -101,8 +101,36 @@ export default function ReportsPage() {
     setAppliedFilters({ dateRange, department, exitReason });
   };
 
-  const handleExport = () => {
-    toast.success("Report exported successfully");
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (appliedFilters.dateRange) {
+        params.set("dateRange", appliedFilters.dateRange);
+      }
+      if (appliedFilters.department && appliedFilters.department !== "all") {
+        params.set("department", appliedFilters.department);
+      }
+      if (appliedFilters.exitReason && appliedFilters.exitReason !== "all") {
+        params.set("reason", appliedFilters.exitReason);
+      }
+      params.set("format", "csv");
+
+      toast.loading("Exporting report...", { id: "export-report" });
+      const res = await fetch(`/api/cases/export?${params.toString()}`);
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const dateStr = new Date().toISOString().split("T")[0];
+      a.download = `hr-exit-report-${dateStr}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Report exported successfully", { id: "export-report" });
+    } catch (err: any) {
+      console.error("Export error:", err);
+      toast.error(err.message || "Failed to export report", { id: "export-report" });
+    }
   };
 
   // ── Derived data ────────────────────────────────────────────────────────────
@@ -239,14 +267,24 @@ export default function ReportsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-9 px-4 rounded-xl text-xs font-semibold border-border/60 bg-card gap-1.5"
+            <Select
+              value={dateRange}
+              onValueChange={(val) => {
+                setDateRange(val);
+                setAppliedFilters((prev) => ({ ...prev, dateRange: val }));
+              }}
             >
-              <Calendar className="w-3.5 h-3.5" />
-              {dateRange}
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-            </Button>
+              <SelectTrigger className="h-9 px-4 rounded-xl text-xs font-semibold border-border/60 bg-card gap-1.5 w-auto">
+                <Calendar className="w-3.5 h-3.5" />
+                <SelectValue placeholder="Select Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Last 30 Days"  className="text-xs">Last 30 Days</SelectItem>
+                <SelectItem value="Last 90 Days"  className="text-xs">Last 90 Days</SelectItem>
+                <SelectItem value="Last 6 Months" className="text-xs">Last 6 Months</SelectItem>
+                <SelectItem value="Last 12 Months" className="text-xs">Last 12 Months</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               onClick={handleExport}
               className="h-9 px-4 rounded-xl text-xs font-bold bg-primary shadow-md shadow-primary/20 gap-1.5"
@@ -602,23 +640,6 @@ export default function ReportsPage() {
                   {deptOptions.map((d) => (
                     <SelectItem key={d} value={d.toLowerCase()} className="text-xs">{d}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Location
-              </label>
-              <Select value={location} onValueChange={setLocation}>
-                <SelectTrigger className="h-9 w-full rounded-xl text-xs font-semibold bg-background border-border/60">
-                  <SelectValue placeholder="All Locations" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all"       className="text-xs">All Locations</SelectItem>
-                  <SelectItem value="bengaluru" className="text-xs">Bengaluru</SelectItem>
-                  <SelectItem value="mumbai"    className="text-xs">Mumbai</SelectItem>
-                  <SelectItem value="delhi"     className="text-xs">Delhi</SelectItem>
                 </SelectContent>
               </Select>
             </div>

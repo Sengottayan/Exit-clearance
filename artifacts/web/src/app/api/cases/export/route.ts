@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getOptionalAuth, unauthorized } from "@/lib/api-auth";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 
 export async function GET(request: NextRequest) {
   const { userId } = await getOptionalAuth();
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const department = searchParams.get("department");
   const reason = searchParams.get("reason");
   const search = searchParams.get("search");
+  const dateRange = searchParams.get("dateRange");
   const exportFormat = searchParams.get("format") || "csv"; // csv | excel
 
   // Build query — same filtering logic as GET /api/cases
@@ -22,6 +23,20 @@ export async function GET(request: NextRequest) {
     .from("exit_cases")
     .select("id, employee_name, employee_email, employee_role, employee_dept, manager_name, status, resignation_date, last_working_day, notice_period_days, exit_reason, escalated, created_at, clearance_tasks(id, status, sla_due_at)")
     .order("created_at", { ascending: false });
+
+  if (dateRange) {
+    const daysMap: Record<string, number> = {
+      "Last 30 Days": 30,
+      "Last 90 Days": 90,
+      "Last 6 Months": 180,
+      "Last 12 Months": 365,
+    };
+    const days = daysMap[dateRange];
+    if (days) {
+      const since = subDays(new Date(), days).toISOString();
+      query = query.gte("created_at", since);
+    }
+  }
 
   if (managerId) query = query.eq("manager_id", managerId);
   if (status && status !== "all") query = query.eq("status", status);

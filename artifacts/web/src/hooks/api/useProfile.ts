@@ -74,6 +74,7 @@ export function useUpdateProfile() {
       dateOfHire?: string;
       managerId?: string;
       dept?: string;
+      avatarUrl?: string;
     }) => {
       const response = await fetch('/api/users/profile', {
         method: 'PATCH',

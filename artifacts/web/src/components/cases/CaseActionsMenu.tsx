@@ -26,9 +26,10 @@ type DialogType = "cancel" | "escalate" | "extend" | null;
 
 interface CaseActionsMenuProps {
   exitCase: ExitCase;
+  iconOnly?: boolean;
 }
 
-export function CaseActionsMenu({ exitCase }: CaseActionsMenuProps) {
+export function CaseActionsMenu({ exitCase, iconOnly }: CaseActionsMenuProps) {
   const { user, isHR, isAdmin, isManager } = useAuth();
   const { mutate: cancelCase } = useCancelCase();
   const { mutate: extendLastWorkingDay } = useExtendLastWorkingDay();
@@ -95,10 +96,16 @@ export function CaseActionsMenu({ exitCase }: CaseActionsMenuProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            <MoreHorizontal className="w-4 h-4 mr-2" />
-            Actions
-          </Button>
+          {iconOnly ? (
+            <button className="text-muted-foreground hover:text-white transition-colors p-1 hover:bg-white/5 rounded" title="More actions">
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+          ) : (
+            <Button variant="outline" size="sm">
+              <MoreHorizontal className="w-4 h-4 mr-2" />
+              Actions
+            </Button>
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
           {canExtend && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Mail, Hash, ChevronRight, Save, Pencil, Building2, User } from "lucide-
 import { toast } from "sonner";
 import { useUserProfile, useUpdateProfile, useManagers } from "@/hooks/api/useProfile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/lib/supabase";
 import {
   SectionCard, ProfileSkeleton,
   EmployeeProfileSection,
@@ -52,6 +53,66 @@ export default function ProfilePage() {
       setDateOfHire(profile.employment.dateOfHire ? new Date(profile.employment.dateOfHire) : undefined);
     }
   }, [profile, user]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !user) return;
+    const file = e.target.files[0];
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB.");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const toastId = toast.loading("Uploading avatar...");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/profile/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json();
+        throw new Error(errJson.error || "Failed to upload avatar to server");
+      }
+
+      const { publicUrl } = await response.json();
+
+      await updateProfile.mutateAsync({
+        firstName,
+        lastName,
+        phone,
+        jobTitle,
+        employeeType,
+        dateOfHire: dateOfHire ? dateOfHire.toISOString() : undefined,
+        managerId: managerId || undefined,
+        dept: dept || undefined,
+        avatarUrl: publicUrl,
+      });
+
+      toast.success("Avatar updated successfully", { id: toastId });
+    } catch (err: any) {
+      console.error("Avatar upload error:", err);
+      toast.error(err.message || "Failed to upload avatar", { id: toastId });
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   if (error) {
     return <div className="p-6 text-red-500">Failed to load profile.</div>;
@@ -249,9 +310,17 @@ export default function ProfilePage() {
                 ) : (
                   <>
                     <UserAvatar name={profile?.user.firstName || "User"} src={profile?.user.avatarUrl} className="w-24 h-24 text-2xl font-bold shadow-md" />
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleAvatarChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
                     <button
-                      onClick={() => toast.info("Avatar upload coming soon")}
-                      className="absolute bottom-0 right-0 w-8 h-8 bg-background border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors shadow-sm"
+                      onClick={handleAvatarClick}
+                      disabled={uploadingAvatar}
+                      className="absolute bottom-0 right-0 w-8 h-8 bg-background border border-border rounded-full flex items-center justify-center hover:bg-muted disabled:opacity-50 transition-colors shadow-sm"
                     >
                       <Pencil className="w-3.5 h-3.5 text-foreground" />
                     </button>
